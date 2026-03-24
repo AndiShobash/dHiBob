@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-cherry: #E33054;
+  --color-orange: #FFA32B;
+  --color-wine: #83143D;
+  --color-charcoal: #3A3A37;
+}
+
+body { font-family: 'Inter', sans-serif; color: var(--color-charcoal); }
+
+.card { @apply bg-white rounded-xl shadow-md p-6 border border-gray-100; }
+.btn-primary { @apply inline-flex items-center justify-center px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 font-semibold; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in { animation: fadeIn 200ms ease-in-out; }
+.animate-slide-up { animation: slideUp 300ms ease-out; }
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #f3f3f2; }
+::-webkit-scrollbar-thumb { background: #bfbfbb; border-radius: 4px; }
