@@ -7,7 +7,7 @@ async function main() {
   console.log("Starting seed...");
 
   // Clear existing data
-  const tables = ["OnboardingTask","OnboardingTemplate","Webhook","AuditLog","Position","Document",
+  const tables = ["PayRun","OnboardingTask","OnboardingTemplate","Webhook","AuditLog","Position","Document",
     "SurveyResponse","Survey","Candidate","JobPosting","SalaryBand","CompensationRecord",
     "KeyResult","Goal","PerformanceReview","ReviewCycle","Attendance","TimeOffRequest",
     "TimeOffPolicy","User","Employee","Team","Department","Site","Company"];
@@ -15,9 +15,10 @@ async function main() {
     await prisma.$executeRawUnsafe(`DELETE FROM "${table}"`);
   }
 
-  // Create Company
+  // Create Company — fixed ID so session tokens survive rebuilds
   const company = await prisma.company.create({
     data: {
+      id: "acme-technologies-seed-company",
       name: "Acme Technologies", logo: "https://via.placeholder.com/200x200?text=Acme",
       domain: "acme.tech",
       settings: JSON.stringify({ timezone: "UTC", language: "en", currency: "USD" }),
@@ -93,18 +94,275 @@ async function main() {
     { email: "zoey.sanders@acme.tech", first: "Zoey", last: "Sanders", dept: hrDept.id, site: 0, team: null, type: "INTERN", start: "2023-06-01", title: "HR Intern" },
   ];
 
+  // Salary history per employee index — mirrors workInfo.salaryHistory used on the profile page.
+  // Past entries = historical record; future entries = approved upcoming increases.
+  const today = new Date();
+  const y = today.getFullYear();
+  const salaryMap: Record<number, Array<{ effectiveDate: string; contractType: string; salaryType: string; salaryAmount: string; salaryCurrency: string; note: string }>> = {
+    0:  [ // Sarah Johnson — CEO
+      { effectiveDate: "2015-01-15", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "220000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2018-01-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "260000", salaryCurrency: "USD", note: "Promotion to CEO" },
+      { effectiveDate: "2022-01-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "300000", salaryCurrency: "USD", note: "Annual review" },
+      { effectiveDate: `${y}-07-01`, contractType: "Full-time", salaryType: "Bonus", salaryAmount: "50000", salaryCurrency: "USD", note: "Performance bonus H1" },
+    ],
+    1:  [ // Michael Chen — VP Engineering
+      { effectiveDate: "2016-06-20", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "170000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2020-01-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "210000", salaryCurrency: "USD", note: "Promoted to VP" },
+      { effectiveDate: `${y}-06-01`, contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "225000", salaryCurrency: "USD", note: "Annual increase" },
+    ],
+    2:  [ // Emma Watson — VP Product
+      { effectiveDate: "2017-03-10", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "160000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2021-03-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "195000", salaryCurrency: "USD", note: "Promoted to VP" },
+      { effectiveDate: `${y}-09-01`, contractType: "Full-time", salaryType: "Bonus", salaryAmount: "30000", salaryCurrency: "USD", note: "Annual bonus" },
+    ],
+    4:  [ // James Smith — Engineering Manager
+      { effectiveDate: "2018-04-15", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "135000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2022-04-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "155000", salaryCurrency: "USD", note: "Annual review" },
+      { effectiveDate: `${y}-05-01`, contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "165000", salaryCurrency: "USD", note: "Approved increase" },
+    ],
+    5:  [ // Priya Patel — Senior Backend Engineer
+      { effectiveDate: "2019-08-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "115000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2022-08-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "135000", salaryCurrency: "USD", note: "Senior promotion" },
+      { effectiveDate: `${y}-08-01`, contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "148000", salaryCurrency: "USD", note: "Planned annual review" },
+    ],
+    6:  [ // David Kumar — Backend Engineer
+      { effectiveDate: "2020-05-12", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "95000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2023-05-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "110000", salaryCurrency: "USD", note: "Annual review" },
+      { effectiveDate: `${y}-06-01`, contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "120000", salaryCurrency: "USD", note: "Approved raise" },
+    ],
+    7:  [ // Olivia Brown — Engineering Manager
+      { effectiveDate: "2018-09-20", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "130000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2022-01-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "150000", salaryCurrency: "USD", note: "Annual review" },
+    ],
+    8:  [ // Lucas Silva — Senior Frontend Engineer
+      { effectiveDate: "2019-01-15", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "112000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2023-01-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "130000", salaryCurrency: "USD", note: "Annual review" },
+      { effectiveDate: `${y}-07-01`, contractType: "Full-time", salaryType: "Bonus", salaryAmount: "15000", salaryCurrency: "USD", note: "Retention bonus" },
+    ],
+    9:  [ // Isabella Rossi — Frontend Engineer
+      { effectiveDate: "2021-06-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "88000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: `${y}-06-01`, contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "98000", salaryCurrency: "USD", note: "Annual increase" },
+    ],
+    14: [ // Carlos Mendez — Design Lead
+      { effectiveDate: "2017-09-25", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "125000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2021-09-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "145000", salaryCurrency: "USD", note: "Lead promotion" },
+      { effectiveDate: `${y}-09-01`, contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "158000", salaryCurrency: "USD", note: "Planned review" },
+    ],
+    19: [ // Christopher Quinn — Sales Manager
+      { effectiveDate: "2017-07-10", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "105000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2021-07-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "125000", salaryCurrency: "USD", note: "Annual review" },
+      { effectiveDate: `${y}-07-01`, contractType: "Full-time", salaryType: "Bonus", salaryAmount: "20000", salaryCurrency: "USD", note: "Q2 sales bonus" },
+    ],
+    23: [ // Helen Clark — HR Manager
+      { effectiveDate: "2016-02-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "100000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2022-02-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "118000", salaryCurrency: "USD", note: "Annual review" },
+      { effectiveDate: `${y}-10-01`, contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "128000", salaryCurrency: "USD", note: "Planned increase" },
+    ],
+    25: [ // George Phillips — Finance Manager
+      { effectiveDate: "2015-08-17", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "115000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2020-08-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "135000", salaryCurrency: "USD", note: "Annual review" },
+      { effectiveDate: `${y}-08-01`, contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "145000", salaryCurrency: "USD", note: "Approved increase" },
+    ],
+    26: [ // Victoria Adams — Accountant
+      { effectiveDate: "2020-01-20", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "78000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2023-01-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "90000", salaryCurrency: "USD", note: "Annual review" },
+    ],
+  };
+
+  // Personal info per employee index — gender, dateOfBirth, and other personal details
+  const personalInfoMap: Record<number, { gender: string; dateOfBirth: string; nationality?: string; nationalId?: string; address?: string; city?: string; country?: string }> = {
+    0:  { gender: "Female", dateOfBirth: "1978-03-22", nationality: "American", address: "45 Park Ave", city: "New York", country: "USA" },
+    1:  { gender: "Male", dateOfBirth: "1985-11-15", nationality: "American", address: "120 Broadway", city: "New York", country: "USA" },
+    2:  { gender: "Female", dateOfBirth: "1983-07-08", nationality: "British", address: "12 Baker St", city: "London", country: "UK" },
+    3:  { gender: "Male", dateOfBirth: "1990-02-14", nationality: "Israeli", address: "8 Rothschild Blvd", city: "Tel Aviv", country: "Israel" },
+    4:  { gender: "Male", dateOfBirth: "1988-09-30", nationality: "American", address: "200 West St", city: "New York", country: "USA" },
+    5:  { gender: "Female", dateOfBirth: "1992-04-18", nationality: "Indian", address: "55 Tech Park", city: "New York", country: "USA" },
+    6:  { gender: "Male", dateOfBirth: "1995-12-05", nationality: "Indian", address: "10 Digital Way", city: "Berlin", country: "Germany" },
+    7:  { gender: "Female", dateOfBirth: "1987-06-25", nationality: "British", address: "34 Innovation St", city: "London", country: "UK" },
+    8:  { gender: "Male", dateOfBirth: "1991-01-20", nationality: "Brazilian", address: "56 Tech Lane", city: "London", country: "UK" },
+    9:  { gender: "Female", dateOfBirth: "1996-08-12", nationality: "Italian", address: "22 Future Rd", city: "Sydney", country: "Australia" },
+    10: { gender: "Male", dateOfBirth: "1984-05-17", nationality: "Israeli", address: "15 Herzl St", city: "Tel Aviv", country: "Israel" },
+    11: { gender: "Female", dateOfBirth: "1993-10-28", nationality: "Bulgarian", address: "7 Tech Park", city: "Tel Aviv", country: "Israel" },
+    12: { gender: "Male", dateOfBirth: "1989-03-09", nationality: "American", address: "88 Oxford St", city: "London", country: "UK" },
+    13: { gender: "Female", dateOfBirth: "1994-11-22", nationality: "French", address: "45 Kings Rd", city: "London", country: "UK" },
+    14: { gender: "Male", dateOfBirth: "1986-07-14", nationality: "Mexican", address: "30 Jaffa Rd", city: "Tel Aviv", country: "Israel" },
+    15: { gender: "Female", dateOfBirth: "1997-02-03", nationality: "Japanese", address: "18 Harbour St", city: "Sydney", country: "Australia" },
+    16: { gender: "Female", dateOfBirth: "1985-08-19", nationality: "American", address: "60 Unter den Linden", city: "Berlin", country: "Germany" },
+    17: { gender: "Male", dateOfBirth: "1993-04-07", nationality: "German", address: "25 Friedrichstr", city: "Berlin", country: "Germany" },
+    18: { gender: "Female", dateOfBirth: "1994-06-30", nationality: "Korean", address: "300 5th Ave", city: "New York", country: "USA" },
+    19: { gender: "Male", dateOfBirth: "1982-12-11", nationality: "American", address: "150 Broadway", city: "New York", country: "USA" },
+    20: { gender: "Female", dateOfBirth: "1990-09-15", nationality: "American", address: "75 Wall St", city: "New York", country: "USA" },
+    21: { gender: "Male", dateOfBirth: "1995-01-28", nationality: "Swedish", address: "40 Alexanderplatz", city: "Berlin", country: "Germany" },
+    22: { gender: "Female", dateOfBirth: "1980-05-06", nationality: "American", address: "90 Madison Ave", city: "New York", country: "USA" },
+    23: { gender: "Female", dateOfBirth: "1991-07-19", nationality: "British", address: "22 Regent St", city: "London", country: "UK" },
+    24: { gender: "Male", dateOfBirth: "1979-10-03", nationality: "American", address: "110 Wall St", city: "New York", country: "USA" },
+    25: { gender: "Female", dateOfBirth: "1993-03-25", nationality: "American", address: "65 Park Ave", city: "New York", country: "USA" },
+    26: { gender: "Male", dateOfBirth: "1986-11-08", nationality: "American", address: "40 Lexington Ave", city: "New York", country: "USA" },
+    27: { gender: "Female", dateOfBirth: "2001-09-14", nationality: "American", address: "25 Union Sq", city: "New York", country: "USA" },
+  };
+
+  // Add salary history for employees who don't have one in salaryMap
+  const defaultSalaryMap: Record<number, Array<{ effectiveDate: string; contractType: string; salaryType: string; salaryAmount: string; salaryCurrency: string; note: string }>> = {
+    3:  [ // Alex Rivera — VP Design
+      { effectiveDate: "2018-01-08", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "145000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2021-01-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "175000", salaryCurrency: "USD", note: "Promoted to VP" },
+    ],
+    10: [ // Ryan Torres — Engineering Manager
+      { effectiveDate: "2017-11-13", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "128000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2021-11-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "148000", salaryCurrency: "USD", note: "Annual review" },
+    ],
+    11: [ // Natalia Koleva — DevOps Engineer
+      { effectiveDate: "2020-02-10", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "105000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2023-02-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "118000", salaryCurrency: "USD", note: "Annual review" },
+    ],
+    12: [ // Marcus Johnson — Senior Product Manager
+      { effectiveDate: "2019-03-18", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "125000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2022-03-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "140000", salaryCurrency: "USD", note: "Senior promotion" },
+    ],
+    13: [ // Sophie Martin — Product Analyst
+      { effectiveDate: "2020-08-24", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "82000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2023-08-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "92000", salaryCurrency: "USD", note: "Annual review" },
+    ],
+    15: [ // Yuki Tanaka — UI Designer
+      { effectiveDate: "2021-01-11", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "78000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2024-01-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "88000", salaryCurrency: "USD", note: "Annual review" },
+    ],
+    16: [ // Rebecca Hall — Marketing Manager
+      { effectiveDate: "2018-05-14", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "105000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2022-05-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "122000", salaryCurrency: "USD", note: "Annual review" },
+    ],
+    17: [ // Thomas Weber — Content Writer
+      { effectiveDate: "2020-09-07", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "65000", salaryCurrency: "EUR", note: "Initial hire" },
+      { effectiveDate: "2023-09-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "72000", salaryCurrency: "EUR", note: "Annual review" },
+    ],
+    18: [ // Amelia Lee — Growth Marketing Specialist
+      { effectiveDate: "2021-03-22", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "75000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2024-03-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "85000", salaryCurrency: "USD", note: "Annual review" },
+    ],
+    20: [ // Diana Foster — Account Executive
+      { effectiveDate: "2019-04-09", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "80000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2022-04-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "95000", salaryCurrency: "USD", note: "Annual review" },
+    ],
+    21: [ // Erik Anderson — Sales Development Rep
+      { effectiveDate: "2020-10-19", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "60000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2023-10-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "68000", salaryCurrency: "USD", note: "Annual review" },
+    ],
+    24: [ // Jessica White — Recruiter
+      { effectiveDate: "2019-11-04", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "72000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2023-01-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "82000", salaryCurrency: "USD", note: "Annual review" },
+    ],
+    27: [ // William Turner — Operations Manager
+      { effectiveDate: "2018-10-08", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "98000", salaryCurrency: "USD", note: "Initial hire" },
+      { effectiveDate: "2022-10-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "115000", salaryCurrency: "USD", note: "Annual review" },
+    ],
+    28: [ // Zoey Sanders — HR Intern
+      { effectiveDate: "2023-06-01", contractType: "Intern", salaryType: "Base Salary", salaryAmount: "42000", salaryCurrency: "USD", note: "Internship" },
+    ],
+  };
+
+  // Merge defaultSalaryMap into salaryMap (salaryMap takes priority)
+  for (const [k, v] of Object.entries(defaultSalaryMap)) {
+    if (!salaryMap[Number(k)]) salaryMap[Number(k)] = v;
+  }
+
   const employees = await Promise.all(
-    empData.map(e => prisma.employee.create({
+    empData.map((e, idx) => prisma.employee.create({
       data: {
         companyId: company.id, email: e.email, firstName: e.first, lastName: e.last,
         displayName: e.first + " " + e.last, status: "ACTIVE", employmentType: e.type,
         startDate: new Date(e.start), departmentId: e.dept,
         siteId: sites[e.site].id, ...(e.team !== null ? { teamId: teams[e.team].id } : {}),
-        personalInfo: JSON.stringify({ phone: "+1-555-0100" }),
-        workInfo: JSON.stringify({ jobTitle: e.title }),
+        personalInfo: JSON.stringify({ phone: "+1-555-0100", ...(personalInfoMap[idx] ?? {}) }),
+        workInfo: JSON.stringify({ jobTitle: e.title, ...(salaryMap[idx] ? { salaryHistory: salaryMap[idx] } : {}) }),
       },
     }))
   );
+
+  // Terminated employees
+  await Promise.all([
+    prisma.employee.create({ data: {
+      companyId: company.id, email: "daniel.morgan@acme.tech",
+      firstName: "Daniel", lastName: "Morgan", displayName: "Daniel Morgan",
+      status: "TERMINATED", employmentType: "FULL_TIME",
+      startDate: new Date("2019-02-11"), endDate: new Date("2025-09-15"),
+      departmentId: engDept.id, siteId: sites[0].id,
+      personalInfo: JSON.stringify({ phone: "+1-555-0201", gender: "Male", dateOfBirth: "1991-06-12" }),
+      workInfo: JSON.stringify({ jobTitle: "Senior Backend Engineer", terminationReason: "Resignation",
+        salaryHistory: [
+          { effectiveDate: "2019-02-11", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "108000", salaryCurrency: "USD", note: "Initial hire" },
+          { effectiveDate: "2022-02-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "125000", salaryCurrency: "USD", note: "Annual review" },
+        ],
+      }),
+    }}),
+    prisma.employee.create({ data: {
+      companyId: company.id, email: "laura.kim@acme.tech",
+      firstName: "Laura", lastName: "Kim", displayName: "Laura Kim",
+      status: "TERMINATED", employmentType: "FULL_TIME",
+      startDate: new Date("2020-07-06"), endDate: new Date("2025-12-31"),
+      departmentId: markDept.id, siteId: sites[3].id,
+      personalInfo: JSON.stringify({ phone: "+49-555-0202", gender: "Female", dateOfBirth: "1992-03-18" }),
+      workInfo: JSON.stringify({ jobTitle: "Growth Marketing Manager", terminationReason: "Layoff",
+        salaryHistory: [
+          { effectiveDate: "2020-07-06", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "82000", salaryCurrency: "EUR", note: "Initial hire" },
+          { effectiveDate: "2022-07-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "92000", salaryCurrency: "EUR", note: "Annual review" },
+        ],
+      }),
+    }}),
+    prisma.employee.create({ data: {
+      companyId: company.id, email: "ben.fischer@acme.tech",
+      firstName: "Ben", lastName: "Fischer", displayName: "Ben Fischer",
+      status: "TERMINATED", employmentType: "FULL_TIME",
+      startDate: new Date("2021-03-15"), endDate: new Date("2026-01-31"),
+      departmentId: salesDept.id, siteId: sites[0].id,
+      personalInfo: JSON.stringify({ phone: "+1-555-0203", gender: "Male", dateOfBirth: "1994-08-22" }),
+      workInfo: JSON.stringify({ jobTitle: "Account Executive", terminationReason: "Performance",
+        salaryHistory: [
+          { effectiveDate: "2021-03-15", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "72000", salaryCurrency: "USD", note: "Initial hire" },
+        ],
+      }),
+    }}),
+    prisma.employee.create({ data: {
+      companyId: company.id, email: "nina.okafor@acme.tech",
+      firstName: "Nina", lastName: "Okafor", displayName: "Nina Okafor",
+      status: "TERMINATED", employmentType: "CONTRACT",
+      startDate: new Date("2022-01-10"), endDate: new Date("2025-07-15"),
+      departmentId: prodDept.id, siteId: sites[1].id,
+      personalInfo: JSON.stringify({ phone: "+44-555-0204", gender: "Female", dateOfBirth: "1990-11-05" }),
+      workInfo: JSON.stringify({ jobTitle: "Product Manager", terminationReason: "Contract End",
+        salaryHistory: [
+          { effectiveDate: "2022-01-10", contractType: "Contract", salaryType: "Base Salary", salaryAmount: "95000", salaryCurrency: "GBP", note: "Contract start" },
+        ],
+      }),
+    }}),
+    prisma.employee.create({ data: {
+      companyId: company.id, email: "andrei.popescu@acme.tech",
+      firstName: "Andrei", lastName: "Popescu", displayName: "Andrei Popescu",
+      status: "TERMINATED", employmentType: "FULL_TIME",
+      startDate: new Date("2017-05-22"), endDate: new Date("2025-11-30"),
+      departmentId: finDept.id, siteId: sites[2].id,
+      personalInfo: JSON.stringify({ phone: "+972-555-0205", gender: "Male", dateOfBirth: "1988-04-15" }),
+      workInfo: JSON.stringify({ jobTitle: "Senior Financial Analyst", terminationReason: "Resignation",
+        salaryHistory: [
+          { effectiveDate: "2017-05-22", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "80000", salaryCurrency: "ILS", note: "Initial hire" },
+          { effectiveDate: "2020-05-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "96000", salaryCurrency: "ILS", note: "Senior promotion" },
+          { effectiveDate: "2023-05-01", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "110000", salaryCurrency: "ILS", note: "Annual review" },
+        ],
+      }),
+    }}),
+    prisma.employee.create({ data: {
+      companyId: company.id, email: "chloe.dupont@acme.tech",
+      firstName: "Chloe", lastName: "Dupont", displayName: "Chloe Dupont",
+      status: "TERMINATED", employmentType: "FULL_TIME",
+      startDate: new Date("2023-04-03"), endDate: new Date("2026-02-15"),
+      departmentId: hrDept.id, siteId: sites[1].id,
+      personalInfo: JSON.stringify({ phone: "+44-555-0206", gender: "Female", dateOfBirth: "1995-01-28" }),
+      workInfo: JSON.stringify({ jobTitle: "HR Business Partner", terminationReason: "Mutual Agreement",
+        salaryHistory: [
+          { effectiveDate: "2023-04-03", contractType: "Full-time", salaryType: "Base Salary", salaryAmount: "68000", salaryCurrency: "GBP", note: "Initial hire" },
+        ],
+      }),
+    }}),
+  ]);
 
   // Set up manager relationships
   const mgrMap = [[1,0],[2,0],[3,0],[4,1],[5,4],[6,4],[7,1],[8,7],[9,7],[10,1],[11,10],[12,2],[13,2],[14,3],[15,14],[16,0],[17,16],[18,16],[19,0],[20,19],[21,19],[22,0],[23,22],[24,0],[25,24],[26,0],[27,22]];
@@ -112,41 +370,99 @@ async function main() {
     prisma.employee.update({ where: { id: employees[emp].id }, data: { managerId: employees[mgr].id } })
   ));
 
+  // Create admin employee so admin user has a companyId in session
+  const adminEmployee = await prisma.employee.create({
+    data: {
+      id: 'admin-employee-seed',
+      companyId: company.id,
+      email: 'admin@acme.tech',
+      firstName: 'Admin',
+      lastName: 'User',
+      displayName: 'Admin User',
+      status: 'ACTIVE',
+      employmentType: 'FULL_TIME',
+      startDate: new Date('2015-01-01'),
+      departmentId: hrDept.id,
+      personalInfo: JSON.stringify({}),
+      workInfo: JSON.stringify({ jobTitle: 'System Administrator' }),
+    },
+  });
+
   // Create Users
   const adminPasswordHash = await bcrypt.hash("password123", 10);
   const employeePassword = await bcrypt.hash("password123", 10);
-  await prisma.user.create({ data: { email: "admin@acme.tech", passwordHash: adminPasswordHash, role: "ADMIN" } });
+  await prisma.user.create({ data: { email: "admin@acme.tech", passwordHash: adminPasswordHash, role: "ADMIN", employeeId: adminEmployee.id } });
   await Promise.all(employees.map(emp =>
     prisma.user.create({ data: { email: emp.email, passwordHash: employeePassword, role: "EMPLOYEE", employeeId: emp.id } })
   ));
 
   // Create Time Off Policies
   const policies = await Promise.all([
-    prisma.timeOffPolicy.create({ data: { companyId: company.id, name: "Vacation", type: "VACATION", accrualRate: 2.083, maxCarryOver: 5, allowNegative: false } }),
-    prisma.timeOffPolicy.create({ data: { companyId: company.id, name: "Sick Leave", type: "SICK", accrualRate: 0.833, maxCarryOver: 10, allowNegative: false } }),
-    prisma.timeOffPolicy.create({ data: { companyId: company.id, name: "Personal Days", type: "PERSONAL", accrualRate: 0.417, maxCarryOver: 3, allowNegative: false } }),
+    prisma.timeOffPolicy.create({ data: { companyId: company.id, name: "Vacation", type: "VACATION", color: "#3b82f6", accrualRate: 2.083, maxCarryOver: 5, allowNegative: false } }),
+    prisma.timeOffPolicy.create({ data: { companyId: company.id, name: "Sick Leave", type: "SICK", color: "#f97316", accrualRate: 0.833, maxCarryOver: 10, allowNegative: false } }),
+    prisma.timeOffPolicy.create({ data: { companyId: company.id, name: "Personal Days", type: "PERSONAL", color: "#8b5cf6", accrualRate: 0.417, maxCarryOver: 3, allowNegative: false } }),
   ]);
 
   // Create Time Off Requests
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+
   const torData = [
-    { emp: 4, pol: 0, start: "2024-06-10", end: "2024-06-14", days: 5, status: "APPROVED", reason: "Summer vacation", revBy: 1, revAt: "2024-05-15" },
-    { emp: 5, pol: 1, start: "2024-03-15", end: "2024-03-15", days: 1, status: "APPROVED", reason: "Medical appointment", revBy: 4, revAt: "2024-03-10" },
-    { emp: 7, pol: 0, start: "2024-07-20", end: "2024-08-02", days: 10, status: "PENDING", reason: "Vacation" },
-    { emp: 10, pol: 2, start: "2024-04-15", end: "2024-04-15", days: 1, status: "APPROVED", reason: "Personal matter", revBy: 1, revAt: "2024-04-10" },
-    { emp: 12, pol: 0, start: "2024-08-15", end: "2024-08-28", days: 10, status: "REJECTED", reason: "Conference + vacation", revBy: 2, revAt: "2024-08-01" },
-    { emp: 14, pol: 0, start: "2024-09-01", end: "2024-09-14", days: 10, status: "PENDING", reason: "Summer break" },
-    { emp: 17, pol: 1, start: "2024-05-20", end: "2024-05-20", days: 1, status: "APPROVED", reason: "Doctor appointment", revBy: 16, revAt: "2024-05-15" },
-    { emp: 19, pol: 0, start: "2024-10-01", end: "2024-10-15", days: 10, status: "PENDING", reason: "Family vacation" },
-    { emp: 22, pol: 0, start: "2024-07-01", end: "2024-07-12", days: 10, status: "APPROVED", reason: "Vacation", revBy: 0, revAt: "2024-06-15" },
-    { emp: 24, pol: 1, start: "2024-04-08", end: "2024-04-08", days: 1, status: "APPROVED", reason: "Sick day", revBy: 0, revAt: "2024-04-05" },
+    // Current Month (April)
+    { emp: 7, pol: 0, start: today, end: new Date(currentYear, currentMonth, 25), days: 15, status: "PENDING", reason: "April Break" },
+    { emp: 4, pol: 0, start: new Date(currentYear, currentMonth, 10), end: new Date(currentYear, currentMonth, 14), days: 5, status: "APPROVED", reason: "Quick Trip", revBy: 1, revAt: new Date() },
+    
+    // May
+    { emp: 7, pol: 0, start: new Date(currentYear, currentMonth + 1, 10), end: new Date(currentYear, currentMonth + 1, 20), days: 10, status: "APPROVED", reason: "May Vacation", revBy: 0, revAt: new Date() },
+    { emp: 1, pol: 0, start: new Date(currentYear, currentMonth + 1, 1), end: new Date(currentYear, currentMonth + 1, 5), days: 5, status: "PENDING", reason: "Spring Break" },
+
+    // June
+    { emp: 7, pol: 0, start: new Date(currentYear, currentMonth + 2, 15), end: new Date(currentYear, currentMonth + 2, 25), days: 10, status: "APPROVED", reason: "June Holiday", revBy: 0, revAt: new Date() },
+
+    // July (Matching your screenshot)
+    { emp: 7, pol: 0, start: new Date(currentYear, currentMonth + 3, 5), end: new Date(currentYear, currentMonth + 3, 15), days: 10, status: "APPROVED", reason: "Summer in July", revBy: 0, revAt: new Date() },
+    { emp: 2, pol: 0, start: new Date(currentYear, currentMonth + 3, 20), end: new Date(currentYear, currentMonth + 3, 25), days: 5, status: "PENDING", reason: "Beach Trip" },
+
+    // Others — more variety
+    { emp: 24, pol: 1, start: new Date(currentYear, currentMonth, 8), end: new Date(currentYear, currentMonth, 8), days: 1, status: "APPROVED", reason: "Sick day", revBy: 0, revAt: new Date() },
+    { emp: 5, pol: 0, start: new Date(currentYear, currentMonth, 15), end: new Date(currentYear, currentMonth, 18), days: 4, status: "APPROVED", reason: "Family visit", revBy: 4, revAt: new Date() },
+    { emp: 9, pol: 2, start: new Date(currentYear, currentMonth, 22), end: new Date(currentYear, currentMonth, 22), days: 1, status: "APPROVED", reason: "Moving day", revBy: 7, revAt: new Date() },
+    { emp: 12, pol: 0, start: new Date(currentYear, currentMonth + 1, 5), end: new Date(currentYear, currentMonth + 1, 9), days: 5, status: "PENDING", reason: "Conference trip" },
+    { emp: 14, pol: 0, start: new Date(currentYear, currentMonth + 1, 15), end: new Date(currentYear, currentMonth + 1, 23), days: 7, status: "APPROVED", reason: "Summer holiday", revBy: 3, revAt: new Date() },
+    { emp: 16, pol: 1, start: new Date(currentYear, currentMonth, 3), end: new Date(currentYear, currentMonth, 4), days: 2, status: "APPROVED", reason: "Flu", revBy: 0, revAt: new Date() },
+    { emp: 19, pol: 0, start: new Date(currentYear, currentMonth + 2, 1), end: new Date(currentYear, currentMonth + 2, 5), days: 5, status: "PENDING", reason: "Road trip" },
+    { emp: 21, pol: 2, start: new Date(currentYear, currentMonth, 28), end: new Date(currentYear, currentMonth, 28), days: 1, status: "APPROVED", reason: "Birthday", revBy: 19, revAt: new Date() },
+    { emp: 8, pol: 0, start: new Date(currentYear, currentMonth + 1, 20), end: new Date(currentYear, currentMonth + 1, 30), days: 8, status: "APPROVED", reason: "Back home to Brazil", revBy: 7, revAt: new Date() },
+    { emp: 11, pol: 1, start: new Date(currentYear, currentMonth, 12), end: new Date(currentYear, currentMonth, 12), days: 1, status: "APPROVED", reason: "Doctor appointment", revBy: 10, revAt: new Date() },
+    { emp: 17, pol: 0, start: new Date(currentYear, currentMonth + 2, 10), end: new Date(currentYear, currentMonth + 2, 14), days: 5, status: "PENDING", reason: "Visit family in Germany" },
+    { emp: 22, pol: 0, start: new Date(currentYear, currentMonth + 1, 12), end: new Date(currentYear, currentMonth + 1, 16), days: 5, status: "APPROVED", reason: "Anniversary trip", revBy: 0, revAt: new Date() },
+
+    // More current month — overlapping days to test "+N more" on calendar
+    { emp: 0, pol: 0, start: new Date(currentYear, currentMonth, 14), end: new Date(currentYear, currentMonth, 18), days: 5, status: "APPROVED", reason: "CEO retreat", revBy: 22, revAt: new Date() },
+    { emp: 3, pol: 2, start: new Date(currentYear, currentMonth, 15), end: new Date(currentYear, currentMonth, 15), days: 1, status: "APPROVED", reason: "Personal errand", revBy: 0, revAt: new Date() },
+    { emp: 10, pol: 0, start: new Date(currentYear, currentMonth, 14), end: new Date(currentYear, currentMonth, 16), days: 3, status: "APPROVED", reason: "Short trip", revBy: 1, revAt: new Date() },
+    { emp: 13, pol: 0, start: new Date(currentYear, currentMonth, 21), end: new Date(currentYear, currentMonth, 25), days: 5, status: "PENDING", reason: "Spring break" },
+    { emp: 15, pol: 1, start: new Date(currentYear, currentMonth, 7), end: new Date(currentYear, currentMonth, 8), days: 2, status: "APPROVED", reason: "Not feeling well", revBy: 14, revAt: new Date() },
+    { emp: 18, pol: 0, start: new Date(currentYear, currentMonth, 10), end: new Date(currentYear, currentMonth, 11), days: 2, status: "APPROVED", reason: "Wedding", revBy: 16, revAt: new Date() },
+    { emp: 20, pol: 0, start: new Date(currentYear, currentMonth, 15), end: new Date(currentYear, currentMonth, 17), days: 3, status: "PENDING", reason: "Long weekend getaway" },
+    { emp: 25, pol: 2, start: new Date(currentYear, currentMonth, 22), end: new Date(currentYear, currentMonth, 22), days: 1, status: "APPROVED", reason: "DMV appointment", revBy: 24, revAt: new Date() },
+    { emp: 6, pol: 0, start: new Date(currentYear, currentMonth, 7), end: new Date(currentYear, currentMonth, 11), days: 5, status: "APPROVED", reason: "Berlin staycation", revBy: 4, revAt: new Date() },
+    { emp: 26, pol: 0, start: new Date(currentYear, currentMonth, 21), end: new Date(currentYear, currentMonth, 22), days: 2, status: "APPROVED", reason: "Moving offices", revBy: 0, revAt: new Date() },
   ];
-  const timeOffRequests = await Promise.all(torData.map(t =>
+
+  // Add time-off requests for the admin user so they show in "My Requests"
+  await Promise.all([
+    prisma.timeOffRequest.create({ data: { employeeId: 'admin-employee-seed', policyId: policies[0].id, startDate: new Date(currentYear, currentMonth + 1, 5), endDate: new Date(currentYear, currentMonth + 1, 9), days: 5, status: "APPROVED", reason: "Admin vacation", reviewedBy: employees[0].id, reviewedAt: new Date() } }),
+    prisma.timeOffRequest.create({ data: { employeeId: 'admin-employee-seed', policyId: policies[0].id, startDate: new Date(currentYear, currentMonth + 2, 1), endDate: new Date(currentYear, currentMonth + 2, 3), days: 3, status: "PENDING", reason: "Long weekend" } }),
+    prisma.timeOffRequest.create({ data: { employeeId: 'admin-employee-seed', policyId: policies[1].id, startDate: new Date(currentYear, currentMonth, 20), endDate: new Date(currentYear, currentMonth, 20), days: 1, status: "APPROVED", reason: "Doctor visit", reviewedBy: employees[0].id, reviewedAt: new Date() } }),
+  ]);
+  await Promise.all(torData.map(t =>
     prisma.timeOffRequest.create({
       data: {
         employeeId: employees[t.emp].id, policyId: policies[t.pol].id,
-        startDate: new Date(t.start), endDate: new Date(t.end), days: t.days,
+        startDate: t.start, endDate: t.end, days: t.days,
         status: t.status, reason: t.reason,
-        ...(t.revBy !== undefined ? { reviewedBy: employees[t.revBy].id, reviewedAt: new Date(t.revAt) } : {}),
+        ...(t.revBy !== undefined ? { reviewedBy: employees[t.revBy].id, reviewedAt: t.revAt } : {}),
       },
     })
   ));
@@ -231,12 +547,12 @@ async function main() {
   ]);
 
   // Create Compensation Records
-  const compensations = await Promise.all([
-    prisma.compensationRecord.create({ data: { employeeId: employees[0].id, effectiveDate: new Date("2023-01-01"), salary: 350000, currency: "USD", payFrequency: "MONTHLY", bonusTarget: 50000, changeReason: "Annual salary review", approvedBy: "BOARD" } }),
-    prisma.compensationRecord.create({ data: { employeeId: employees[1].id, effectiveDate: new Date("2023-06-01"), salary: 220000, currency: "USD", payFrequency: "MONTHLY", bonusTarget: 30000, changeReason: "Promotion to VP", approvedBy: employees[0].id } }),
-    prisma.compensationRecord.create({ data: { employeeId: employees[5].id, effectiveDate: new Date("2023-08-01"), salary: 140000, currency: "USD", payFrequency: "MONTHLY", bonusTarget: 15000, changeReason: "Merit increase", approvedBy: employees[1].id } }),
-    prisma.compensationRecord.create({ data: { employeeId: employees[8].id, effectiveDate: new Date("2023-03-01"), salary: 120000, currency: "USD", payFrequency: "MONTHLY", bonusTarget: 12000, changeReason: "Hire", approvedBy: employees[1].id } }),
-    prisma.compensationRecord.create({ data: { employeeId: employees[14].id, effectiveDate: new Date("2023-01-01"), salary: 130000, currency: "USD", payFrequency: "MONTHLY", bonusTarget: 15000, changeReason: "Annual review", approvedBy: employees[3].id } }),
+  await Promise.all([
+    prisma.compensationRecord.create({ data: { employeeId: employees[0].id, effectiveDate: new Date("2023-01-01"), salary: 350000, currency: "USD", payFrequency: "MONTHLY", bonusAmount: 50000, changeReason: "Annual salary review", approvedBy: "BOARD" } }),
+    prisma.compensationRecord.create({ data: { employeeId: employees[1].id, effectiveDate: new Date("2023-06-01"), salary: 220000, currency: "USD", payFrequency: "MONTHLY", bonusAmount: 30000, changeReason: "Promotion to VP", approvedBy: employees[0].id } }),
+    prisma.compensationRecord.create({ data: { employeeId: employees[5].id, effectiveDate: new Date("2023-08-01"), salary: 140000, currency: "USD", payFrequency: "MONTHLY", bonusAmount: 15000, changeReason: "Merit increase", approvedBy: employees[1].id } }),
+    prisma.compensationRecord.create({ data: { employeeId: employees[8].id, effectiveDate: new Date("2023-03-01"), salary: 120000, currency: "USD", payFrequency: "MONTHLY", bonusAmount: 12000, changeReason: "Hire", approvedBy: employees[1].id } }),
+    prisma.compensationRecord.create({ data: { employeeId: employees[14].id, effectiveDate: new Date("2023-01-01"), salary: 130000, currency: "USD", payFrequency: "MONTHLY", bonusAmount: 15000, changeReason: "Annual review", approvedBy: employees[3].id } }),
   ]);
 
   // Create Salary Bands
@@ -246,21 +562,212 @@ async function main() {
     prisma.salaryBand.create({ data: { companyId: company.id, jobFamily: "Product", level: "Senior", location: "London", currency: "GBP", minSalary: 110000, midSalary: 135000, maxSalary: 170000 } }),
   ]);
 
-  // Create Surveys
+  // Create Surveys with proper question types
+  const engagementQuestions = [
+    { id: "q1", type: "RATING", title: "How satisfied are you with your current role?", required: true, maxRating: 5 },
+    { id: "q2", type: "MULTIPLE_CHOICE", title: "How would you rate work-life balance at the company?", required: true, options: ["Excellent", "Good", "Average", "Below Average", "Poor"] },
+    { id: "q3", type: "CHECKBOX", title: "Which benefits do you value most?", required: false, options: ["Health Insurance", "Flexible Hours", "Remote Work", "Learning Budget", "Team Events", "Stock Options"] },
+    { id: "q4", type: "LONG_TEXT", title: "How would you describe the company culture?", required: false },
+    { id: "q5", type: "RATING", title: "How likely are you to recommend this company as a workplace?", required: true, maxRating: 10 },
+    { id: "q6", type: "MULTIPLE_CHOICE", title: "Do you feel your manager supports your growth?", required: true, options: ["Strongly Agree", "Agree", "Neutral", "Disagree", "Strongly Disagree"] },
+    { id: "q7", type: "SHORT_TEXT", title: "What is one thing we could improve?", required: false },
+  ];
+
+  const pulseQuestions = [
+    { id: "p1", type: "RATING", title: "How is your morale this week?", required: true, maxRating: 5 },
+    { id: "p2", type: "MULTIPLE_CHOICE", title: "How would you describe your workload?", required: true, options: ["Too light", "Just right", "Slightly heavy", "Too heavy"] },
+    { id: "p3", type: "SHORT_TEXT", title: "Any concerns or wins to share?", required: false },
+  ];
+
+  const remoteQuestions = [
+    { id: "r1", type: "MULTIPLE_CHOICE", title: "How many days per week do you prefer to work from home?", required: true, options: ["0 (fully in-office)", "1-2 days", "3-4 days", "5 (fully remote)"] },
+    { id: "r2", type: "RATING", title: "Rate your home office setup", required: true, maxRating: 5 },
+    { id: "r3", type: "CHECKBOX", title: "What challenges do you face working remotely?", required: false, options: ["Internet connectivity", "Distractions", "Loneliness", "Communication gaps", "Time zone differences", "No challenges"] },
+    { id: "r4", type: "LONG_TEXT", title: "What tools or support would help you work better remotely?", required: false },
+  ];
+
   const surveys = await Promise.all([
-    prisma.survey.create({ data: { companyId: company.id, title: "2024 Employee Engagement Survey", type: "ENGAGEMENT", status: "ACTIVE", anonymous: true, minAnonymousThreshold: 5,
-      questions: JSON.stringify([{ id: "q1", text: "How satisfied are you with your role?", type: "scale", scale: 5 }, { id: "q2", text: "Do you have the tools to do your job effectively?", type: "yesno" }, { id: "q3", text: "How would you describe the company culture?", type: "text" }]) } }),
-    prisma.survey.create({ data: { companyId: company.id, title: "Pulse Survey - March 2024", type: "PULSE", status: "ACTIVE", anonymous: true,
-      questions: JSON.stringify([{ id: "p1", text: "How is morale this week?", type: "scale", scale: 5 }, { id: "p2", text: "Any concerns to discuss?", type: "text" }]) } }),
+    prisma.survey.create({ data: {
+      companyId: company.id, creatorId: employees[22].id,
+      title: "Q1 2026 Employee Engagement Survey", description: "Annual engagement survey to understand employee satisfaction and areas for improvement.",
+      type: "ENGAGEMENT", status: "ACTIVE", anonymous: true,
+      questions: JSON.stringify(engagementQuestions),
+    }}),
+    prisma.survey.create({ data: {
+      companyId: company.id, creatorId: employees[22].id,
+      title: "Weekly Pulse Check - April 2026", description: "Quick check-in on team morale and workload.",
+      type: "PULSE", status: "ACTIVE", anonymous: true,
+      questions: JSON.stringify(pulseQuestions),
+    }}),
+    prisma.survey.create({ data: {
+      companyId: company.id, creatorId: employees[0].id,
+      title: "Remote Work Policy Feedback", description: "Help us shape the future of our hybrid work policy.",
+      type: "SURVEY", status: "COMPLETED", anonymous: false,
+      questions: JSON.stringify(remoteQuestions),
+    }}),
+    prisma.survey.create({ data: {
+      companyId: company.id, creatorId: employees[16].id,
+      title: "Office Snacks & Perks Survey", description: "Tell us what snacks and perks you'd like in the office!",
+      type: "SURVEY", status: "DRAFT", anonymous: true,
+      questions: JSON.stringify([
+        { id: "s1", type: "CHECKBOX", title: "What snacks would you like?", required: true, options: ["Fresh fruit", "Granola bars", "Chips", "Chocolate", "Nuts", "Yogurt"] },
+        { id: "s2", type: "SHORT_TEXT", title: "Any other snack requests?", required: false },
+        { id: "s3", type: "RATING", title: "How important are office perks to you?", required: true, maxRating: 5 },
+      ]),
+    }}),
   ]);
 
   // Create Survey Responses
   await Promise.all([
-    prisma.surveyResponse.create({ data: { surveyId: surveys[0].id, employeeId: employees[5].id, answers: JSON.stringify({ q1: 4, q2: true, q3: "Great team culture" }), submittedAt: new Date("2024-03-10") } }),
-    prisma.surveyResponse.create({ data: { surveyId: surveys[0].id, employeeId: employees[8].id, answers: JSON.stringify({ q1: 5, q2: true, q3: "Supportive and inclusive" }), submittedAt: new Date("2024-03-11") } }),
-    prisma.surveyResponse.create({ data: { surveyId: surveys[0].id, employeeId: employees[12].id, answers: JSON.stringify({ q1: 4, q2: false, q3: "Good but needs better communication" }), submittedAt: new Date("2024-03-12") } }),
-    prisma.surveyResponse.create({ data: { surveyId: surveys[1].id, employeeId: employees[14].id, answers: JSON.stringify({ p1: 5, p2: "Everything going smoothly" }), submittedAt: new Date("2024-03-15") } }),
-    prisma.surveyResponse.create({ data: { surveyId: surveys[1].id, employeeId: employees[17].id, answers: JSON.stringify({ p1: 4, p2: "No concerns" }), submittedAt: new Date("2024-03-15") } }),
+    // Engagement Survey — 8 responses
+    prisma.surveyResponse.create({ data: { surveyId: surveys[0].id, answers: JSON.stringify({ q1: 4, q2: "Good", q3: ["Health Insurance", "Flexible Hours", "Remote Work"], q4: "Great team culture, very supportive", q5: 8, q6: "Agree", q7: "More cross-team collaboration" }), submittedAt: new Date("2026-03-10") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[0].id, answers: JSON.stringify({ q1: 5, q2: "Excellent", q3: ["Health Insurance", "Stock Options", "Learning Budget"], q4: "Innovative and fast-paced", q5: 9, q6: "Strongly Agree", q7: "" }), submittedAt: new Date("2026-03-11") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[0].id, answers: JSON.stringify({ q1: 3, q2: "Average", q3: ["Flexible Hours", "Remote Work"], q4: "Good but needs better communication", q5: 6, q6: "Neutral", q7: "Better documentation" }), submittedAt: new Date("2026-03-12") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[0].id, answers: JSON.stringify({ q1: 4, q2: "Good", q3: ["Health Insurance", "Team Events", "Flexible Hours"], q4: "Fun and collaborative", q5: 8, q6: "Agree", q7: "More team outings" }), submittedAt: new Date("2026-03-13") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[0].id, answers: JSON.stringify({ q1: 5, q2: "Excellent", q3: ["Learning Budget", "Remote Work", "Stock Options"], q4: "Best place I've worked", q5: 10, q6: "Strongly Agree", q7: "" }), submittedAt: new Date("2026-03-14") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[0].id, answers: JSON.stringify({ q1: 2, q2: "Below Average", q3: ["Health Insurance"], q4: "Needs improvement in management transparency", q5: 5, q6: "Disagree", q7: "More transparency from leadership" }), submittedAt: new Date("2026-03-15") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[0].id, answers: JSON.stringify({ q1: 4, q2: "Good", q3: ["Flexible Hours", "Team Events", "Health Insurance"], q4: "Solid culture, great colleagues", q5: 8, q6: "Agree", q7: "Better onboarding" }), submittedAt: new Date("2026-03-16") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[0].id, answers: JSON.stringify({ q1: 3, q2: "Average", q3: ["Remote Work", "Learning Budget"], q4: "Decent but high workload sometimes", q5: 7, q6: "Neutral", q7: "Workload balance" }), submittedAt: new Date("2026-03-17") } }),
+
+    // Pulse Survey — 5 responses
+    prisma.surveyResponse.create({ data: { surveyId: surveys[1].id, answers: JSON.stringify({ p1: 5, p2: "Just right", p3: "Great week! Shipped the new feature." }), submittedAt: new Date("2026-04-07") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[1].id, answers: JSON.stringify({ p1: 4, p2: "Just right", p3: "No concerns this week" }), submittedAt: new Date("2026-04-07") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[1].id, answers: JSON.stringify({ p1: 3, p2: "Slightly heavy", p3: "Deadline pressure is building" }), submittedAt: new Date("2026-04-08") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[1].id, answers: JSON.stringify({ p1: 4, p2: "Just right", p3: "" }), submittedAt: new Date("2026-04-08") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[1].id, answers: JSON.stringify({ p1: 2, p2: "Too heavy", p3: "Need help with the migration project" }), submittedAt: new Date("2026-04-09") } }),
+
+    // Remote Work Survey (completed, non-anonymous) — 6 responses
+    prisma.surveyResponse.create({ data: { surveyId: surveys[2].id, employeeId: employees[5].id, answers: JSON.stringify({ r1: "3-4 days", r2: 4, r3: ["Communication gaps"], r4: "Better video conferencing setup" }), submittedAt: new Date("2026-02-15") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[2].id, employeeId: employees[8].id, answers: JSON.stringify({ r1: "1-2 days", r2: 5, r3: ["No challenges"], r4: "" }), submittedAt: new Date("2026-02-16") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[2].id, employeeId: employees[9].id, answers: JSON.stringify({ r1: "5 (fully remote)", r2: 3, r3: ["Internet connectivity", "Loneliness"], r4: "Co-working space budget" }), submittedAt: new Date("2026-02-16") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[2].id, employeeId: employees[14].id, answers: JSON.stringify({ r1: "3-4 days", r2: 4, r3: ["Time zone differences"], r4: "Async communication tools" }), submittedAt: new Date("2026-02-17") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[2].id, employeeId: employees[17].id, answers: JSON.stringify({ r1: "1-2 days", r2: 5, r3: ["No challenges"], r4: "" }), submittedAt: new Date("2026-02-18") } }),
+    prisma.surveyResponse.create({ data: { surveyId: surveys[2].id, employeeId: employees[20].id, answers: JSON.stringify({ r1: "3-4 days", r2: 2, r3: ["Internet connectivity", "Distractions"], r4: "Noise-cancelling headphones stipend" }), submittedAt: new Date("2026-02-19") } }),
+  ]);
+
+  // Create Courses & Enrollments
+  const coursesData = await Promise.all([
+    prisma.course.create({ data: {
+      companyId: company.id, creatorId: employees[1].id,
+      title: "Leadership Fundamentals", description: "Essential leadership skills for new and aspiring managers. Learn to motivate teams, give feedback, and drive results.",
+      category: "Leadership", duration: "8 hours", status: "PUBLISHED",
+      lessons: JSON.stringify([
+        { id: "lf1", title: "What Makes a Great Leader?", type: "VIDEO", url: "https://youtube.com/watch?v=example1", duration: "45 min" },
+        { id: "lf2", title: "Setting Clear Expectations", type: "VIDEO", url: "https://youtube.com/watch?v=example2", duration: "30 min" },
+        { id: "lf3", title: "Giving Effective Feedback", type: "ARTICLE", url: "https://hbr.org/feedback-guide", duration: "20 min" },
+        { id: "lf4", title: "1:1 Meeting Best Practices", type: "DOCUMENT", url: "https://docs.google.com/1-1-template", duration: "15 min" },
+        { id: "lf5", title: "Delegation & Empowerment", type: "VIDEO", url: "https://youtube.com/watch?v=example3", duration: "40 min" },
+        { id: "lf6", title: "Handling Difficult Conversations", type: "VIDEO", url: "https://youtube.com/watch?v=example4", duration: "35 min" },
+      ]),
+    }}),
+    prisma.course.create({ data: {
+      companyId: company.id, creatorId: employees[22].id,
+      title: "Data Privacy & Security Awareness", description: "Mandatory compliance training on data protection, GDPR, and security best practices.",
+      category: "Compliance", duration: "2 hours", status: "PUBLISHED",
+      lessons: JSON.stringify([
+        { id: "dp1", title: "Introduction to Data Privacy", type: "VIDEO", url: "https://youtube.com/watch?v=privacy1", duration: "20 min" },
+        { id: "dp2", title: "GDPR Overview", type: "ARTICLE", url: "https://gdpr.eu/what-is-gdpr", duration: "15 min" },
+        { id: "dp3", title: "Password Security & 2FA", type: "VIDEO", url: "https://youtube.com/watch?v=security1", duration: "15 min" },
+        { id: "dp4", title: "Phishing Awareness", type: "VIDEO", url: "https://youtube.com/watch?v=phishing1", duration: "20 min" },
+        { id: "dp5", title: "Data Handling Policy", type: "DOCUMENT", url: "https://docs.google.com/data-policy", duration: "10 min" },
+      ]),
+    }}),
+    prisma.course.create({ data: {
+      companyId: company.id, creatorId: employees[8].id,
+      title: "React & TypeScript Masterclass", description: "Deep dive into modern React patterns, hooks, TypeScript integration, and performance optimization.",
+      category: "Technical", duration: "12 hours", status: "PUBLISHED",
+      lessons: JSON.stringify([
+        { id: "rt1", title: "TypeScript Fundamentals", type: "VIDEO", url: "https://youtube.com/watch?v=ts1", duration: "60 min" },
+        { id: "rt2", title: "React Hooks Deep Dive", type: "VIDEO", url: "https://youtube.com/watch?v=hooks1", duration: "45 min" },
+        { id: "rt3", title: "State Management Patterns", type: "VIDEO", url: "https://youtube.com/watch?v=state1", duration: "50 min" },
+        { id: "rt4", title: "Server Components & Next.js", type: "ARTICLE", url: "https://nextjs.org/docs/app/building-your-application", duration: "30 min" },
+        { id: "rt5", title: "Testing React Applications", type: "VIDEO", url: "https://youtube.com/watch?v=testing1", duration: "40 min" },
+        { id: "rt6", title: "Performance Optimization", type: "VIDEO", url: "https://youtube.com/watch?v=perf1", duration: "35 min" },
+        { id: "rt7", title: "Building Reusable Components", type: "LINK", url: "https://react.dev/learn/reusing-logic-with-custom-hooks", duration: "25 min" },
+        { id: "rt8", title: "Final Project: Dashboard App", type: "DOCUMENT", url: "https://docs.google.com/react-project", duration: "120 min" },
+      ]),
+    }}),
+    prisma.course.create({ data: {
+      companyId: company.id, creatorId: employees[2].id,
+      title: "Effective Communication", description: "Master the art of clear communication — presentations, emails, and cross-team collaboration.",
+      category: "Soft Skills", duration: "4 hours", status: "PUBLISHED",
+      lessons: JSON.stringify([
+        { id: "ec1", title: "Active Listening", type: "VIDEO", url: "https://youtube.com/watch?v=listen1", duration: "25 min" },
+        { id: "ec2", title: "Writing Clear Emails", type: "ARTICLE", url: "https://hbr.org/email-guide", duration: "15 min" },
+        { id: "ec3", title: "Presentation Skills", type: "VIDEO", url: "https://youtube.com/watch?v=present1", duration: "35 min" },
+        { id: "ec4", title: "Cross-Team Collaboration", type: "VIDEO", url: "https://youtube.com/watch?v=collab1", duration: "30 min" },
+      ]),
+    }}),
+    prisma.course.create({ data: {
+      companyId: company.id, creatorId: employees[14].id,
+      title: "Design Thinking Workshop", description: "Learn the design thinking methodology: empathize, define, ideate, prototype, and test.",
+      category: "Design", duration: "6 hours", status: "PUBLISHED",
+      lessons: JSON.stringify([
+        { id: "dt1", title: "Introduction to Design Thinking", type: "VIDEO", url: "https://youtube.com/watch?v=design1", duration: "30 min" },
+        { id: "dt2", title: "User Research & Empathy Maps", type: "VIDEO", url: "https://youtube.com/watch?v=empathy1", duration: "40 min" },
+        { id: "dt3", title: "Problem Definition & HMW", type: "ARTICLE", url: "https://designkit.org/methods", duration: "20 min" },
+        { id: "dt4", title: "Ideation Techniques", type: "VIDEO", url: "https://youtube.com/watch?v=ideate1", duration: "35 min" },
+        { id: "dt5", title: "Rapid Prototyping", type: "VIDEO", url: "https://youtube.com/watch?v=prototype1", duration: "45 min" },
+      ]),
+    }}),
+    prisma.course.create({ data: {
+      companyId: company.id, creatorId: employees[12].id,
+      title: "Product Management 101", description: "Fundamentals of product management: roadmaps, user stories, prioritization frameworks, and stakeholder management.",
+      category: "Product", duration: "5 hours", status: "PUBLISHED",
+      lessons: JSON.stringify([
+        { id: "pm1", title: "What Does a PM Do?", type: "VIDEO", url: "https://youtube.com/watch?v=pm1", duration: "25 min" },
+        { id: "pm2", title: "Writing User Stories", type: "ARTICLE", url: "https://atlassian.com/agile/user-stories", duration: "15 min" },
+        { id: "pm3", title: "Prioritization Frameworks (RICE, MoSCoW)", type: "VIDEO", url: "https://youtube.com/watch?v=prioritize1", duration: "35 min" },
+        { id: "pm4", title: "Building a Product Roadmap", type: "DOCUMENT", url: "https://docs.google.com/roadmap-template", duration: "20 min" },
+      ]),
+    }}),
+  ]);
+
+  // Enrollments with various progress levels
+  await Promise.all([
+    // Leadership — several people enrolled, mixed progress
+    prisma.enrollment.create({ data: { courseId: coursesData[0].id, employeeId: employees[4].id, progress: 100, completedLessons: JSON.stringify(["lf1","lf2","lf3","lf4","lf5","lf6"]), status: "COMPLETED", completedAt: new Date("2026-03-01") } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[0].id, employeeId: employees[7].id, progress: 67, completedLessons: JSON.stringify(["lf1","lf2","lf3","lf4"]), status: "IN_PROGRESS" } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[0].id, employeeId: employees[10].id, progress: 33, completedLessons: JSON.stringify(["lf1","lf2"]), status: "IN_PROGRESS" } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[0].id, employeeId: employees[19].id, progress: 50, completedLessons: JSON.stringify(["lf1","lf2","lf3"]), status: "IN_PROGRESS" } }),
+
+    // Compliance — many enrolled (mandatory), most completed
+    prisma.enrollment.create({ data: { courseId: coursesData[1].id, employeeId: employees[0].id, progress: 100, completedLessons: JSON.stringify(["dp1","dp2","dp3","dp4","dp5"]), status: "COMPLETED", completedAt: new Date("2026-02-10") } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[1].id, employeeId: employees[5].id, progress: 100, completedLessons: JSON.stringify(["dp1","dp2","dp3","dp4","dp5"]), status: "COMPLETED", completedAt: new Date("2026-02-12") } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[1].id, employeeId: employees[8].id, progress: 100, completedLessons: JSON.stringify(["dp1","dp2","dp3","dp4","dp5"]), status: "COMPLETED", completedAt: new Date("2026-02-14") } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[1].id, employeeId: employees[12].id, progress: 60, completedLessons: JSON.stringify(["dp1","dp2","dp3"]), status: "IN_PROGRESS" } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[1].id, employeeId: employees[16].id, progress: 80, completedLessons: JSON.stringify(["dp1","dp2","dp3","dp4"]), status: "IN_PROGRESS" } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[1].id, employeeId: employees[20].id, progress: 100, completedLessons: JSON.stringify(["dp1","dp2","dp3","dp4","dp5"]), status: "COMPLETED", completedAt: new Date("2026-02-18") } }),
+
+    // React — engineering team
+    prisma.enrollment.create({ data: { courseId: coursesData[2].id, employeeId: employees[5].id, progress: 75, completedLessons: JSON.stringify(["rt1","rt2","rt3","rt4","rt5","rt6"]), status: "IN_PROGRESS" } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[2].id, employeeId: employees[6].id, progress: 50, completedLessons: JSON.stringify(["rt1","rt2","rt3","rt4"]), status: "IN_PROGRESS" } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[2].id, employeeId: employees[9].id, progress: 25, completedLessons: JSON.stringify(["rt1","rt2"]), status: "IN_PROGRESS" } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[2].id, employeeId: employees[11].id, progress: 100, completedLessons: JSON.stringify(["rt1","rt2","rt3","rt4","rt5","rt6","rt7","rt8"]), status: "COMPLETED", completedAt: new Date("2026-03-20") } }),
+
+    // Communication — broad enrollment
+    prisma.enrollment.create({ data: { courseId: coursesData[3].id, employeeId: employees[13].id, progress: 100, completedLessons: JSON.stringify(["ec1","ec2","ec3","ec4"]), status: "COMPLETED", completedAt: new Date("2026-03-05") } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[3].id, employeeId: employees[17].id, progress: 50, completedLessons: JSON.stringify(["ec1","ec2"]), status: "IN_PROGRESS" } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[3].id, employeeId: employees[21].id, progress: 75, completedLessons: JSON.stringify(["ec1","ec2","ec3"]), status: "IN_PROGRESS" } }),
+
+    // Design Thinking — design team
+    prisma.enrollment.create({ data: { courseId: coursesData[4].id, employeeId: employees[3].id, progress: 100, completedLessons: JSON.stringify(["dt1","dt2","dt3","dt4","dt5"]), status: "COMPLETED", completedAt: new Date("2026-03-15") } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[4].id, employeeId: employees[15].id, progress: 60, completedLessons: JSON.stringify(["dt1","dt2","dt3"]), status: "IN_PROGRESS" } }),
+
+    // Product Management — product team
+    prisma.enrollment.create({ data: { courseId: coursesData[5].id, employeeId: employees[2].id, progress: 100, completedLessons: JSON.stringify(["pm1","pm2","pm3","pm4"]), status: "COMPLETED", completedAt: new Date("2026-02-28") } }),
+    prisma.enrollment.create({ data: { courseId: coursesData[5].id, employeeId: employees[13].id, progress: 50, completedLessons: JSON.stringify(["pm1","pm2"]), status: "IN_PROGRESS" } }),
+  ]);
+
+  // Create Notifications for admin user
+  await Promise.all([
+    prisma.notification.create({ data: { companyId: company.id, employeeId: 'admin-employee-seed', type: 'TIMEOFF_APPROVED', title: 'Vacation request approved', message: 'Your vacation request for May 5-9 has been approved.', linkUrl: '/time-off', read: false, createdAt: new Date(Date.now() - 1000 * 60 * 30) } }),
+    prisma.notification.create({ data: { companyId: company.id, employeeId: 'admin-employee-seed', type: 'TIMEOFF_REQUEST', title: 'New time-off request', message: 'Michael Chen requested vacation for May 1-5.', linkUrl: '/time-off', read: false, createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2) } }),
+    prisma.notification.create({ data: { companyId: company.id, employeeId: 'admin-employee-seed', type: 'SURVEY_PUBLISHED', title: 'New survey: Weekly Pulse Check', message: 'A new pulse survey has been published. Please share your feedback.', linkUrl: '/surveys', read: false, createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5) } }),
+    prisma.notification.create({ data: { companyId: company.id, employeeId: 'admin-employee-seed', type: 'TASK_ASSIGNED', title: 'New onboarding task assigned', message: 'You have been assigned "Review New Hire Checklist" for Isabella Rossi.', linkUrl: '/onboarding', read: false, createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24) } }),
+    prisma.notification.create({ data: { companyId: company.id, employeeId: 'admin-employee-seed', type: 'HR_ANNOUNCEMENT', title: 'New HR Portal update', message: 'The employee handbook has been updated with the new remote work policy.', linkUrl: '/hr-portal', read: true, createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48) } }),
+    prisma.notification.create({ data: { companyId: company.id, employeeId: 'admin-employee-seed', type: 'TIMEOFF_APPROVED', title: 'Sick leave approved', message: 'Your sick leave request for April 20 has been approved.', linkUrl: '/time-off', read: true, createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72) } }),
+    prisma.notification.create({ data: { companyId: company.id, employeeId: 'admin-employee-seed', type: 'SURVEY_PUBLISHED', title: 'New survey: Employee Engagement', message: 'The Q1 2026 engagement survey is now open.', linkUrl: '/surveys', read: true, createdAt: new Date(Date.now() - 1000 * 60 * 60 * 96) } }),
   ]);
 
   // Create Documents
@@ -288,6 +795,21 @@ async function main() {
     prisma.auditLog.create({ data: { companyId: company.id, userId: userHelen!.id, action: "UPDATE", resource: "EMPLOYEE", resourceId: employees[5].id, changes: JSON.stringify({ department: "Engineering" }), ipAddress: "192.168.1.101" } }),
   ]);
 
+  // Create Positions for Workforce Planning
+  await Promise.all([
+    prisma.position.create({ data: { companyId: company.id, title: "Senior Frontend Engineer", departmentId: engDept.id, siteId: sites[0].id, status: "OPEN", budgetedSalary: 140000, currency: "USD" } }),
+    prisma.position.create({ data: { companyId: company.id, title: "Backend Engineer", departmentId: engDept.id, siteId: sites[1].id, status: "OPEN", budgetedSalary: 120000, currency: "USD" } }),
+    prisma.position.create({ data: { companyId: company.id, title: "DevOps Engineer", departmentId: engDept.id, siteId: sites[2].id, status: "IN_PROGRESS", budgetedSalary: 130000, currency: "USD" } }),
+    prisma.position.create({ data: { companyId: company.id, title: "Product Designer", departmentId: desDept.id, siteId: sites[0].id, status: "OPEN", budgetedSalary: 110000, currency: "USD" } }),
+    prisma.position.create({ data: { companyId: company.id, title: "Product Manager", departmentId: prodDept.id, siteId: sites[1].id, status: "IN_PROGRESS", budgetedSalary: 135000, currency: "USD" } }),
+    prisma.position.create({ data: { companyId: company.id, title: "Account Executive", departmentId: salesDept.id, siteId: sites[0].id, status: "OPEN", budgetedSalary: 90000, currency: "USD" } }),
+    prisma.position.create({ data: { companyId: company.id, title: "HR Business Partner", departmentId: hrDept.id, siteId: sites[1].id, status: "OPEN", budgetedSalary: 95000, currency: "USD" } }),
+    prisma.position.create({ data: { companyId: company.id, title: "Data Analyst", departmentId: prodDept.id, siteId: sites[3].id, status: "OPEN", budgetedSalary: 100000, currency: "USD" } }),
+    prisma.position.create({ data: { companyId: company.id, title: "Marketing Specialist", departmentId: markDept.id, siteId: sites[0].id, status: "FILLED", budgetedSalary: 85000, currency: "USD", employeeId: employees[18].id } }),
+    prisma.position.create({ data: { companyId: company.id, title: "Finance Analyst", departmentId: finDept.id, siteId: sites[0].id, status: "FILLED", budgetedSalary: 92000, currency: "USD", employeeId: employees[25].id } }),
+    prisma.position.create({ data: { companyId: company.id, title: "Engineering Manager", departmentId: engDept.id, siteId: sites[4].id, status: "CLOSED", budgetedSalary: 160000, currency: "USD" } }),
+  ]);
+
   // Create Onboarding Templates
   const onboardingTemplates = await Promise.all([
     prisma.onboardingTemplate.create({ data: { companyId: company.id, name: "Engineering Onboarding", tasks: JSON.stringify(["Laptop setup","Git access","System design orientation","Meet the team","Code review training"]) } }),
@@ -297,10 +819,97 @@ async function main() {
 
   // Create Onboarding Tasks
   await Promise.all([
-    prisma.onboardingTask.create({ data: { templateId: onboardingTemplates[0].id, employeeId: employees[9].id, title: "Laptop setup", description: "Complete laptop setup", assigneeType: "HR", assigneeId: employees[22].id, dueDate: new Date("2024-05-01"), status: "COMPLETED", completedAt: new Date("2024-04-30") } }),
-    prisma.onboardingTask.create({ data: { templateId: onboardingTemplates[0].id, employeeId: employees[9].id, title: "Git access setup", description: "Grant GitHub access", assigneeType: "MANAGER", assigneeId: employees[7].id, dueDate: new Date("2024-05-02"), status: "COMPLETED", completedAt: new Date("2024-05-02") } }),
-    prisma.onboardingTask.create({ data: { templateId: onboardingTemplates[1].id, employeeId: employees[21].id, title: "CRM training", description: "Salesforce training", assigneeType: "MANAGER", assigneeId: employees[19].id, dueDate: new Date("2024-02-15"), status: "COMPLETED", completedAt: new Date("2024-02-14") } }),
-    prisma.onboardingTask.create({ data: { templateId: onboardingTemplates[1].id, employeeId: employees[21].id, title: "Product training", description: "Comprehensive product overview", assigneeType: "MANAGER", assigneeId: employees[19].id, dueDate: new Date("2024-02-20"), status: "IN_PROGRESS" } }),
+    prisma.onboardingTask.create({ data: { templateId: onboardingTemplates[0].id, employeeId: employees[9].id, title: "Laptop setup", description: "Complete laptop setup", assigneeId: employees[22].id, dueDate: new Date("2024-05-01"), status: "DONE", completedAt: new Date("2024-04-30") } }),
+    prisma.onboardingTask.create({ data: { templateId: onboardingTemplates[0].id, employeeId: employees[9].id, title: "Git access setup", description: "Grant GitHub access", assigneeId: employees[7].id, dueDate: new Date("2024-05-02"), status: "DONE", completedAt: new Date("2024-05-02") } }),
+    prisma.onboardingTask.create({ data: { templateId: onboardingTemplates[1].id, employeeId: employees[21].id, title: "CRM training", description: "Salesforce training", assigneeId: employees[19].id, dueDate: new Date("2024-02-15"), status: "DONE", completedAt: new Date("2024-02-14") } }),
+    prisma.onboardingTask.create({ data: { templateId: onboardingTemplates[1].id, employeeId: employees[21].id, title: "Product training", description: "Comprehensive product overview", assigneeId: employees[19].id, dueDate: new Date("2024-02-20"), status: "IN_PROGRESS" } }),
+  ]);
+
+  // Activity Feed Data (Shoutouts)
+  await Promise.all([
+    prisma.post.create({ data: { companyId: company.id, authorId: employees[1].id, targetId: employees[5].id, type: "SHOUTOUT", content: "Amazing work on the API performance optimization! The response times are noticeably faster. 🚀" } }),
+    prisma.post.create({ data: { companyId: company.id, authorId: employees[3].id, targetId: employees[14].id, type: "SHOUTOUT", content: "Shoutout to Carlos for the incredible new design system components. They look beautiful! ✨" } }),
+    prisma.post.create({ data: { companyId: company.id, authorId: employees[22].id, targetId: employees[0].id, type: "SHOUTOUT", content: "Thank you Sarah for the inspiring All-Hands meeting today. Great to see the vision for Q2!" } }),
+  ]);
+
+  // Create Job History (Timeline)
+  await Promise.all([
+    // Sarah Johnson (emp 0)
+    prisma.jobRecord.create({ data: { employeeId: employees[0].id, type: 'HIRED', effectiveDate: new Date("2022-01-15"), title: 'Joined the company', description: 'Started as Senior HR Manager' } }),
+    prisma.jobRecord.create({ data: { employeeId: employees[0].id, type: 'PROMOTION', effectiveDate: new Date("2023-06-01"), title: 'Promotion', description: 'Promoted to HR Director' } }),
+    prisma.jobRecord.create({ data: { employeeId: employees[0].id, type: 'NOTE', effectiveDate: new Date("2024-01-10"), title: 'Certification', description: 'Completed Advanced People Analytics Certification' } }),
+    
+    // Olivia Brown (emp 7)
+    prisma.jobRecord.create({ data: { employeeId: employees[7].id, type: 'HIRED', effectiveDate: new Date("2023-03-10"), title: 'Joined the company', description: 'Started as Product Designer' } }),
+    prisma.jobRecord.create({ data: { employeeId: employees[7].id, type: 'DEPT_CHANGE', effectiveDate: new Date("2024-02-15"), title: 'Department Change', description: 'Moved from Product to Growth Team' } }),
+  ]);
+
+  // Set some specific birthdays and anniversaries for the feed demo
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 5);
+
+  // Anniversary today (Emma Watson)
+  await prisma.employee.update({
+    where: { id: employees[2].id },
+    data: { startDate: new Date(today.getFullYear() - 3, today.getMonth(), today.getDate()) }
+  });
+
+  // Birthday tomorrow (Michael Chen)
+  await prisma.employee.update({
+    where: { id: employees[1].id },
+    data: { personalInfo: JSON.stringify({ birthday: tomorrow.toISOString() }) }
+  });
+
+  // Birthday next week (Alex Rivera)
+  await prisma.employee.update({
+    where: { id: employees[3].id },
+    data: { personalInfo: JSON.stringify({ birthday: nextWeek.toISOString() }) }
+  });
+
+  // New Joiner today (Zoey Sanders)
+  await prisma.employee.update({
+    where: { id: employees[27].id },
+    data: { startDate: today }
+  });
+
+  // Create Pay Runs
+  await Promise.all([
+    prisma.payRun.create({ data: {
+      companyId: company.id,
+      periodStart: new Date("2026-01-01"), periodEnd: new Date("2026-01-15"),
+      totalAmount: 182_450, currency: "USD", employeeCount: 28,
+      status: "COMPLETED", processedAt: new Date("2026-01-15"),
+    }}),
+    prisma.payRun.create({ data: {
+      companyId: company.id,
+      periodStart: new Date("2026-01-16"), periodEnd: new Date("2026-01-31"),
+      totalAmount: 179_820, currency: "USD", employeeCount: 28,
+      status: "COMPLETED", processedAt: new Date("2026-01-31"),
+    }}),
+    prisma.payRun.create({ data: {
+      companyId: company.id,
+      periodStart: new Date("2026-02-01"), periodEnd: new Date("2026-02-15"),
+      totalAmount: 183_110, currency: "USD", employeeCount: 28,
+      status: "COMPLETED", processedAt: new Date("2026-02-15"),
+    }}),
+    prisma.payRun.create({ data: {
+      companyId: company.id,
+      periodStart: new Date("2026-02-16"), periodEnd: new Date("2026-02-28"),
+      totalAmount: 178_990, currency: "USD", employeeCount: 28,
+      status: "COMPLETED", processedAt: new Date("2026-02-28"),
+    }}),
+    prisma.payRun.create({ data: {
+      companyId: company.id,
+      periodStart: new Date("2026-03-01"), periodEnd: new Date("2026-03-15"),
+      totalAmount: 184_230, currency: "USD", employeeCount: 28,
+      status: "COMPLETED", processedAt: new Date("2026-03-15"),
+    }}),
+    prisma.payRun.create({ data: {
+      companyId: company.id,
+      periodStart: new Date("2026-03-16"), periodEnd: new Date("2026-03-31"),
+      totalAmount: 181_670, currency: "USD", employeeCount: 28,
+      status: "PENDING", processedAt: null,
+    }}),
   ]);
 
   console.log("Seed completed successfully!");

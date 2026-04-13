@@ -1,0 +1,395 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { trpc } from "@/lib/trpc";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Download, SlidersHorizontal } from "lucide-react";
+import * as XLSX from "xlsx";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type SortDir = "asc" | "desc" | null;
+type TabKey = "termination" | "active" | "compensation";
+
+// ---------------------------------------------------------------------------
+// Skeleton
+// ---------------------------------------------------------------------------
+
+function Skeleton({ className }: { className?: string }) {
+  return (
+    <div
+      role="status"
+      data-testid="skeleton"
+      className={`animate-pulse bg-gray-200 dark:bg-gray-700 rounded ${className ?? ""}`}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Excel download helper
+// ---------------------------------------------------------------------------
+
+function downloadExcel(filename: string, visibleColumns: Column[], rows: Record<string, unknown>[]) {
+  if (!rows.length) return;
+  const sheetData = [
+    visibleColumns.map((c) => c.label),
+    ...rows.map((row) =>
+      visibleColumns.map((col) => {
+        const val = row[col.key];
+        if (col.format) return col.format(val);
+        if (val instanceof Date) return val.toISOString().slice(0, 10);
+        return val ?? "";
+      })
+    ),
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(sheetData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Report");
+  XLSX.writeFile(wb, filename);
+}
+
+// ---------------------------------------------------------------------------
+// SortableTable
+// ---------------------------------------------------------------------------
+
+interface Column {
+  key: string;
+  label: string;
+  format?: (val: unknown) => string;
+  visible: boolean;
+}
+
+function SortableTable({
+  columns,
+  rows,
+  sortedRows,
+  isLoading,
+  onToggleColumn,
+  sortKey,
+  sortDir,
+  onSort,
+}: {
+  columns: Column[];
+  rows: Record<string, unknown>[];
+  sortedRows: Record<string, unknown>[];
+  isLoading: boolean;
+  onToggleColumn: (key: string) => void;
+  sortKey: string | null;
+  sortDir: SortDir;
+  onSort: (key: string) => void;
+}) {
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+
+  const visibleColumns = columns.filter((c) => c.visible);
+
+  function sortIndicator(key: string) {
+    if (sortKey !== key) return "";
+    return sortDir === "asc" ? " ↑" : sortDir === "desc" ? " ↓" : "";
+  }
+
+  function formatCell(col: Column, val: unknown): string {
+    if (col.format) return col.format(val);
+    if (val instanceof Date) return val.toISOString().slice(0, 10);
+    return String(val ?? "—");
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[...Array(5)].map((_, i) => (
+          <Skeleton key={i} className="h-8 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!rows.length) {
+    return (
+      <div className="py-12 text-center text-gray-500">No results found for the selected filters.</div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {/* Column toggle button */}
+      <div className="flex justify-end relative">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setShowColumnMenu((v) => !v)}
+          className="gap-2"
+          aria-label="Columns"
+        >
+          <SlidersHorizontal size={14} />
+          Columns
+        </Button>
+        {showColumnMenu && (
+          <div className="absolute right-0 top-9 z-50 bg-white dark:bg-charcoal-800 border rounded shadow-lg p-3 min-w-[180px]">
+            {columns.map((col) => (
+              <label key={col.key} className="flex items-center gap-2 py-1 cursor-pointer text-sm">
+                <input
+                  type="checkbox"
+                  checked={col.visible}
+                  onChange={() => onToggleColumn(col.key)}
+                  aria-label={col.label}
+                />
+                {col.label}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b">
+              {visibleColumns.map((col) => (
+                <th
+                  key={col.key}
+                  role="columnheader"
+                  onClick={() => onSort(col.key)}
+                  className="px-3 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer select-none hover:text-gray-900 dark:hover:text-white"
+                >
+                  {col.label}{sortIndicator(col.key)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedRows.map((row, i) => (
+              <tr key={i} className="border-b hover:bg-gray-50 dark:hover:bg-charcoal-700">
+                {visibleColumns.map((col) => (
+                  <td key={col.key} className="px-3 py-2 text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                    {formatCell(col, row[col.key])}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Column definitions per tab
+// ---------------------------------------------------------------------------
+
+function usd(val: unknown) {
+  const n = Number(val ?? 0);
+  return n === 0 ? "—" : `$${n.toLocaleString()}`;
+}
+
+const TERMINATION_COLS: Column[] = [
+  { key: "name",              label: "Name",               visible: true },
+  { key: "department",        label: "Department",         visible: true },
+  { key: "seniorityYears",    label: "Seniority (yrs)",    visible: true },
+  { key: "terminationReason", label: "Termination Reason", visible: true },
+  { key: "endDate",           label: "Termination Date",   visible: true },
+  { key: "role",              label: "Role",               visible: true },
+];
+
+const ACTIVE_COLS: Column[] = [
+  { key: "name",           label: "Name",            visible: true },
+  { key: "department",     label: "Department",      visible: true },
+  { key: "startDate",      label: "Start Date",      visible: true },
+  { key: "seniorityYears", label: "Seniority (yrs)", visible: true },
+  { key: "salary",         label: "Salary",          format: usd, visible: true },
+  { key: "role",           label: "Role",            visible: true },
+];
+
+const COMPENSATION_COLS: Column[] = [
+  { key: "name",          label: "Name",           visible: true },
+  { key: "department",    label: "Department",     visible: true },
+  { key: "role",          label: "Role",           visible: true },
+  { key: "currentSalary", label: "Current Salary", format: usd,  visible: true },
+  { key: "newSalary",     label: "New Salary",     format: usd,  visible: true },
+  { key: "effectiveDate", label: "Effective Date", visible: true },
+  { key: "type",          label: "Type",           visible: true },
+  { key: "changeReason",  label: "Note",           visible: true },
+];
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "termination",  label: "Termination Report" },
+  { key: "active",       label: "Active Employees" },
+  { key: "compensation", label: "Compensation & Increases" },
+];
+
+export default function ReportsPage() {
+  const [activeTab, setActiveTab] = useState<TabKey>("termination");
+  const [departmentFilter, setDepartmentFilter] = useState("");
+
+  // Column visibility state per tab
+  const [terminationCols, setTerminationCols] = useState<Column[]>(TERMINATION_COLS);
+  const [activeCols, setActiveCols] = useState<Column[]>(ACTIVE_COLS);
+  const [compensationCols, setCompensationCols] = useState<Column[]>(COMPENSATION_COLS);
+
+  // Sort state (shared, resets when tab changes)
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>(null);
+
+  function handleSort(key: string) {
+    if (sortKey === key) {
+      if (sortDir === "asc") setSortDir("desc");
+      else if (sortDir === "desc") { setSortDir(null); setSortKey(null); }
+      else { setSortKey(key); setSortDir("asc"); }
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
+  function handleTabChange(tab: TabKey) {
+    setActiveTab(tab);
+    setSortKey(null);
+    setSortDir(null);
+  }
+
+  // tRPC queries — always call all hooks (React rules)
+  const terminationQ = trpc.reports.getTerminationReport.useQuery({
+    department: departmentFilter || undefined,
+  });
+  const activeQ = trpc.reports.getActiveReport.useQuery({
+    department: departmentFilter || undefined,
+  });
+  const salaryQ = trpc.reports.getSalaryReport.useQuery({
+    department: departmentFilter || undefined,
+  });
+  // Combined compensation rows: one row per future increase; employees with none appear once with blank future fields
+  const compensationRows = useMemo(() =>
+    (salaryQ.data?.rows ?? []).flatMap((r: any) => {
+      const increases = r.futureIncreases ?? [];
+      if (increases.length === 0) {
+        return [{
+          name: r.name, department: r.department, role: r.role,
+          currentSalary: r.currentSalary,
+          newSalary: null, effectiveDate: "", type: "", changeReason: "",
+        }];
+      }
+      return increases.map((fi: any) => ({
+        name: r.name, department: r.department, role: r.role,
+        currentSalary: r.currentSalary,
+        newSalary:     fi.salary,
+        effectiveDate: fi.effectiveDate ? new Date(fi.effectiveDate).toISOString().slice(0, 10) : "",
+        type:          fi.type ?? "",
+        changeReason:  fi.changeReason ?? "",
+      }));
+    }),
+    [salaryQ.data]
+  );
+
+  function toggleColumn(
+    cols: Column[],
+    setCols: (c: Column[]) => void,
+    key: string
+  ) {
+    setCols(cols.map((c) => (c.key === key ? { ...c, visible: !c.visible } : c)));
+  }
+
+  // Resolve current tab's data
+  const { rows, cols, setCols, isLoading } = useMemo(() => {
+    switch (activeTab) {
+      case "termination":
+        return { rows: terminationQ.data?.rows ?? [], cols: terminationCols, setCols: setTerminationCols, isLoading: terminationQ.isLoading };
+      case "active":
+        return { rows: activeQ.data?.rows ?? [], cols: activeCols, setCols: setActiveCols, isLoading: activeQ.isLoading };
+      case "compensation":
+        return { rows: compensationRows, cols: compensationCols, setCols: setCompensationCols, isLoading: salaryQ.isLoading };
+    }
+  }, [activeTab, terminationQ, activeQ, salaryQ, terminationCols, activeCols, compensationCols, compensationRows]);
+
+  // Sorted rows (same logic used by both table display and export)
+  const sortedRows = useMemo(() => {
+    if (!sortKey || !sortDir) return rows as Record<string, unknown>[];
+    return [...(rows as Record<string, unknown>[])].sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (av instanceof Date && bv instanceof Date) {
+        return sortDir === "asc" ? av.getTime() - bv.getTime() : bv.getTime() - av.getTime();
+      }
+      const as = String(av ?? "");
+      const bs = String(bv ?? "");
+      return sortDir === "asc" ? as.localeCompare(bs) : bs.localeCompare(as);
+    });
+  }, [rows, sortKey, sortDir]);
+
+  // Excel export — uses sortedRows and only visible columns
+  function handleDownload() {
+    const visibleCols = cols.filter((c) => c.visible);
+    const filenames: Record<TabKey, string> = {
+      termination:  "termination-report.xlsx",
+      active:       "active-employees-report.xlsx",
+      compensation: "compensation-report.xlsx",
+    };
+    downloadExcel(filenames[activeTab], visibleCols, sortedRows);
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-charcoal-900 dark:text-white">Reports</h1>
+        <Button type="button" variant="outline" className="gap-2" onClick={handleDownload} aria-label="Export Excel">
+          <Download size={16} />
+          Export Excel
+        </Button>
+      </div>
+
+      {/* Department filter */}
+      <div className="flex gap-3 items-center">
+        <Input
+          placeholder="Filter by department…"
+          value={departmentFilter}
+          onChange={(e) => setDepartmentFilter(e.target.value)}
+          className="max-w-xs"
+        />
+      </div>
+
+      {/* Tab bar */}
+      <div role="tablist" className="flex border-b gap-1">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            role="tab"
+            aria-selected={activeTab === tab.key}
+            onClick={() => handleTabChange(tab.key)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === tab.key
+                ? "border-primary-500 text-primary-600 dark:text-primary-400"
+                : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="pt-4">
+          <SortableTable
+            columns={cols}
+            rows={rows as Record<string, unknown>[]}
+            sortedRows={sortedRows}
+            isLoading={isLoading}
+            onToggleColumn={(key) => toggleColumn(cols, setCols, key)}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={handleSort}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

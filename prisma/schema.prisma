@@ -6,13 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-// ============================================================================
-// ENUMS (using String type since SQLite doesn't support native enums)
-// ============================================================================
 
 model User {
   id           String   @id @default(cuid())
@@ -49,6 +45,12 @@ model Company {
   auditLogs          AuditLog[]
   webhooks           Webhook[]
   onboardingTemplates OnboardingTemplate[]
+  posts              Post[]
+  hrPortalItems      HrPortalItem[]
+  courses            Course[]
+  notifications      Notification[]
+  customTables       CustomTableDefinition[]
+  payRuns            PayRun[]
   @@index([domain])
 }
 
@@ -85,10 +87,22 @@ model Employee {
   reviews                PerformanceReview[]
   goals                  Goal[]
   compensationHistory    CompensationRecord[]
+  jobHistory             JobRecord[]
   attendance             Attendance[]
+  surveysCreated         Survey[]          @relation("SurveyCreator")
   surveyResponses        SurveyResponse[]
   onboardingTasks        OnboardingTask[]
+  onboardingTasksAssigned OnboardingTask[] @relation("OnboardingTaskAssignee")
+  offboardingTasks       OffboardingTask[] @relation("OffboardingTasks")
+  offboardingTasksAssigned OffboardingTask[] @relation("OffboardingTaskAssignee")
   positionHolders        Position[]        @relation("PositionHolders")
+  postsCreated           Post[]            @relation("AuthorPosts")
+  postsTargeted          Post[]            @relation("TargetPosts")
+  hrPortalItems          HrPortalItem[]    @relation("HrPortalAuthor")
+  coursesCreated         Course[]          @relation("CourseCreator")
+  enrollments            Enrollment[]
+  notifications          Notification[]  @relation("EmployeeNotifications")
+  customTableRows        CustomTableRow[]
   @@index([companyId])
   @@index([email])
   @@index([status])
@@ -154,6 +168,7 @@ model TimeOffPolicy {
   companyId     String
   name          String
   type          String
+  color         String   @default("#3b82f6")  // hex color for calendar display
   accrualRate   Float?
   maxCarryOver  Float?
   allowNegative Boolean  @default(false)
@@ -279,12 +294,29 @@ model CompensationRecord {
   id            String   @id @default(cuid())
   employeeId    String
   effectiveDate DateTime
-  salary        Float
+  type          String   @default("BASE_SALARY") // BASE_SALARY, BONUS, EQUITY_GRANT
+  status        String   @default("APPROVED") // PENDING, APPROVED, REJECTED
+  salary        Float?
+  bonusAmount   Float?
+  equityAmount  Float?
   currency      String   @default("USD")
-  payFrequency  String
-  bonusTarget   Float?
+  payFrequency  String   @default("ANNUAL")
   changeReason  String?
   approvedBy    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  @@index([employeeId])
+}
+
+model JobRecord {
+  id            String   @id @default(cuid())
+  employeeId    String
+  type          String   // HIRED, PROMOTION, DEPT_CHANGE, MANAGER_CHANGE, NOTE
+  effectiveDate DateTime
+  title         String
+  description   String?
+  metadata      String   @default("{}") // Stores 'from' and 'to' values
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -354,18 +386,22 @@ model Candidate {
 model Survey {
   id                     String   @id @default(cuid())
   companyId              String
+  creatorId              String?
   title                  String
-  type                   String
+  description            String?
+  type                   String   @default("SURVEY")
   status                 String   @default("DRAFT")
   anonymous              Boolean  @default(true)
   minAnonymousThreshold  Int      @default(5)
-  questions              String   @default("[]")
+  questions              String   @default("[]") // JSON: Array<{id, type, title, required, options?}>
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
   company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  creator   Employee?         @relation("SurveyCreator", fields: [creatorId], references: [id], onDelete: SetNull)
   responses SurveyResponse[]
   @@index([companyId])
   @@index([status])
+  @@index([creatorId])
 }
 
 model SurveyResponse {
@@ -467,21 +503,184 @@ model OnboardingTemplate {
 }
 
 model OnboardingTask {
-  id         String   @id @default(cuid())
-  templateId String?
-  employeeId String
-  title      String
-  description String?
-  assigneeType String
-  assigneeId String?
-  dueDate    DateTime?
-  status     String   @default("PENDING")
-  completedAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  template   OnboardingTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  employee   Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id           String    @id @default(cuid())
+  templateId   String?
+  employeeId   String
+  title        String
+  description  String?
+  section      String    @default("General")
+  sectionType  String    @default("GENERAL")
+  assigneeId   String?
+  dueDate      DateTime?
+  completedAt  DateTime?
+  notes        String?
+  status       String    @default("NOT_STARTED")
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  template     OnboardingTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  employee     Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  assignee     Employee?           @relation("OnboardingTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   @@index([employeeId])
   @@index([templateId])
   @@index([status])
+  @@index([assigneeId])
+}
+
+model OffboardingTask {
+  id          String    @id @default(cuid())
+  employeeId  String
+  title       String
+  section     String    @default("General")
+  assigneeId  String?
+  dueDate     DateTime?
+  completedAt DateTime?
+  notes       String?
+  status      String    @default("NOT_STARTED")
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  employee    Employee  @relation("OffboardingTasks", fields: [employeeId], references: [id], onDelete: Cascade)
+  assignee    Employee? @relation("OffboardingTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  @@index([employeeId])
+  @@index([status])
+  @@index([assigneeId])
+}
+
+model Post {
+  id          String   @id @default(cuid())
+  type        String   @default("SHOUTOUT") // SHOUTOUT, ANNOUNCEMENT
+  content     String
+  authorId    String
+  targetId    String?  // Recipient for shoutouts
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  author      Employee @relation("AuthorPosts", fields: [authorId], references: [id], onDelete: Cascade)
+  target      Employee? @relation("TargetPosts", fields: [targetId], references: [id], onDelete: SetNull)
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  @@index([companyId])
+  @@index([authorId])
+  @@index([targetId])
+}
+
+model HrPortalItem {
+  id          String   @id @default(cuid())
+  companyId   String
+  type        String   @default("LINK")      // LINK | ANNOUNCEMENT | FILE
+  section     String   @default("General")   // e.g. "Company Policies", "Benefits", "Tools & Access", "Announcements"
+  title       String
+  content     String?                         // Description or announcement body
+  url         String?                         // For LINK type
+  fileName    String?                         // For FILE type — original file name
+  fileData    String?                         // For FILE type — base64 data or URL
+  pinned      Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  author      Employee @relation("HrPortalAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  @@index([companyId])
+  @@index([section])
+  @@index([authorId])
+}
+
+model Course {
+  id          String   @id @default(cuid())
+  companyId   String
+  creatorId   String?
+  title       String
+  description String?
+  category    String   @default("General")   // Technical, Leadership, Compliance, Soft Skills, etc.
+  duration    String?                         // e.g. "2 hours", "4 weeks"
+  imageUrl    String?
+  status      String   @default("PUBLISHED") // DRAFT | PUBLISHED | ARCHIVED
+  lessons     String   @default("[]")        // JSON: Array<{id, title, type, url, duration?}>
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  creator     Employee?     @relation("CourseCreator", fields: [creatorId], references: [id], onDelete: SetNull)
+  enrollments Enrollment[]
+  @@index([companyId])
+  @@index([category])
+  @@index([creatorId])
+}
+
+model Enrollment {
+  id              String    @id @default(cuid())
+  courseId         String
+  employeeId      String
+  progress        Int       @default(0)           // 0-100
+  completedLessons String   @default("[]")        // JSON: Array of lesson IDs
+  status          String    @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED
+  enrolledAt      DateTime  @default(now())
+  completedAt     DateTime?
+  course          Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  @@unique([courseId, employeeId])
+  @@index([courseId])
+  @@index([employeeId])
+}
+
+model CustomTableDefinition {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  columns     String   @default("[]") // JSON: [{name: string, type: 'STRING'|'NUMBER'|'DATE'|'SELECT', options?: string[]}]
+  permissions String   @default("{}") // JSON: {employeeView: boolean, managerEdit: boolean}
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  rows        CustomTableRow[]
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  @@index([companyId])
+}
+
+model CustomTableRow {
+  id                String   @id @default(cuid())
+  employeeId        String
+  tableDefinitionId String
+  data              String   @default("{}") // JSON: {columnName: value}
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  definition        CustomTableDefinition @relation(fields: [tableDefinitionId], references: [id], onDelete: Cascade)
+  @@index([employeeId])
+  @@index([tableDefinitionId])
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  companyId   String
+  employeeId  String
+  type        String                         // TIMEOFF_APPROVED | TIMEOFF_REJECTED | TIMEOFF_REQUEST | TASK_ASSIGNED | SURVEY_PUBLISHED | HR_ANNOUNCEMENT
+  title       String
+  message     String?
+  linkUrl     String?                        // e.g. /time-off, /onboarding, /surveys
+  read        Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee    Employee  @relation("EmployeeNotifications", fields: [employeeId], references: [id], onDelete: Cascade)
+  @@index([employeeId])
+  @@index([companyId])
+  @@index([read])
+}
+
+model PayRun {
+  id            String    @id @default(cuid())
+  companyId     String
+  periodStart   DateTime
+  periodEnd     DateTime
+  totalAmount   Float
+  currency      String    @default("USD")
+  employeeCount Int
+  status        String    @default("PENDING")
+  processedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  @@index([companyId])
+  @@index([status])
+  @@index([periodStart])
 }

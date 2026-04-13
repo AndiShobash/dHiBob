@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,11 +12,23 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => { setIsLoading(false); router.push("/home"); }, 1000);
+    setError(null);
+    const result = await signIn('credentials', {
+      email,
+      password,
+      redirect: false,
+    });
+    setIsLoading(false);
+    if (result?.error) {
+      setError('Invalid email or password');
+    } else {
+      router.push('/home');
+    }
   };
 
   return (
@@ -26,15 +39,24 @@ export default function LoginPage() {
             <span className="text-white font-bold text-lg">DB</span>
           </div>
           <CardTitle className="text-2xl">Welcome to DHiBob</CardTitle>
-          <p className="text-gray-500">Sign in to your HR platform</p>
+          <p className="text-gray-500 dark:text-gray-400">Sign in to your HR platform</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="relative"><Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" /><Input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="pl-10" required /></div>
-            <div className="relative"><Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" /><Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="pl-10" required /></div>
-            <Button type="submit" className="w-full" disabled={isLoading}>{isLoading ? "Signing in..." : "Sign In"}</Button>
+            <div className="relative">
+              <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="pl-10" required />
+            </div>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="pl-10" required />
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Signing in..." : "Sign In"}
+            </Button>
           </form>
-          <p className="mt-4 text-center text-sm text-gray-500">Demo: admin@acme.tech / password123</p>
+          <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">Demo: admin@acme.tech / password123</p>
         </CardContent>
       </Card>
     </div>

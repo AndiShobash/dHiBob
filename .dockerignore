@@ -1,0 +1,12 @@
+.next/
+node_modules/
+*.db
+.env
+.env.local
+coverage/
+.DS_Store
+.worktrees/
+src/components/onboarding-old/
+scripts-old/
+src/components/org-chart-old/
+src/app/(dashboard)/org-chart-old/
