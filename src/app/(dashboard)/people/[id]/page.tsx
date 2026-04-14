@@ -462,6 +462,91 @@ function F({ label, value, onSave }: { label: string; value: string; onSave?: (v
     : <FieldCell label={label} value={value || null} />;
 }
 
+/** Manager picker — dropdown to select who this employee reports to */
+function ManagerPicker({ label, currentManagerId, currentManagerName, onSave }: {
+  label: string;
+  currentManagerId?: string | null;
+  currentManagerName: string;
+  onSave?: (managerId: string) => unknown;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const triggerRef = React.useRef<HTMLDivElement>(null);
+  const { data: employees } = trpc.employee.list.useQuery({ limit: 100 }, { enabled: open });
+
+  const empList = ((employees as any)?.employees ?? []).filter((e: any) =>
+    !search || `${e.firstName} ${e.lastName}`.toLowerCase().includes(search.toLowerCase())
+  );
+
+  function openPicker() {
+    if (!onSave) return;
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setCoords({ top: rect.bottom + 4, left: rect.left });
+    }
+    setOpen(true);
+    setSearch('');
+  }
+
+  return (
+    <div>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</p>
+      <div
+        ref={triggerRef}
+        onClick={openPicker}
+        className={`text-sm min-h-[1.25rem] ${onSave ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-charcoal-800 rounded px-1 -mx-1' : ''}`}
+      >
+        {currentManagerName || (onSave ? <span className="text-gray-400">Select manager...</span> : <span className="text-gray-400">—</span>)}
+      </div>
+      {open && coords && onSave && (
+        <>
+          <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
+          <div className="fixed z-[101] bg-white dark:bg-charcoal-900 border border-gray-200 dark:border-charcoal-700 rounded-lg shadow-xl py-1 min-w-[240px] max-h-[300px]" style={{ top: coords.top, left: coords.left }}>
+            <div className="px-3 py-2 border-b border-gray-100 dark:border-charcoal-700">
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search..."
+                className="w-full text-sm border-0 outline-none bg-transparent"
+                autoFocus
+              />
+            </div>
+            <div className="max-h-[240px] overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => { onSave(''); setOpen(false); }}
+                className="w-full text-left px-3 py-2 text-sm text-gray-400 hover:bg-gray-50 dark:hover:bg-charcoal-800"
+              >
+                No manager
+              </button>
+              {empList.map((emp: any) => (
+                <button
+                  key={emp.id}
+                  type="button"
+                  onClick={() => { onSave(emp.id); setOpen(false); }}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-charcoal-800 flex items-center gap-2 ${emp.id === currentManagerId ? 'font-semibold' : ''}`}
+                >
+                  {emp.avatar ? (
+                    <img src={emp.avatar} className="w-5 h-5 rounded-full object-cover" alt="" />
+                  ) : (
+                    <span className="w-5 h-5 rounded-full bg-purple-500 text-white text-[10px] font-medium inline-flex items-center justify-center">
+                      {emp.firstName?.[0]}{emp.lastName?.[0]}
+                    </span>
+                  )}
+                  {emp.firstName} {emp.lastName}
+                  {(emp as any).department?.name && <span className="text-[10px] text-gray-400 ml-auto">{(emp as any).department.name}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function EmployeeProfilePage({ params }: { params: { id: string } }) {
   const { data: session } = useSession();
   const isAdmin = session?.user.role === 'ADMIN' || session?.user.role === 'HR';
@@ -658,7 +743,10 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                   <Badge variant={statusVariant(employee.status)}>{statusLabel(employee.status)}</Badge>
                 )}
               </div>
-              <p className="text-gray-500 dark:text-gray-400 font-medium">{jobTitle || '—'} • {departmentName}</p>
+              <p className="text-gray-500 dark:text-gray-400 font-medium">
+                {jobTitle || '—'} • {departmentName}
+                {managerDisplay && <span className="text-gray-400"> • Reports to <a href={employee.manager ? `/people/${employee.manager.id}` : '#'} className="text-primary-500 hover:underline">{managerDisplay}</a></span>}
+              </p>
               <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
                 <span className="flex items-center gap-1 font-medium"><Mail size={14} className="text-gray-400" />{employee.email}</span>
                 {officeDisplay && (
@@ -947,11 +1035,37 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             </div>
             <div className="grid grid-cols-5 gap-4">
               <F label="Job" value={jobTitle} onSave={wi('jobTitle')} />
-              <F label="Reports To" value={managerDisplay} onSave={wi('reportsTo')} />
+              <ManagerPicker
+                label="Reports To"
+                currentManagerId={employee.manager?.id}
+                currentManagerName={managerDisplay}
+                onSave={isAdmin ? (managerId) => updateEmployee.mutateAsync({ id: params.id, manager: managerId || undefined } as any) : undefined}
+              />
               <F label="Team" value={team} onSave={wi('team')} />
               <F label="Office" value={officeDisplay} onSave={wi('office')} />
               <F label="HR" value={hrContact} onSave={wi('hrContact')} />
             </div>
+
+            {/* Direct Reports */}
+            {(employee as any).directReports?.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-charcoal-800">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Direct Reports ({(employee as any).directReports.length})</p>
+                <div className="flex flex-wrap gap-2">
+                  {(employee as any).directReports.map((dr: any) => (
+                    <a
+                      key={dr.id}
+                      href={`/people/${dr.id}`}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-charcoal-800 rounded-lg hover:bg-gray-100 dark:hover:bg-charcoal-700 transition-colors"
+                    >
+                      <span className="w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 text-[10px] font-bold inline-flex items-center justify-center">
+                        {dr.firstName?.[0]}{dr.lastName?.[0]}
+                      </span>
+                      <span className="text-sm font-medium">{dr.firstName} {dr.lastName}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </SectionCard>
 
           {/* Compensation History table */}

@@ -28,6 +28,9 @@ vi.mock('@/lib/trpc', () => ({
       updateWorkInfo: {
         useMutation: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
       },
+      list: {
+        useQuery: vi.fn(() => ({ data: { employees: [] } })),
+      },
     },
     useContext: () => ({
       employee: {
@@ -127,7 +130,7 @@ describe('Employee profile page', () => {
     } as any)
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
     await userEvent.click(screen.getByRole('tab', { name: 'Salary' }))
-    expect(screen.getByText(/Bob Manager/)).toBeInTheDocument()
+    expect(screen.getAllByText(/Bob Manager/).length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows department name', () => {
@@ -209,7 +212,7 @@ describe('Employee profile page', () => {
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
     await userEvent.click(screen.getByRole('tab', { name: 'Salary' }))
     expect(screen.getByText('Role')).toBeInTheDocument()
-    expect(screen.getByText(/Bob Manager/)).toBeInTheDocument()
+    expect(screen.getAllByText(/Bob Manager/).length).toBeGreaterThanOrEqual(1)
   })
 
   // T-05: Profile tab shows Identification section (merged from Personal)
