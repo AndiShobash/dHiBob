@@ -10,3 +10,4 @@ src/components/onboarding-old/
 scripts-old/
 src/components/org-chart-old/
 src/app/(dashboard)/org-chart-old/
+src/components/home-old/

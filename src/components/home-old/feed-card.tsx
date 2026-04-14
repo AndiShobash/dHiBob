@@ -1,9 +1,8 @@
 import { ShoutoutCard } from "./shoutout-card";
 import { CelebrationCard } from "./celebration-card";
 import { NewJoinerCard } from "./new-joiner-card";
-import { HrAnnouncementCard } from "./hr-announcement-card";
 
-export type FeedItemType = 'SHOUTOUT' | 'BIRTHDAY' | 'ANNIVERSARY' | 'NEW_JOINER' | 'HR_ANNOUNCEMENT';
+export type FeedItemType = 'SHOUTOUT' | 'BIRTHDAY' | 'ANNIVERSARY' | 'NEW_JOINER';
 
 export interface FeedItem {
   type: FeedItemType;
@@ -26,8 +25,6 @@ export function FeedCard({ item }: FeedCardProps) {
       return <CelebrationCard type={item.type} data={item.data} />;
     case 'NEW_JOINER':
       return <NewJoinerCard data={{ ...item.data, startDate: date }} />;
-    case 'HR_ANNOUNCEMENT':
-      return <HrAnnouncementCard data={{ ...item.data, createdAt: date }} />;
     default:
       return null;
   }

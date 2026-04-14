@@ -46,6 +46,7 @@ export default function PeoplePage() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState<string | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<'ACTIVE' | 'INACTIVE' | 'TERMINATED' | undefined>(undefined);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [addOpen, setAddOpen] = useState(false);
 
@@ -59,6 +60,7 @@ export default function PeoplePage() {
     limit: 100,
     search: search || undefined,
     department: department || undefined,
+    status: statusFilter || undefined,
   });
 
   const employees = data?.employees ?? [];
@@ -104,6 +106,20 @@ export default function PeoplePage() {
             {DEPARTMENTS.map(d => (
               <SelectItem key={d} value={d}>{d}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={statusFilter ?? 'All'}
+          onValueChange={v => setStatusFilter(v === 'All' ? undefined : v as 'ACTIVE' | 'INACTIVE' | 'TERMINATED')}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All Statuses</SelectItem>
+            <SelectItem value="ACTIVE">Active</SelectItem>
+            <SelectItem value="INACTIVE">Inactive</SelectItem>
+            <SelectItem value="TERMINATED">Terminated</SelectItem>
           </SelectContent>
         </Select>
         <div className="flex border dark:border-charcoal-700 rounded-md">

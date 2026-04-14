@@ -28,6 +28,9 @@ describe('homeRouter', () => {
               target: { id: 'emp-1', firstName: 'New', lastName: 'Joiner', avatar: null }
             }
           ]),
+        },
+        hrPortalItem: {
+          findMany: vi.fn().mockResolvedValue([]),
         }
       },
       session: {

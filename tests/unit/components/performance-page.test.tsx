@@ -6,7 +6,7 @@ vi.mock('@/lib/trpc', () => {
   return {
     trpc: {
       performance: {
-        listGoals:          { useQuery: vi.fn() },
+        listGoals:          { useQuery: vi.fn(() => ({ data: undefined, isLoading: false })) },
         listAllGoals:       { useQuery: vi.fn() },
         listCycles:         { useQuery: vi.fn() },
         listReviews:        { useQuery: vi.fn() },

@@ -150,9 +150,9 @@ export default function TimeOffPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [addPolicyOpen, setAddPolicyOpen] = useState(false);
 
-  const { data: policyBalances, isLoading: balancesLoading, refetch: refetchBalances } = trpc.timeoff.getPolicyBalances.useQuery(
+  const { data: policyBalances, isLoading: balancesLoading, error: balancesError, refetch: refetchBalances } = trpc.timeoff.getPolicyBalances.useQuery(
     { employeeId: employeeId! },
-    { enabled: !!employeeId }
+    { enabled: !!employeeId, retry: 1 }
   );
 
   const { data: allRequestsData, isLoading: requestsLoading, refetch: refetchRequests } =
@@ -198,6 +198,11 @@ export default function TimeOffPage() {
 
       {/* Balance Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {balancesError && (
+          <Card><CardContent className="p-6 text-sm text-red-500">
+            Failed to load balances: {balancesError.message}
+          </CardContent></Card>
+        )}
         {balancesLoading
           ? [0, 1, 2].map(i => (
               <Card key={i}><CardContent className="p-6">

@@ -2,8 +2,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { Menu, X, Home, Users, UserCheck, UserMinus, Calendar, DollarSign, TrendingUp, Briefcase, BookOpen, BarChart3, Users2, FileText, Settings, Network, ClipboardList, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+const HR_ONLY_HREFS = new Set(['/onboarding', '/offboarding', '/payroll', '/hiring', '/analytics', '/reports', '/workforce-planning']);
 
 const navigationItems = [
   { label: "Home", href: "/home", icon: Home },
@@ -14,7 +17,7 @@ const navigationItems = [
   { label: "Time Off", href: "/time-off", icon: Calendar },
   { label: "Payroll", href: "/payroll", icon: DollarSign },
   { label: "Performance", href: "/performance", icon: TrendingUp },
-{ label: "Hiring", href: "/hiring", icon: Briefcase },
+  { label: "Hiring", href: "/hiring", icon: Briefcase },
   { label: "Learning", href: "/learning", icon: BookOpen },
   { label: "Surveys", href: "/surveys", icon: BarChart3 },
   { label: "Analytics", href: "/analytics", icon: TrendingUp },
@@ -27,8 +30,12 @@ const navigationItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const isHrOrAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'HR';
+
+  const visibleItems = navigationItems.filter(item => !HR_ONLY_HREFS.has(item.href) || isHrOrAdmin);
 
   return (
     <>
@@ -48,7 +55,7 @@ export default function Sidebar() {
         </div>
         <nav className="flex-1 overflow-y-auto py-4">
           <ul className="space-y-2 px-3">
-            {navigationItems.map((item) => {
+            {visibleItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               return (<li key={item.href}><Link href={item.href}><Button variant={active ? "default" : "ghost"} className={`w-full justify-start gap-3 ${active ? "bg-primary-500 hover:bg-primary-600" : "hover:bg-charcoal-700"}`} onClick={() => setIsOpen(false)}><Icon size={18} /><span>{item.label}</span></Button></Link></li>);

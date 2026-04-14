@@ -1,19 +1,26 @@
 "use client";
 import { trpc } from "@/lib/trpc";
+import { useSession } from "next-auth/react";
 import { FeedCard } from "@/components/home/feed-card";
 import { MeWidget, TeamWidget } from "@/components/home/sidebar-widgets";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ShoutoutModal } from "@/components/home/shoutout-modal";
-import { Image, Smile, MapPin, Loader2 } from "lucide-react";
+import { Image, Smile, MapPin, Loader2, Users, CheckSquare, Calendar, Briefcase, ClipboardList, Cake, Trophy } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 
 export default function HomePage() {
+  const { data: session } = useSession();
+  const router = useRouter();
   const [greeting, setGreeting] = useState("Good morning");
   const [isShoutoutOpen, setIsShoutoutOpen] = useState(false);
   const { data: feed, isLoading: feedLoading } = trpc.home.getFeed.useQuery();
-  const { data: employees } = trpc.employee.list.useQuery({ limit: 1 });
-  const user = employees?.employees[0];
+  const { data: stats } = trpc.home.getStats.useQuery();
+  const { data: upcomingEvents } = trpc.home.getUpcomingEvents.useQuery();
+
+  const userName = session?.user?.name?.split(' ')[0] || 'there';
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -26,11 +33,45 @@ export default function HomePage() {
       {/* Welcome Header */}
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-          {greeting}, {user?.firstName || 'there'}!
+          {greeting}, {userName}!
         </h1>
         <p className="text-gray-500 dark:text-gray-400 font-medium">
           Here&apos;s what is happening in your company today.
         </p>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/people')}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30"><Users size={18} className="text-blue-600" /></div>
+            <div><p className="text-2xl font-bold">{stats?.headcount ?? '—'}</p><p className="text-[11px] text-gray-500">Employees</p></div>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/onboarding')}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30"><CheckSquare size={18} className="text-amber-600" /></div>
+            <div><p className="text-2xl font-bold">{stats?.myTasks ?? '—'}</p><p className="text-[11px] text-gray-500">My Tasks</p></div>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/time-off')}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30"><Calendar size={18} className="text-orange-600" /></div>
+            <div><p className="text-2xl font-bold">{stats?.pendingTimeOff ?? '—'}</p><p className="text-[11px] text-gray-500">Pending Leave</p></div>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/surveys')}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30"><ClipboardList size={18} className="text-purple-600" /></div>
+            <div><p className="text-2xl font-bold">{stats?.activeSurveys ?? '—'}</p><p className="text-[11px] text-gray-500">Active Surveys</p></div>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/workforce-planning')}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30"><Briefcase size={18} className="text-green-600" /></div>
+            <div><p className="text-2xl font-bold">{stats?.openPositions ?? '—'}</p><p className="text-[11px] text-gray-500">Open Positions</p></div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-8">
@@ -42,21 +83,18 @@ export default function HomePage() {
               <div className="flex gap-4">
                 <Avatar className="h-10 w-10 shrink-0">
                   <AvatarFallback className="bg-primary-100 text-primary-600 font-bold">
-                    {user?.firstName ? user.firstName[0] : ''}{user?.lastName ? user.lastName[0] : ''}
+                    {userName[0]?.toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 space-y-3">
-                  <div 
+                  <div
                     onClick={() => setIsShoutoutOpen(true)}
                     className="bg-gray-50 dark:bg-charcoal-800 rounded-full px-4 py-2.5 text-gray-400 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-charcoal-700 transition-colors border border-gray-100 dark:border-charcoal-700"
                   >
                     What&apos;s on your mind or want to give a shoutout?
                   </div>
                   <div className="flex items-center gap-4 text-gray-500 dark:text-gray-400 px-2">
-                    <button 
-                      onClick={() => setIsShoutoutOpen(true)}
-                      className="flex items-center gap-1.5 text-xs font-bold hover:text-primary-500 transition-colors"
-                    >
+                    <button onClick={() => setIsShoutoutOpen(true)} className="flex items-center gap-1.5 text-xs font-bold hover:text-primary-500 transition-colors">
                       <Smile size={16} className="text-amber-400" /> Shoutout
                     </button>
                     <button className="flex items-center gap-1.5 text-xs font-bold hover:text-primary-500 transition-colors cursor-not-allowed opacity-50">
@@ -101,20 +139,37 @@ export default function HomePage() {
 
         {/* Sidebar (30%) */}
         <div className="lg:col-span-3 space-y-6">
-          <MeWidget />
-          <TeamWidget />
-          
-          <Card className="border-none shadow-sm bg-gradient-to-br from-cherry to-rose-600 text-white overflow-hidden">
-            <CardContent className="p-6 space-y-4">
-              <h3 className="font-bold text-lg leading-tight">Join the Q1 All-Hands tomorrow!</h3>
-              <p className="text-rose-100 text-sm">
-                Get ready for our quarterly review and some exciting product updates.
-              </p>
-              <button className="w-full py-2 bg-white/20 hover:bg-white/30 transition-colors rounded-lg text-sm font-bold backdrop-blur-sm">
-                Add to Calendar
-              </button>
+          {/* Upcoming Events */}
+          <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900">
+            <CardHeader className="pb-2 border-b border-gray-50 dark:border-charcoal-800">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Calendar size={16} className="text-primary-500" />
+                Upcoming Events
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-3">
+              {!upcomingEvents || upcomingEvents.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-4">No upcoming events in the next 2 weeks.</p>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingEvents.slice(0, 6).map((event: any, i: number) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className={`p-1.5 rounded-lg shrink-0 ${event.type === 'BIRTHDAY' ? 'bg-pink-100 dark:bg-pink-900/30' : 'bg-amber-100 dark:bg-amber-900/30'}`}>
+                        {event.type === 'BIRTHDAY' ? <Cake size={14} className="text-pink-600" /> : <Trophy size={14} className="text-amber-600" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{event.name}</p>
+                        <p className="text-[10px] text-gray-400">{event.detail} · {format(new Date(event.date), 'MMM d')}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          <MeWidget />
+          <TeamWidget />
         </div>
       </div>
     </div>

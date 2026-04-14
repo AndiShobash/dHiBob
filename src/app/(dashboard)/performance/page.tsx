@@ -384,10 +384,17 @@ export default function PerformancePage() {
   const [showCreateGoal, setShowCreateGoal] = useState(false);
   const [showCreateCycle, setShowCreateCycle] = useState(false);
 
-  const { data: allGoals, isLoading: allGoalsLoading } = trpc.performance.listAllGoals.useQuery();
+  const isHrOrAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'HR';
+
+  const { data: allGoals, isLoading: allGoalsLoading } = trpc.performance.listAllGoals.useQuery(undefined, { enabled: isHrOrAdmin });
+  const { data: myGoalsData, isLoading: myGoalsLoading } = trpc.performance.listGoals.useQuery(
+    { employeeId: employeeId!, limit: 100 },
+    { enabled: !!employeeId && !isHrOrAdmin }
+  );
   const { data: cyclesData, isLoading: cyclesLoading } = trpc.performance.listCycles.useQuery({ limit: 100 });
 
-  const goals = allGoals ?? [];
+  const goals = isHrOrAdmin ? (allGoals ?? []) : (myGoalsData?.goals ?? []);
+  const goalsLoading = isHrOrAdmin ? allGoalsLoading : myGoalsLoading;
   const cycles = cyclesData?.cycles ?? [];
 
   const activeGoals = goals.filter((g: any) => g.status === 'ACTIVE').length;
@@ -401,15 +408,15 @@ export default function PerformancePage() {
         <h1 className="text-2xl font-bold">Performance</h1>
         {activeTab === "goals" ? (
           <Button onClick={() => setShowCreateGoal(true)} className="gap-2"><Plus size={16} /> New Goal</Button>
-        ) : (
+        ) : isHrOrAdmin ? (
           <Button onClick={() => setShowCreateCycle(true)} className="gap-2"><Plus size={16} /> New Cycle</Button>
-        )}
+        ) : null}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="Active Goals" value={allGoalsLoading ? '—' : activeGoals} icon={<Target size={20} />} />
-        <StatCard title="Completed" value={allGoalsLoading ? '—' : completedGoals} icon={<CheckCircle2 size={20} />} />
-        <StatCard title="Avg Progress" value={allGoalsLoading ? '—' : `${avgProgress}%`} icon={<TrendingUp size={20} />} />
+        <StatCard title="Active Goals" value={goalsLoading ? '—' : activeGoals} icon={<Target size={20} />} />
+        <StatCard title="Completed" value={goalsLoading ? '—' : completedGoals} icon={<CheckCircle2 size={20} />} />
+        <StatCard title="Avg Progress" value={goalsLoading ? '—' : `${avgProgress}%`} icon={<TrendingUp size={20} />} />
         <StatCard title="Active Cycles" value={cyclesLoading ? '—' : activeCycles} icon={<BarChart2 size={20} />} />
       </div>
 
@@ -420,7 +427,7 @@ export default function PerformancePage() {
         </TabsList>
 
         <TabsContent value="goals" className="mt-4">
-          {allGoalsLoading ? (
+          {goalsLoading ? (
             <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-24 w-full" />)}</div>
           ) : goals.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
@@ -430,7 +437,7 @@ export default function PerformancePage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {goals.map((goal: any) => <GoalCard key={goal.id} goal={goal} showOwner />)}
+              {goals.map((goal: any) => <GoalCard key={goal.id} goal={goal} showOwner={isHrOrAdmin} />)}
             </div>
           )}
         </TabsContent>

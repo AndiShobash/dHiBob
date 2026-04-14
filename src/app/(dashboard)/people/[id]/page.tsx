@@ -467,6 +467,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
   const isAdmin = session?.user.role === 'ADMIN' || session?.user.role === 'HR';
   const isSelf = session?.user.employeeId === params.id;
   const canEditAvatar = isAdmin || isSelf;
+  const canSeeSensitive = isAdmin || isSelf;
 
   const { data: employee, isLoading, error } = trpc.employee.getById.useQuery(
     { id: params.id },
@@ -675,9 +676,9 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
           <TabsTrigger value="profile" className={tabTriggerClass}>Profile</TabsTrigger>
           <TabsTrigger value="work" className={tabTriggerClass}>Work</TabsTrigger>
           <TabsTrigger value="assets" className={tabTriggerClass}>Assets</TabsTrigger>
-          <TabsTrigger value="salary" className={tabTriggerClass}>Salary</TabsTrigger>
-          <TabsTrigger value="bank" className={tabTriggerClass}>Bank Details</TabsTrigger>
-          <TabsTrigger value="pension" className={tabTriggerClass}>Pension</TabsTrigger>
+          {canSeeSensitive && <TabsTrigger value="salary" className={tabTriggerClass}>Salary</TabsTrigger>}
+          {canSeeSensitive && <TabsTrigger value="bank" className={tabTriggerClass}>Bank Details</TabsTrigger>}
+          {canSeeSensitive && <TabsTrigger value="pension" className={tabTriggerClass}>Pension</TabsTrigger>}
         </TabsList>
 
         {/* Profile tab (merged Profile + Personal) */}
@@ -785,7 +786,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             </div>
           </SectionCard>
 
-          {(() => {
+          {canSeeSensitive && (() => {
             const latestEntry = salaryHistory.length > 0
               ? [...salaryHistory].sort((a, b) => {
                   const da = a.effectiveDate ? new Date(a.effectiveDate).getTime() : 0;
@@ -848,7 +849,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
           })()}
 
           {/* Compensation History Modal */}
-          {showCompHistory && (
+          {canSeeSensitive && showCompHistory && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
               <div className="bg-white dark:bg-charcoal-900 rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[80vh] overflow-y-auto">
                 <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-charcoal-700">
@@ -935,7 +936,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
         </TabsContent>
 
         {/* Salary tab */}
-        <TabsContent value="salary" className="mt-6 space-y-4">
+        {canSeeSensitive && <TabsContent value="salary" className="mt-6 space-y-4">
           {/* Role section */}
           <SectionCard
             title="Role"
@@ -1014,10 +1015,10 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               </SectionCard>
             );
           })()}
-        </TabsContent>
+        </TabsContent>}
 
         {/* Bank Details tab */}
-        <TabsContent value="bank" className="mt-6 space-y-4">
+        {canSeeSensitive && <TabsContent value="bank" className="mt-6 space-y-4">
           <SectionCard
             title="Bank Details"
             subtitle="See and edit the employee's bank account information"
@@ -1036,10 +1037,10 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               />
             </div>
           </SectionCard>
-        </TabsContent>
+        </TabsContent>}
 
         {/* Pension tab */}
-        <TabsContent value="pension" className="mt-6 space-y-4">
+        {canSeeSensitive && <TabsContent value="pension" className="mt-6 space-y-4">
           <SectionCard
             title="Pension"
             subtitle="See and edit the employee's pension fund details"
@@ -1079,7 +1080,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               />
             </div>
           </SectionCard>
-        </TabsContent>
+        </TabsContent>}
 
       </Tabs>
     </div>
