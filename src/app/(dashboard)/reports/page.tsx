@@ -234,8 +234,6 @@ const COMPENSATION_COLS: Column[] = [
   { key: "currentBase",   label: "Base (80%)",     format: usd,  visible: true },
   { key: "currentAdditional", label: "Additional (20%)", format: usd, visible: true },
   { key: "newSalary",     label: "New Salary",     format: usd,  visible: true },
-  { key: "newBase",       label: "New Base (80%)", format: usd,  visible: true },
-  { key: "newAdditional", label: "New Additional (20%)", format: usd, visible: true },
   { key: "effectiveDate", label: "Effective Date", visible: true },
   { key: "type",          label: "Type",           visible: true },
   { key: "changeReason",  label: "Note",           visible: true },
