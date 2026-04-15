@@ -308,7 +308,7 @@ export default function ReportsPage() {
       }
       return increases.map((fi: any) => ({
         name: r.name, nationalId: r.nationalId, department: r.department, role: r.role,
-        currentSalary: r.currentSalary,
+        currentSalary: r.currentSalary, currentBase: r.currentBase, currentAdditional: r.currentAdditional,
         newSalary:     fi.salary,
         newBase:       fi.salary ? Math.round(fi.salary * 0.8) : null,
         newAdditional: fi.salary ? Math.round(fi.salary * 0.2) : null,
