@@ -33,7 +33,7 @@ export default function Sidebar() {
   const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
-  const isHrOrAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'HR';
+  const isHrOrAdmin = session?.user?.role === 'SUPER_ADMIN' || session?.user?.role === 'ADMIN' || session?.user?.role === 'HR';
 
   const visibleItems = navigationItems.filter(item => !HR_ONLY_HREFS.has(item.href) || isHrOrAdmin);
 

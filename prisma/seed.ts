@@ -391,7 +391,13 @@ async function main() {
   // Create Users
   const adminPasswordHash = await bcrypt.hash("password123", 10);
   const employeePassword = await bcrypt.hash("password123", 10);
-  await prisma.user.create({ data: { email: "admin@acme.tech", passwordHash: adminPasswordHash, role: "ADMIN", employeeId: adminEmployee.id } });
+  await prisma.user.create({ data: { email: "admin@acme.tech", passwordHash: adminPasswordHash, role: "SUPER_ADMIN", employeeId: adminEmployee.id } });
+
+  // Create HR Admin user (Helen Clark - HR Manager)
+  const hrUser = await prisma.user.findFirst({ where: { email: "helen.clark@acme.tech" } });
+  if (hrUser) {
+    await prisma.user.update({ where: { id: hrUser.id }, data: { role: "ADMIN" } });
+  }
   await Promise.all(employees.map(emp =>
     prisma.user.create({ data: { email: emp.email, passwordHash: employeePassword, role: "EMPLOYEE", employeeId: emp.id } })
   ));

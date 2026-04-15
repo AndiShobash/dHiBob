@@ -34,7 +34,7 @@ const TYPE_COLORS = {
 
 export function LifecycleTimeline({ employeeId }: LifecycleTimelineProps) {
   const { data: session } = useSession();
-  const isAdmin = session?.user.role === 'ADMIN' || session?.user.role === 'HR';
+  const isAdmin = session?.user.role === 'SUPER_ADMIN' || session?.user.role === 'ADMIN' || session?.user.role === 'HR';
   const [modalOpen, setModalOpen] = useState(false);
   const { data: events, isLoading } = trpc.employee.getTimeline.useQuery({ id: employeeId });
 

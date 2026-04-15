@@ -27,7 +27,7 @@ const DEFAULT_SECTIONS = ['Company Policies', 'Benefits', 'Tools & Access', 'Ann
 
 export default function HrPortalPage() {
   const { data: session } = useSession();
-  const isHr = session?.user.role === 'ADMIN' || session?.user.role === 'HR';
+  const isHr = session?.user.role === 'SUPER_ADMIN' || session?.user.role === 'ADMIN' || session?.user.role === 'HR';
   const [addOpen, setAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
 

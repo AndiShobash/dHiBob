@@ -3,7 +3,7 @@ import { router, protectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 
 function requireHr(role: string) {
-  if (role !== 'ADMIN' && role !== 'HR') {
+  if (role !== 'SUPER_ADMIN' && role !== 'ADMIN' && role !== 'HR') {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Only HR/Admin can edit the portal' });
   }
 }

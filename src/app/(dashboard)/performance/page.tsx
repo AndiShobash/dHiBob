@@ -384,7 +384,7 @@ export default function PerformancePage() {
   const [showCreateGoal, setShowCreateGoal] = useState(false);
   const [showCreateCycle, setShowCreateCycle] = useState(false);
 
-  const isHrOrAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'HR';
+  const isHrOrAdmin = session?.user?.role === 'SUPER_ADMIN' || session?.user?.role === 'ADMIN' || session?.user?.role === 'HR';
 
   const { data: allGoals, isLoading: allGoalsLoading } = trpc.performance.listAllGoals.useQuery(undefined, { enabled: isHrOrAdmin });
   const { data: myGoalsData, isLoading: myGoalsLoading } = trpc.performance.listGoals.useQuery(
