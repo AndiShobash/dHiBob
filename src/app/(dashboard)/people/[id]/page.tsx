@@ -1001,7 +1001,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-200 dark:border-charcoal-700">
-                        {['Effective date', 'Contract Type', 'Salary Type', 'Salary Amount', 'Contract Documents', 'Salary Currency', 'Note', ...(isAdmin ? [''] : [])].map(col => (
+                        {['Effective date', 'Contract Type', 'Salary Type', 'Salary Amount', 'Base (80%)', 'Additional (20%)', 'Contract Documents', 'Salary Currency', 'Note', ...(isAdmin ? [''] : [])].map(col => (
                           <th key={col || 'actions'} className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 pr-4 whitespace-nowrap">{col}</th>
                         ))}
                       </tr>
@@ -1020,6 +1020,16 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                           </td>
                           <td className="py-3 pr-6 min-w-[120px]">
                             <F label="" value={entry.salaryAmount || ''} onSave={saveSalaryField(idx, 'salaryAmount')} />
+                          </td>
+                          <td className="py-3 pr-6 min-w-[110px]">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              {entry.salaryAmount ? `$${Math.round(parseFloat(entry.salaryAmount) * 0.8).toLocaleString()}` : '—'}
+                            </span>
+                          </td>
+                          <td className="py-3 pr-6 min-w-[110px]">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              {entry.salaryAmount ? `$${Math.round(parseFloat(entry.salaryAmount) * 0.2).toLocaleString()}` : '—'}
+                            </span>
                           </td>
                           <td className="py-3 pr-6 min-w-[160px]">
                             <DocumentField label="" value={entry.contractDoc || null} onSave={isAdmin ? saveSalaryField(idx, 'contractDoc') : undefined} />
