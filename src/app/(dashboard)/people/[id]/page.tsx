@@ -88,6 +88,67 @@ function EditableField({
   );
 }
 
+/** Date picker field — click to open native date picker, saves on change */
+function DateField({ label, value, onSave }: {
+  label: string;
+  value?: string | null;
+  onSave?: (val: string) => unknown;
+}) {
+  const [editing, setEditing] = useState(false);
+
+  // Convert display value to ISO for the input
+  function toIso(v: string | null | undefined): string {
+    if (!v) return '';
+    try {
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return '';
+      return d.toISOString().slice(0, 10);
+    } catch { return ''; }
+  }
+
+  // Format for display
+  function toDisplay(v: string | null | undefined): string {
+    if (!v) return '';
+    try {
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return v;
+      return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch { return v; }
+  }
+
+  if (!onSave) {
+    return (
+      <div>
+        {label && <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</p>}
+        <p className="text-sm text-charcoal-900 dark:text-white min-h-[1.25rem]">{toDisplay(value) || '—'}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {label && <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</p>}
+      {editing ? (
+        <input
+          type="date"
+          autoFocus
+          defaultValue={toIso(value)}
+          onBlur={e => { setEditing(false); if (e.target.value && e.target.value !== toIso(value)) onSave(e.target.value); }}
+          onChange={e => { if (e.target.value) { onSave(e.target.value); setEditing(false); } }}
+          className="text-sm w-full border-b border-primary-400 dark:border-primary-500 outline-none bg-transparent text-charcoal-900 dark:text-white py-0.5"
+        />
+      ) : (
+        <p
+          onClick={() => setEditing(true)}
+          className="text-sm text-charcoal-900 dark:text-white cursor-pointer hover:bg-gray-50 dark:hover:bg-charcoal-800 rounded px-1 -mx-1 min-h-[1.25rem]"
+        >
+          {toDisplay(value) || <span className="text-gray-400">Select date...</span>}
+        </p>
+      )}
+    </div>
+  );
+}
+
 const BADGE_COLORS: Record<string, string> = {
   intern:       'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
   contract:     'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
@@ -786,7 +847,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <F label="Phone Number" value={phone} onSave={pi('phone')} />
             </div>
             <div className="grid grid-cols-5 gap-4 mb-4">
-              <F label="Date of Birth" value={dateOfBirth} onSave={pi('dateOfBirth')} />
+              <DateField label="Date of Birth" value={dateOfBirth} onSave={pi('dateOfBirth')} />
               <F label="Gender" value={gender} onSave={pi('gender')} />
               <F label="Personal Email" value={personalEmail} onSave={pi('personalEmail')} />
               <F label="Allergies/food preference" value={allergies} onSave={pi('allergies')} />
@@ -843,7 +904,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <div key={i} className="grid grid-cols-4 gap-4 mb-3">
                 <F label="Full name" value={member.fullName || ''} onSave={saveFamilyField(i, 'fullName')} />
                 <F label="Relationship" value={member.relationship || ''} onSave={saveFamilyField(i, 'relationship')} />
-                <F label="Date of Birth" value={member.dateOfBirth || ''} onSave={saveFamilyField(i, 'dateOfBirth')} />
+                <DateField label="Date of Birth" value={member.dateOfBirth || ''} onSave={saveFamilyField(i, 'dateOfBirth')} />
                 <F label="Note" value={member.note || ''} onSave={saveFamilyField(i, 'note')} />
               </div>
             ))}
@@ -857,7 +918,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             subtitle="Information of when the employee's contract with the company started"
           >
             <div className="grid grid-cols-3 gap-4">
-              <F label="Start Date" value={startDateFormatted}
+              <DateField label="Start Date" value={startDateFormatted}
                 onSave={isAdmin ? (val) => updateEmployee.mutateAsync({ id: params.id, startDate: val } as any) : undefined} />
               <F label="Bootcamp No." value={bootcampNo} onSave={wi('bootcampNo')} />
               <F label="Mindspace Card No." value={mindspaceCardNo} onSave={wi('mindspaceCardNo')} />
@@ -869,7 +930,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             subtitle="Optional information for when the employee's contract with the company ends"
           >
             <div className="grid grid-cols-2 gap-4">
-              <F label="Termination Date" value={terminationDate} onSave={wi('terminationDate')} />
+              <DateField label="Termination Date" value={terminationDate} onSave={wi('terminationDate')} />
               <F label="Termination Reason" value={terminationReason} onSave={wi('terminationReason')} />
             </div>
           </SectionCard>
@@ -1004,8 +1065,8 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <div className="grid grid-cols-5 gap-4 mb-4">
                 <F label="Category" value={asset.category || ''} onSave={saveAssetField(i, 'category')} />
                 <F label="Description" value={asset.description || ''} onSave={saveAssetField(i, 'description')} />
-                <F label="Date Loaned" value={asset.dateLoaned || ''} onSave={saveAssetField(i, 'dateLoaned')} />
-                <F label="Date Returned" value={asset.dateReturned || ''} onSave={saveAssetField(i, 'dateReturned')} />
+                <DateField label="Date Loaned" value={asset.dateLoaned || ''} onSave={saveAssetField(i, 'dateLoaned')} />
+                <DateField label="Date Returned" value={asset.dateReturned || ''} onSave={saveAssetField(i, 'dateReturned')} />
                 <F label="Assets Cost" value={asset.assetsCost || ''} onSave={saveAssetField(i, 'assetsCost')} />
               </div>
               <div>
@@ -1093,7 +1154,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                       {sortedHistory.map(({ entry, idx }) => (
                         <tr key={idx} className="border-b border-gray-100 dark:border-charcoal-800 last:border-0">
                           <td className="py-3 pr-6 min-w-[130px]">
-                            <F label="" value={entry.effectiveDate || ''} onSave={saveSalaryField(idx, 'effectiveDate')} />
+                            <DateField label="" value={entry.effectiveDate || ''} onSave={saveSalaryField(idx, 'effectiveDate')} />
                           </td>
                           <td className="py-3 pr-6 min-w-[140px]">
                             <DropdownBadgeField label="" value={entry.contractType || ''} options={CONTRACT_TYPE_OPTIONS} onSave={isAdmin ? saveSalaryField(idx, 'contractType') : undefined} />
@@ -1162,7 +1223,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             <div className="grid grid-cols-4 gap-4 mb-4">
               <F label="Pension Fund Name" value={workInfo.pensionFundName || ''} onSave={wi('pensionFundName')} />
               <F label="Pension ID" value={workInfo.pensionId || ''} onSave={wi('pensionId')} />
-              <F label="Start Date" value={workInfo.pensionStartDate || ''} onSave={wi('pensionStartDate')} />
+              <DateField label="Start Date" value={workInfo.pensionStartDate || ''} onSave={wi('pensionStartDate')} />
               <F label="Employee Contribution (%)" value={workInfo.pensionEmployeeContribution || ''} onSave={wi('pensionEmployeeContribution')} />
             </div>
             <div className="grid grid-cols-4 gap-4">
@@ -1182,7 +1243,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             <div className="grid grid-cols-4 gap-4 mb-4">
               <F label="Training Fund Name" value={workInfo.trainingFundName || ''} onSave={wi('trainingFundName')} />
               <F label="Training Fund ID" value={workInfo.trainingFundId || ''} onSave={wi('trainingFundId')} />
-              <F label="Start Date" value={workInfo.trainingFundStartDate || ''} onSave={wi('trainingFundStartDate')} />
+              <DateField label="Start Date" value={workInfo.trainingFundStartDate || ''} onSave={wi('trainingFundStartDate')} />
               <F label="Employee Contribution (%)" value={workInfo.trainingFundEmployeeContribution || ''} onSave={wi('trainingFundEmployeeContribution')} />
             </div>
             <div className="grid grid-cols-4 gap-4">

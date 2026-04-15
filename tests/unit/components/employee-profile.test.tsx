@@ -198,7 +198,7 @@ describe('Employee profile page', () => {
     } as any)
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
     expect(screen.getByText('555-0100')).toBeInTheDocument()
-    expect(screen.getByText('1990-01-01')).toBeInTheDocument()
+    expect(screen.getByText('Jan 1, 1990')).toBeInTheDocument()
     expect(screen.getByText('Female')).toBeInTheDocument()
   })
 
