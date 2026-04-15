@@ -314,14 +314,15 @@ export default function ReportsPage() {
     setCols(cols.map((c) => (c.key === key ? { ...c, visible: !c.visible } : c)));
   }
 
-  // Filter rows by month
+  // Filter rows by month (month only, any year)
   function filterByMonth(data: any[], dateKey: string): any[] {
     if (!monthFilter) return data;
     return data.filter(row => {
       const val = row[dateKey];
       if (!val) return false;
       const dateStr = val instanceof Date ? val.toISOString() : String(val);
-      return dateStr.startsWith(monthFilter);
+      // Match "-MM-" anywhere in the date string
+      return dateStr.includes(`-${monthFilter}-`);
     });
   }
 
@@ -384,20 +385,12 @@ export default function ReportsPage() {
         <select
           value={monthFilter}
           onChange={(e) => setMonthFilter(e.target.value)}
-          className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white min-w-[160px]"
+          className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white min-w-[140px]"
         >
           <option value="">All months</option>
-          {(() => {
-            const months: { value: string; label: string }[] = [];
-            const now = new Date();
-            for (let i = -24; i <= 12; i++) {
-              const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-              const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-              const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-              months.push({ value, label });
-            }
-            return months.map(m => <option key={m.value} value={m.value}>{m.label}</option>);
-          })()}
+          {['January','February','March','April','May','June','July','August','September','October','November','December'].map((name, i) => (
+            <option key={i} value={String(i + 1).padStart(2, '0')}>{name}</option>
+          ))}
         </select>
       </div>
 
