@@ -122,14 +122,14 @@ describe('Employee profile page', () => {
     expect(emailElements.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('shows manager name in Salary tab (Role section)', async () => {
+  it('shows manager name in Work tab (Role section)', async () => {
     vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
       data: mockEmployee,
       isLoading: false,
       error: null,
     } as any)
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
-    await userEvent.click(screen.getByRole('tab', { name: 'Salary' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Work' }))
     expect(screen.getAllByText(/Bob Manager/).length).toBeGreaterThanOrEqual(1)
   })
 
@@ -202,15 +202,15 @@ describe('Employee profile page', () => {
     expect(screen.getByText('Female')).toBeInTheDocument()
   })
 
-  // T-03: Salary tab contains Role section and manager name
-  it('Salary tab contains Role section and manager name', async () => {
+  // T-03: Work tab contains Role section and manager name
+  it('Work tab contains Role section and manager name', async () => {
     vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
       data: mockEmployee,
       isLoading: false,
       error: null,
     } as any)
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
-    await userEvent.click(screen.getByRole('tab', { name: 'Salary' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Work' }))
     expect(screen.getByText('Role')).toBeInTheDocument()
     expect(screen.getAllByText(/Bob Manager/).length).toBeGreaterThanOrEqual(1)
   })
@@ -277,7 +277,7 @@ describe('Employee profile page', () => {
     expect(screen.getByRole('tab', { name: 'Profile' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Work' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Assets' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Salary' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Salary' })).toBeNull()
     expect(screen.queryByRole('tab', { name: 'Personal' })).toBeNull()
     expect(screen.queryByRole('tab', { name: 'Client' })).toBeNull()
     expect(screen.queryByRole('tab', { name: 'HR talks' })).toBeNull()

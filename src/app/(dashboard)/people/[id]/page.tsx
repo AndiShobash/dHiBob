@@ -629,7 +629,6 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
   const updateWorkInfo = trpc.employee.updateWorkInfo.useMutation({ onSuccess: invalidate });
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const [showCompHistory, setShowCompHistory] = useState(false);
   const handleAvatarFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -825,7 +824,6 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
           <TabsTrigger value="profile" className={tabTriggerClass}>Profile</TabsTrigger>
           <TabsTrigger value="work" className={tabTriggerClass}>Work</TabsTrigger>
           <TabsTrigger value="assets" className={tabTriggerClass}>Assets</TabsTrigger>
-          {canSeeSensitive && <TabsTrigger value="salary" className={tabTriggerClass}>Salary</TabsTrigger>}
           {canSeeSensitive && <TabsTrigger value="bank" className={tabTriggerClass}>Bank Details</TabsTrigger>}
           {canSeeSensitive && <TabsTrigger value="pension" className={tabTriggerClass}>Pension</TabsTrigger>}
         </TabsList>
@@ -935,164 +933,8 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             </div>
           </SectionCard>
 
-          {canSeeSensitive && (() => {
-            const latestEntry = salaryHistory.length > 0
-              ? [...salaryHistory].sort((a, b) => {
-                  const da = a.effectiveDate ? new Date(a.effectiveDate).getTime() : 0;
-                  const db = b.effectiveDate ? new Date(b.effectiveDate).getTime() : 0;
-                  return db - da;
-                })[0]
-              : null;
-            const effectiveLabel = latestEntry?.effectiveDate
-              ? new Date(latestEntry.effectiveDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
-              : compensationDate;
-
-            return (
-              <SectionCard
-                title="Compensation"
-                subtitle="See and edit all of the employee's salary information"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">Effective Date:</span>
-                    <DateField label="" value={latestEntry?.effectiveDate || compensationDate}
-                      onSave={isAdmin && latestEntry && salaryHistory.indexOf(latestEntry) >= 0
-                        ? (val) => { const fn = saveSalaryField(salaryHistory.indexOf(latestEntry), 'effectiveDate'); if (fn) fn(val); }
-                        : undefined} />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setShowCompHistory(true)}>View History</Button>
-                    {isAdmin && (
-                      <Button size="sm" className="bg-charcoal-900 text-white dark:bg-white dark:text-charcoal-900" onClick={addSalaryEntry}>
-                        Update Info
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                {(() => {
-                  const latestIdx = latestEntry ? salaryHistory.indexOf(latestEntry) : -1;
-                  const saveField = (field: string, wiFallback: string) => {
-                    if (!isAdmin) return undefined;
-                    return (val: string) => {
-                      if (latestIdx >= 0) { const fn = saveSalaryField(latestIdx, field); if (fn) fn(val); }
-                      else { const fn = wi(wiFallback); if (fn) fn(val); }
-                    };
-                  };
-                  return (
-                    <>
-                      <div className="grid grid-cols-5 gap-4 mb-4">
-                        <DropdownBadgeField label="Contract Type" value={latestEntry?.contractType || contractType} options={CONTRACT_TYPE_OPTIONS}
-                          onSave={saveField('contractType', 'contractType')} />
-                        <DropdownBadgeField label="Salary Type" value={latestEntry?.salaryType || salaryType} options={SALARY_TYPE_OPTIONS}
-                          onSave={saveField('salaryType', 'salaryType')} />
-                        <F label="Salary Amount" value={latestEntry?.salaryAmount || salaryAmount}
-                          onSave={saveField('salaryAmount', 'salaryAmount')} />
-                        <DocumentField label="Contract Documents" value={latestEntry?.contractDoc || null}
-                          onSave={saveField('contractDoc', 'contractDocuments')} />
-                        <DropdownBadgeField label="Salary Currency" value={latestEntry?.salaryCurrency || salaryCurrency} options={CURRENCY_OPTIONS}
-                          onSave={saveField('salaryCurrency', 'salaryCurrency')} />
-                      </div>
-                      <div>
-                        <F label="Note" value={latestEntry?.note || compensationNote}
-                          onSave={saveField('note', 'compensationNote')} />
-                      </div>
-                    </>
-                  );
-                })()}
-              </SectionCard>
-            );
-          })()}
-
-          {/* Compensation History Modal */}
-          {canSeeSensitive && showCompHistory && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-              <div className="bg-white dark:bg-charcoal-900 rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[80vh] overflow-y-auto">
-                <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-charcoal-700">
-                  <div>
-                    <h2 className="text-lg font-semibold">Compensation History</h2>
-                    <p className="text-sm text-gray-500">Timeline of this employee&apos;s compensation changes</p>
-                  </div>
-                  <button onClick={() => setShowCompHistory(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-charcoal-800 rounded-md text-gray-500">✕</button>
-                </div>
-                <div className="p-6">
-                  {salaryHistory.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8">No compensation history yet.</p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-gray-200 dark:border-charcoal-700">
-                            {['Effective date', 'Contract Type', 'Salary Type', 'Salary Amount', 'Contract Documents', 'Salary Currency', 'Note'].map(col => (
-                              <th key={col} className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 pr-4 whitespace-nowrap">{col}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {[...salaryHistory]
-                            .map((entry, idx) => ({ entry, idx }))
-                            .sort((a, b) => {
-                              const da = a.entry.effectiveDate ? new Date(a.entry.effectiveDate).getTime() : 0;
-                              const db = b.entry.effectiveDate ? new Date(b.entry.effectiveDate).getTime() : 0;
-                              return db - da;
-                            })
-                            .map(({ entry, idx }) => (
-                              <tr key={idx} className="border-b border-gray-100 dark:border-charcoal-800 last:border-0">
-                                <td className="py-3 pr-4">{entry.effectiveDate ? new Date(entry.effectiveDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</td>
-                                <td className="py-3 pr-4">
-                                  {entry.contractType ? <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${badgeColor(entry.contractType)}`}>{entry.contractType}</span> : '—'}
-                                </td>
-                                <td className="py-3 pr-4">
-                                  {entry.salaryType ? <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${badgeColor(entry.salaryType)}`}>{entry.salaryType}</span> : '—'}
-                                </td>
-                                <td className="py-3 pr-4">{entry.salaryAmount || '—'}</td>
-                                <td className="py-3 pr-4">
-                                  {entry.contractDoc ? <a href={entry.contractDoc} target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline text-xs">View</a> : '—'}
-                                </td>
-                                <td className="py-3 pr-4">
-                                  {entry.salaryCurrency ? <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${badgeColor(entry.salaryCurrency)}`}>{entry.salaryCurrency}</span> : '—'}
-                                </td>
-                                <td className="py-3">{entry.note || '—'}</td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Assets tab */}
-        <TabsContent value="assets" className="mt-6 space-y-4">
-          {(assets.length > 0 ? assets : [{}]).map((asset: any, i) => (
-            <SectionCard key={i} title="Assets">
-              <div className="grid grid-cols-5 gap-4 mb-4">
-                <F label="Category" value={asset.category || ''} onSave={saveAssetField(i, 'category')} />
-                <F label="Description" value={asset.description || ''} onSave={saveAssetField(i, 'description')} />
-                <DateField label="Date Loaned" value={asset.dateLoaned || ''} onSave={saveAssetField(i, 'dateLoaned')} />
-                <DateField label="Date Returned" value={asset.dateReturned || ''} onSave={saveAssetField(i, 'dateReturned')} />
-                <F label="Assets Cost" value={asset.assetsCost || ''} onSave={saveAssetField(i, 'assetsCost')} />
-              </div>
-              <div>
-                <F label="Notes" value={asset.notes || ''} onSave={saveAssetField(i, 'notes')} />
-              </div>
-            </SectionCard>
-          ))}
-          {isAdmin && (
-            <button
-              onClick={addAssetEntry}
-              className="flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600 font-medium"
-            >
-              <Plus size={14} /> Add asset
-            </button>
-          )}
-        </TabsContent>
-
-        {/* Salary tab */}
-        {canSeeSensitive && <TabsContent value="salary" className="mt-6 space-y-4">
           {/* Role section */}
+          {canSeeSensitive && (
           <SectionCard
             title="Role"
             subtitle="See and edit the employee's role and work environment"
@@ -1114,21 +956,13 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <F label="Office" value={officeDisplay} onSave={wi('office')} />
               <F label="HR" value={hrContact} onSave={wi('hrContact')} />
             </div>
-
-            {/* Direct Reports */}
             {(employee as any).directReports?.length > 0 && (
               <div className="mt-4 pt-4 border-t border-gray-100 dark:border-charcoal-800">
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Direct Reports ({(employee as any).directReports.length})</p>
                 <div className="flex flex-wrap gap-2">
                   {(employee as any).directReports.map((dr: any) => (
-                    <a
-                      key={dr.id}
-                      href={`/people/${dr.id}`}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-charcoal-800 rounded-lg hover:bg-gray-100 dark:hover:bg-charcoal-700 transition-colors"
-                    >
-                      <span className="w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 text-[10px] font-bold inline-flex items-center justify-center">
-                        {dr.firstName?.[0]}{dr.lastName?.[0]}
-                      </span>
+                    <a key={dr.id} href={`/people/${dr.id}`} className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-charcoal-800 rounded-lg hover:bg-gray-100 dark:hover:bg-charcoal-700 transition-colors">
+                      <span className="w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 text-[10px] font-bold inline-flex items-center justify-center">{dr.firstName?.[0]}{dr.lastName?.[0]}</span>
                       <span className="text-sm font-medium">{dr.firstName} {dr.lastName}</span>
                     </a>
                   ))}
@@ -1136,9 +970,10 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               </div>
             )}
           </SectionCard>
+          )}
 
           {/* Compensation History table */}
-          {(() => {
+          {canSeeSensitive && (() => {
             const displayHistory = salaryHistory.length > 0 ? salaryHistory : [{}];
             const sortedHistory = displayHistory
               .map((entry, idx) => ({ entry, idx }))
@@ -1188,18 +1023,42 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                   </table>
                 </div>
                 {isAdmin && (
-                  <button
-                    onClick={addSalaryEntry}
-                    className="mt-4 flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600 font-medium"
-                  >
+                  <button onClick={addSalaryEntry} className="mt-4 flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600 font-medium">
                     <Plus size={14} /> Add salary entry
                   </button>
                 )}
               </SectionCard>
             );
           })()}
-        </TabsContent>}
+        </TabsContent>
 
+        {/* Assets tab */}
+        <TabsContent value="assets" className="mt-6 space-y-4">
+          {(assets.length > 0 ? assets : [{}]).map((asset: any, i) => (
+            <SectionCard key={i} title="Assets">
+              <div className="grid grid-cols-5 gap-4 mb-4">
+                <F label="Category" value={asset.category || ''} onSave={saveAssetField(i, 'category')} />
+                <F label="Description" value={asset.description || ''} onSave={saveAssetField(i, 'description')} />
+                <DateField label="Date Loaned" value={asset.dateLoaned || ''} onSave={saveAssetField(i, 'dateLoaned')} />
+                <DateField label="Date Returned" value={asset.dateReturned || ''} onSave={saveAssetField(i, 'dateReturned')} />
+                <F label="Assets Cost" value={asset.assetsCost || ''} onSave={saveAssetField(i, 'assetsCost')} />
+              </div>
+              <div>
+                <F label="Notes" value={asset.notes || ''} onSave={saveAssetField(i, 'notes')} />
+              </div>
+            </SectionCard>
+          ))}
+          {isAdmin && (
+            <button
+              onClick={addAssetEntry}
+              className="flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600 font-medium"
+            >
+              <Plus size={14} /> Add asset
+            </button>
+          )}
+        </TabsContent>
+
+        {/* Salary tab */}
         {/* Bank Details tab */}
         {canSeeSensitive && <TabsContent value="bank" className="mt-6 space-y-4">
           <SectionCard
