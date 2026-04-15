@@ -297,4 +297,68 @@ export const reportsRouter = router({
 
       return { months };
     }),
+
+  // Custom report — returns all employee data with all parsed fields
+  getCustomReportData: protectedProcedure.query(async ({ ctx }) => {
+    const employees = await ctx.db.employee.findMany({
+      where: { companyId: ctx.user.companyId },
+      include: {
+        department: { select: { name: true } },
+        site: { select: { name: true } },
+        manager: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+
+    return employees.map((emp: any) => {
+      const wi = JSON.parse(emp.workInfo || '{}');
+      const pi = JSON.parse(emp.personalInfo || '{}');
+      const salaryHistory = Array.isArray(wi.salaryHistory) ? wi.salaryHistory : [];
+      const now = new Date();
+      const past = salaryHistory
+        .filter((e: any) => e.effectiveDate && new Date(e.effectiveDate) <= now)
+        .sort((a: any, b: any) => new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime());
+      const currentSalary = parseFloat(past[0]?.salaryAmount || '0') || 0;
+
+      return {
+        firstName: emp.firstName,
+        lastName: emp.lastName,
+        fullName: `${emp.firstName} ${emp.lastName}`,
+        email: emp.email,
+        status: emp.status,
+        employmentType: emp.employmentType,
+        department: emp.department?.name ?? '',
+        site: emp.site?.name ?? '',
+        manager: emp.manager ? `${emp.manager.firstName} ${emp.manager.lastName}` : '',
+        startDate: emp.startDate,
+        endDate: emp.endDate,
+        jobTitle: wi.jobTitle ?? '',
+        team: wi.team ?? '',
+        office: wi.office ?? '',
+        // Personal
+        nationalId: pi.nationalId ?? '',
+        dateOfBirth: pi.dateOfBirth ?? '',
+        gender: pi.gender ?? '',
+        nationality: pi.nationality ?? '',
+        address: pi.address ?? '',
+        city: pi.city ?? '',
+        country: pi.country ?? '',
+        phone: pi.phone ?? '',
+        emergencyContactName: pi.emergencyContactName ?? '',
+        emergencyContactPhone: pi.emergencyContactPhone ?? '',
+        // Financial
+        bankName: pi.bankName ?? '',
+        bankAccount: pi.bankAccount ?? '',
+        // Salary
+        currentSalary,
+        baseSalary: Math.round(currentSalary * 0.8),
+        additional: Math.round(currentSalary * 0.2),
+        salaryCurrency: past[0]?.salaryCurrency ?? '',
+        contractType: past[0]?.contractType ?? '',
+        salaryType: past[0]?.salaryType ?? '',
+        // Computed
+        seniorityYears: seniorityYears(emp.startDate),
+        terminationReason: wi.terminationReason ?? '',
+      };
+    });
+  }),
 });
