@@ -63,7 +63,7 @@ describe('AddTaskModal', () => {
     )
 
     expect(screen.getByText(`Add Onboarding Task for ${mockEmployeeName}`)).toBeInTheDocument()
-    expect(screen.getByLabelText(/task title/i)).toBeInTheDocument()
+    expect(screen.getByText(/task title/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/description/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/due date/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add task/i })).toBeInTheDocument()
@@ -113,7 +113,11 @@ describe('AddTaskModal', () => {
       />
     )
 
-    await userEvent.type(screen.getByLabelText(/task title/i), 'New Task')
+    // Switch to custom title mode
+    await userEvent.click(screen.getByText(/custom title/i))
+    // Now find the text input and type
+    const titleInput = screen.getByPlaceholderText(/type a custom task title/i)
+    await userEvent.type(titleInput, 'New Task')
     await userEvent.type(screen.getByLabelText(/description/i), 'Task Description')
     await userEvent.type(screen.getByLabelText(/due date/i), '2026-12-31')
 
