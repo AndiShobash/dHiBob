@@ -953,7 +953,13 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                 subtitle="See and edit all of the employee's salary information"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm text-gray-500">Effective Date: {effectiveLabel}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Effective Date:</span>
+                    <DateField label="" value={latestEntry?.effectiveDate || compensationDate}
+                      onSave={isAdmin && latestEntry && salaryHistory.indexOf(latestEntry) >= 0
+                        ? (val) => { const fn = saveSalaryField(salaryHistory.indexOf(latestEntry), 'effectiveDate'); if (fn) fn(val); }
+                        : undefined} />
+                  </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => setShowCompHistory(true)}>View History</Button>
                     {isAdmin && (
@@ -1091,8 +1097,10 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             title="Role"
             subtitle="See and edit the employee's role and work environment"
           >
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-gray-500">Effective Date: {startDateFormatted}</span>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-sm text-gray-500">Effective Date:</span>
+              <DateField label="" value={startDateFormatted}
+                onSave={isAdmin ? (val) => updateEmployee.mutateAsync({ id: params.id, startDate: val } as any) : undefined} />
             </div>
             <div className="grid grid-cols-5 gap-4">
               <F label="Job" value={jobTitle} onSave={wi('jobTitle')} />
