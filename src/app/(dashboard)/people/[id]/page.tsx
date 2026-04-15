@@ -195,14 +195,21 @@ function DropdownBadgeField({
   onSave?: (val: string) => unknown;
 }) {
   const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; openAbove: boolean } | null>(null);
   const triggerRef = React.useRef<HTMLElement | null>(null);
 
   function openDropdown() {
     if (!onSave) return;
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      setCoords({ top: rect.bottom + window.scrollY + 4, left: rect.left + window.scrollX });
+      // Check if dropdown would go off-screen bottom — if so, open above
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openAbove = spaceBelow < 200;
+      setCoords({
+        top: openAbove ? rect.top - 4 : rect.bottom + 4,
+        left: rect.left,
+        openAbove,
+      });
     }
     setOpen(true);
   }
@@ -232,7 +239,9 @@ function DropdownBadgeField({
           <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
           <div
             className="fixed z-[101] bg-white dark:bg-charcoal-900 border border-gray-200 dark:border-charcoal-700 rounded-md shadow-xl py-1 min-w-[140px]"
-            style={{ top: coords.top, left: coords.left }}
+            style={coords.openAbove
+              ? { bottom: window.innerHeight - coords.top, left: coords.left }
+              : { top: coords.top, left: coords.left }}
           >
             {options.map(opt => (
               <button
