@@ -167,6 +167,8 @@ export const reportsRouter = router({
           startDate: emp.startDate,
           seniorityYears: seniorityYears(emp.startDate),
           salary,
+          baseSalary: Math.round(salary * 0.8),
+          additional: Math.round(salary * 0.2),
           currency,
           role: workInfo.jobTitle ?? '',
         };
@@ -223,6 +225,8 @@ export const reportsRouter = router({
           department: emp.department?.name ?? '',
           role: workInfo.jobTitle ?? '',
           currentSalary,
+          currentBase: Math.round(currentSalary * 0.8),
+          currentAdditional: Math.round(currentSalary * 0.2),
           currency,
           futureIncreases: futureIncreases.map(e => ({
             effectiveDate: e.effectiveDate ? new Date(e.effectiveDate) : null,

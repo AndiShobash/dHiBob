@@ -220,6 +220,8 @@ const ACTIVE_COLS: Column[] = [
   { key: "startDate",      label: "Start Date",      visible: true },
   { key: "seniorityYears", label: "Seniority (yrs)", visible: true },
   { key: "salary",         label: "Salary",          format: usd, visible: true },
+  { key: "baseSalary",     label: "Base (80%)",      format: usd, visible: true },
+  { key: "additional",     label: "Additional (20%)", format: usd, visible: true },
   { key: "role",           label: "Role",            visible: true },
 ];
 
@@ -229,6 +231,8 @@ const COMPENSATION_COLS: Column[] = [
   { key: "department",    label: "Department",     visible: true },
   { key: "role",          label: "Role",           visible: true },
   { key: "currentSalary", label: "Current Salary", format: usd,  visible: true },
+  { key: "currentBase",   label: "Base (80%)",     format: usd,  visible: true },
+  { key: "currentAdditional", label: "Additional (20%)", format: usd, visible: true },
   { key: "newSalary",     label: "New Salary",     format: usd,  visible: true },
   { key: "effectiveDate", label: "Effective Date", visible: true },
   { key: "type",          label: "Type",           visible: true },
@@ -296,7 +300,7 @@ export default function ReportsPage() {
       if (increases.length === 0) {
         return [{
           name: r.name, nationalId: r.nationalId, department: r.department, role: r.role,
-          currentSalary: r.currentSalary,
+          currentSalary: r.currentSalary, currentBase: r.currentBase, currentAdditional: r.currentAdditional,
           newSalary: null, effectiveDate: "", type: "", changeReason: "",
         }];
       }
