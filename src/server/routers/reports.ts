@@ -113,8 +113,10 @@ export const reportsRouter = router({
 
       const rows = employees.map((emp: any) => {
         const workInfo = JSON.parse(emp.workInfo || '{}');
+        const pi = JSON.parse(emp.personalInfo || '{}');
         return {
           name: `${emp.firstName} ${emp.lastName}`,
+          nationalId: pi.nationalId ?? '',
           department: emp.department?.name ?? '',
           seniorityYears: emp.endDate
             ? seniorityYears(emp.startDate, new Date(emp.endDate))
@@ -153,12 +155,14 @@ export const reportsRouter = router({
       const now = new Date();
       const rows = employees.map((emp: any) => {
         const workInfo = JSON.parse(emp.workInfo || '{}');
+        const pi = JSON.parse(emp.personalInfo || '{}');
         const salaryHistory = parseSalaryHistory(emp.workInfo);
         const currentEntry = getCurrentSalaryEntry(salaryHistory, now);
         const salary = parseFloat(currentEntry?.salaryAmount || '0') || 0;
         const currency = currentEntry?.salaryCurrency || '';
         return {
           name: `${emp.firstName} ${emp.lastName}`,
+          nationalId: pi.nationalId ?? '',
           department: emp.department?.name ?? '',
           startDate: emp.startDate,
           seniorityYears: seniorityYears(emp.startDate),
@@ -197,6 +201,7 @@ export const reportsRouter = router({
 
       const rows = employees.map((emp: any) => {
         const workInfo = JSON.parse(emp.workInfo || '{}');
+        const pi = JSON.parse(emp.personalInfo || '{}');
         const salaryHistory = parseSalaryHistory(emp.workInfo);
         const currentEntry = getCurrentSalaryEntry(salaryHistory, now);
         const currentSalary = parseFloat(currentEntry?.salaryAmount || '0') || 0;
@@ -214,6 +219,7 @@ export const reportsRouter = router({
 
         return {
           name: `${emp.firstName} ${emp.lastName}`,
+          nationalId: pi.nationalId ?? '',
           department: emp.department?.name ?? '',
           role: workInfo.jobTitle ?? '',
           currentSalary,
