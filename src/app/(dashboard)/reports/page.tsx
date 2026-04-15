@@ -13,7 +13,7 @@ import * as XLSX from "xlsx";
 // ---------------------------------------------------------------------------
 
 type SortDir = "asc" | "desc" | null;
-type TabKey = "termination" | "active" | "compensation";
+type TabKey = "termination" | "active" | "compensation" | "custom";
 
 /** Format any date-like value to YYYY-MM-DD */
 function fmtDate(val: unknown): string {
@@ -243,10 +243,47 @@ const COMPENSATION_COLS: Column[] = [
 // Main page
 // ---------------------------------------------------------------------------
 
+const ALL_CUSTOM_COLUMNS: Column[] = [
+  { key: "fullName",       label: "Full Name",        visible: true },
+  { key: "firstName",      label: "First Name",       visible: false },
+  { key: "lastName",       label: "Last Name",        visible: false },
+  { key: "email",          label: "Email",            visible: true },
+  { key: "nationalId",     label: "National ID",      visible: true },
+  { key: "status",         label: "Status",           visible: true },
+  { key: "department",     label: "Department",       visible: true },
+  { key: "site",           label: "Site",             visible: false },
+  { key: "jobTitle",       label: "Job Title",        visible: true },
+  { key: "team",           label: "Team",             visible: false },
+  { key: "manager",        label: "Manager",          visible: true },
+  { key: "startDate",      label: "Start Date",       visible: true },
+  { key: "endDate",        label: "End Date",         visible: false },
+  { key: "seniorityYears", label: "Seniority (yrs)",  visible: false },
+  { key: "employmentType", label: "Employment Type",  visible: false },
+  { key: "gender",         label: "Gender",           visible: true },
+  { key: "dateOfBirth",    label: "Date of Birth",    visible: false },
+  { key: "nationality",    label: "Nationality",      visible: false },
+  { key: "address",        label: "Address",          visible: false },
+  { key: "city",           label: "City",             visible: false },
+  { key: "country",        label: "Country",          visible: false },
+  { key: "phone",          label: "Phone",            visible: false },
+  { key: "emergencyContactName",  label: "Emergency Contact",      visible: false },
+  { key: "emergencyContactPhone", label: "Emergency Phone",        visible: false },
+  { key: "bankName",       label: "Bank Name",        visible: false },
+  { key: "bankAccount",    label: "Bank Account",     visible: false },
+  { key: "currentSalary",  label: "Current Salary",   format: usd, visible: true },
+  { key: "baseSalary",     label: "Base (80%)",       format: usd, visible: false },
+  { key: "additional",     label: "Additional (20%)", format: usd, visible: false },
+  { key: "salaryCurrency", label: "Currency",         visible: false },
+  { key: "contractType",   label: "Contract Type",    visible: false },
+  { key: "salaryType",     label: "Salary Type",      visible: false },
+  { key: "terminationReason", label: "Termination Reason", visible: false },
+];
+
 const TABS: { key: TabKey; label: string }[] = [
   { key: "termination",  label: "Termination Report" },
   { key: "active",       label: "Active Employees" },
   { key: "compensation", label: "Compensation & Increases" },
+  { key: "custom",       label: "Custom Report" },
 ];
 
 const DEPARTMENTS = ['All', 'Executive', 'Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'HR', 'Finance', 'Operations'];
@@ -261,6 +298,7 @@ export default function ReportsPage() {
   const [terminationCols, setTerminationCols] = useState<Column[]>(TERMINATION_COLS);
   const [activeCols, setActiveCols] = useState<Column[]>(ACTIVE_COLS);
   const [compensationCols, setCompensationCols] = useState<Column[]>(COMPENSATION_COLS);
+  const [customCols, setCustomCols] = useState<Column[]>(ALL_CUSTOM_COLUMNS);
 
   // Sort state (shared, resets when tab changes)
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -290,6 +328,7 @@ export default function ReportsPage() {
   const activeQ = trpc.reports.getActiveReport.useQuery({
     department: departmentFilter || undefined,
   });
+  const customQ = trpc.reports.getCustomReportData.useQuery();
   const salaryQ = trpc.reports.getSalaryReport.useQuery({
     department: departmentFilter || undefined,
   });
@@ -353,6 +392,8 @@ export default function ReportsPage() {
         return { rows: filterRows(activeQ.data?.rows ?? [], 'startDate'), cols: activeCols, setCols: setActiveCols, isLoading: activeQ.isLoading };
       case "compensation":
         return { rows: filterRows(compensationRows, 'effectiveDate'), cols: compensationCols, setCols: setCompensationCols, isLoading: salaryQ.isLoading };
+      case "custom":
+        return { rows: filterRows(customQ.data ?? [], 'startDate'), cols: customCols, setCols: setCustomCols, isLoading: customQ.isLoading };
     }
   }, [activeTab, terminationQ, activeQ, salaryQ, terminationCols, activeCols, compensationCols, compensationRows, monthFilter, idFilter]);
 
@@ -378,6 +419,7 @@ export default function ReportsPage() {
       termination:  "termination-report.xlsx",
       active:       "active-employees-report.xlsx",
       compensation: "compensation-report.xlsx",
+      custom:       "custom-report.xlsx",
     };
     downloadExcel(filenames[activeTab], visibleCols, sortedRows);
   }
