@@ -1033,7 +1033,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                           {isAdmin && (
                             <td className="py-3 pl-2">
                               <button
-                                onClick={() => { if (confirm('Delete this salary entry?')) deleteSalaryEntry(idx); }}
+                                onClick={() => deleteSalaryEntry(idx)}
                                 className="p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-red-400 hover:text-red-600 transition-colors"
                                 title="Delete entry"
                               >
