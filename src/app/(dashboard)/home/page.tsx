@@ -140,7 +140,7 @@ export default function HomePage() {
         {/* Sidebar (30%) */}
         <div className="lg:col-span-3 space-y-6">
           {/* Upcoming Events — split into Birthdays and Anniversaries */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900">
               <CardHeader className="pb-2 border-b border-gray-50 dark:border-charcoal-800 px-4">
                 <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
