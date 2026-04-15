@@ -838,8 +838,8 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
       <Tabs defaultValue="profile">
         <TabsList className="bg-transparent border-b border-gray-200 dark:border-charcoal-800 rounded-none h-auto p-0 w-full justify-start gap-1">
           <TabsTrigger value="profile" className={tabTriggerClass}>Profile</TabsTrigger>
-          <TabsTrigger value="work" className={tabTriggerClass}>Work</TabsTrigger>
-          <TabsTrigger value="assets" className={tabTriggerClass}>Assets</TabsTrigger>
+          {canSeeSensitive && <TabsTrigger value="work" className={tabTriggerClass}>Work</TabsTrigger>}
+          {canSeeSensitive && <TabsTrigger value="assets" className={tabTriggerClass}>Assets</TabsTrigger>}
           {canSeeSensitive && <TabsTrigger value="bank" className={tabTriggerClass}>Bank Details</TabsTrigger>}
           {canSeeSensitive && <TabsTrigger value="pension" className={tabTriggerClass}>Pension</TabsTrigger>}
         </TabsList>
@@ -874,7 +874,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             </div>
           </SectionCard>
 
-          <SectionCard
+          {canSeeSensitive && <SectionCard
             title="Identification"
             subtitle="Store all forms of personal identification here"
           >
@@ -884,9 +884,9 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <F label="National ID" value={nationalId} onSave={pi('nationalId')} />
               <F label="Passport Number" value={passportNumber} onSave={pi('passportNumber')} />
             </div>
-          </SectionCard>
+          </SectionCard>}
 
-          <SectionCard
+          {canSeeSensitive && <SectionCard
             title="Address"
             subtitle="See and edit the employee's current address"
           >
@@ -900,9 +900,9 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             <div>
               <F label="Notes" value={addressNotes} onSave={pi('addressNotes')} />
             </div>
-          </SectionCard>
+          </SectionCard>}
 
-          <SectionCard
+          {canSeeSensitive && <SectionCard
             title="Emergency Contact"
             subtitle="See and edit the contact details of the employee's emergency contact"
           >
@@ -911,9 +911,9 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <F label="Relationship" value={emergencyContactRelationship} onSave={pi('emergencyContactRelationship')} />
               <F label="Phone Number" value={emergencyContactPhone} onSave={pi('emergencyContactPhone')} />
             </div>
-          </SectionCard>
+          </SectionCard>}
 
-          <SectionCard title="Family Details">
+          {canSeeSensitive && <SectionCard title="Family Details">
             {familyRows.map((member, i) => (
               <div key={i} className="grid grid-cols-4 gap-4 mb-3">
                 <F label="Full name" value={member.fullName || ''} onSave={saveFamilyField(i, 'fullName')} />
@@ -922,11 +922,11 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                 <F label="Note" value={member.note || ''} onSave={saveFamilyField(i, 'note')} />
               </div>
             ))}
-          </SectionCard>
+          </SectionCard>}
         </TabsContent>
 
         {/* Work tab */}
-        <TabsContent value="work" className="mt-6 space-y-4">
+        {canSeeSensitive && <TabsContent value="work" className="mt-6 space-y-4">
           <SectionCard
             title="Initiation"
             subtitle="Information of when the employee's contract with the company started"
@@ -1067,10 +1067,10 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               </SectionCard>
             );
           })()}
-        </TabsContent>
+        </TabsContent>}
 
         {/* Assets tab */}
-        <TabsContent value="assets" className="mt-6 space-y-4">
+        {canSeeSensitive && <TabsContent value="assets" className="mt-6 space-y-4">
           {(assets.length > 0 ? assets : [{}]).map((asset: any, i) => (
             <SectionCard key={i} title="Assets">
               <div className="grid grid-cols-5 gap-4 mb-4">
@@ -1093,7 +1093,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <Plus size={14} /> Add asset
             </button>
           )}
-        </TabsContent>
+        </TabsContent>}
 
         {/* Salary tab */}
         {/* Bank Details tab */}
