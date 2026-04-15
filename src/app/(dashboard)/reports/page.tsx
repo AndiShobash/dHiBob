@@ -205,6 +205,7 @@ function usd(val: unknown) {
 
 const TERMINATION_COLS: Column[] = [
   { key: "name",              label: "Name",               visible: true },
+  { key: "nationalId",        label: "National ID",        visible: true },
   { key: "department",        label: "Department",         visible: true },
   { key: "seniorityYears",    label: "Seniority (yrs)",    visible: true },
   { key: "terminationReason", label: "Termination Reason", visible: true },
@@ -214,6 +215,7 @@ const TERMINATION_COLS: Column[] = [
 
 const ACTIVE_COLS: Column[] = [
   { key: "name",           label: "Name",            visible: true },
+  { key: "nationalId",     label: "National ID",     visible: true },
   { key: "department",     label: "Department",      visible: true },
   { key: "startDate",      label: "Start Date",      visible: true },
   { key: "seniorityYears", label: "Seniority (yrs)", visible: true },
@@ -223,6 +225,7 @@ const ACTIVE_COLS: Column[] = [
 
 const COMPENSATION_COLS: Column[] = [
   { key: "name",          label: "Name",           visible: true },
+  { key: "nationalId",    label: "National ID",    visible: true },
   { key: "department",    label: "Department",     visible: true },
   { key: "role",          label: "Role",           visible: true },
   { key: "currentSalary", label: "Current Salary", format: usd,  visible: true },
@@ -242,10 +245,13 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "compensation", label: "Compensation & Increases" },
 ];
 
+const DEPARTMENTS = ['All', 'Executive', 'Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'HR', 'Finance', 'Operations'];
+
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("termination");
   const [departmentFilter, setDepartmentFilter] = useState("");
-  const [monthFilter, setMonthFilter] = useState(""); // e.g. "2026-04"
+  const [monthFilter, setMonthFilter] = useState("");
+  const [idFilter, setIdFilter] = useState("");
 
   // Column visibility state per tab
   const [terminationCols, setTerminationCols] = useState<Column[]>(TERMINATION_COLS);
@@ -289,13 +295,13 @@ export default function ReportsPage() {
       const increases = r.futureIncreases ?? [];
       if (increases.length === 0) {
         return [{
-          name: r.name, department: r.department, role: r.role,
+          name: r.name, nationalId: r.nationalId, department: r.department, role: r.role,
           currentSalary: r.currentSalary,
           newSalary: null, effectiveDate: "", type: "", changeReason: "",
         }];
       }
       return increases.map((fi: any) => ({
-        name: r.name, department: r.department, role: r.role,
+        name: r.name, nationalId: r.nationalId, department: r.department, role: r.role,
         currentSalary: r.currentSalary,
         newSalary:     fi.salary,
         effectiveDate: fi.effectiveDate ? new Date(fi.effectiveDate).toISOString().slice(0, 10) : "",
@@ -314,29 +320,35 @@ export default function ReportsPage() {
     setCols(cols.map((c) => (c.key === key ? { ...c, visible: !c.visible } : c)));
   }
 
-  // Filter rows by month (month only, any year)
-  function filterByMonth(data: any[], dateKey: string): any[] {
-    if (!monthFilter) return data;
-    return data.filter(row => {
-      const val = row[dateKey];
-      if (!val) return false;
-      const dateStr = val instanceof Date ? val.toISOString() : String(val);
-      // Match "-MM-" anywhere in the date string
-      return dateStr.includes(`-${monthFilter}-`);
-    });
+  // Filter rows by month and/or national ID
+  function filterRows(data: any[], dateKey: string): any[] {
+    let filtered = data;
+    if (monthFilter) {
+      filtered = filtered.filter(row => {
+        const val = row[dateKey];
+        if (!val) return false;
+        const dateStr = val instanceof Date ? val.toISOString() : String(val);
+        return dateStr.includes(`-${monthFilter}-`);
+      });
+    }
+    if (idFilter) {
+      const q = idFilter.toLowerCase();
+      filtered = filtered.filter(row => (row.nationalId || '').toLowerCase().includes(q));
+    }
+    return filtered;
   }
 
   // Resolve current tab's data
   const { rows, cols, setCols, isLoading } = useMemo(() => {
     switch (activeTab) {
       case "termination":
-        return { rows: filterByMonth(terminationQ.data?.rows ?? [], 'endDate'), cols: terminationCols, setCols: setTerminationCols, isLoading: terminationQ.isLoading };
+        return { rows: filterRows(terminationQ.data?.rows ?? [], 'endDate'), cols: terminationCols, setCols: setTerminationCols, isLoading: terminationQ.isLoading };
       case "active":
-        return { rows: filterByMonth(activeQ.data?.rows ?? [], 'startDate'), cols: activeCols, setCols: setActiveCols, isLoading: activeQ.isLoading };
+        return { rows: filterRows(activeQ.data?.rows ?? [], 'startDate'), cols: activeCols, setCols: setActiveCols, isLoading: activeQ.isLoading };
       case "compensation":
-        return { rows: filterByMonth(compensationRows, 'effectiveDate'), cols: compensationCols, setCols: setCompensationCols, isLoading: salaryQ.isLoading };
+        return { rows: filterRows(compensationRows, 'effectiveDate'), cols: compensationCols, setCols: setCompensationCols, isLoading: salaryQ.isLoading };
     }
-  }, [activeTab, terminationQ, activeQ, salaryQ, terminationCols, activeCols, compensationCols, compensationRows, monthFilter]);
+  }, [activeTab, terminationQ, activeQ, salaryQ, terminationCols, activeCols, compensationCols, compensationRows, monthFilter, idFilter]);
 
   // Sorted rows (same logic used by both table display and export)
   const sortedRows = useMemo(() => {
@@ -376,12 +388,15 @@ export default function ReportsPage() {
 
       {/* Filters */}
       <div className="flex gap-3 items-center flex-wrap">
-        <Input
-          placeholder="Filter by department…"
+        <select
           value={departmentFilter}
-          onChange={(e) => setDepartmentFilter(e.target.value)}
-          className="max-w-xs"
-        />
+          onChange={(e) => setDepartmentFilter(e.target.value === 'All' ? '' : e.target.value)}
+          className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white min-w-[160px]"
+        >
+          {DEPARTMENTS.map(d => (
+            <option key={d} value={d}>{d === 'All' ? 'All Departments' : d}</option>
+          ))}
+        </select>
         <select
           value={monthFilter}
           onChange={(e) => setMonthFilter(e.target.value)}
@@ -392,6 +407,12 @@ export default function ReportsPage() {
             <option key={i} value={String(i + 1).padStart(2, '0')}>{name}</option>
           ))}
         </select>
+        <Input
+          placeholder="Filter by National ID…"
+          value={idFilter}
+          onChange={(e) => setIdFilter(e.target.value)}
+          className="max-w-[180px]"
+        />
       </div>
 
       {/* Tab bar */}
