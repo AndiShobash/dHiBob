@@ -99,6 +99,28 @@ export function EmployeeChecklistRow({ employee, mode, isDevOps = false }: Emplo
     },
   });
 
+  const deleteOnboardingTask = trpc.onboarding.deleteTask.useMutation({
+    onSuccess: () => {
+      utils.onboarding.listNewHires.invalidate();
+      utils.onboarding.getChecklist.invalidate({ employeeId: employee.id });
+    },
+  });
+
+  const deleteOffboardingTask = trpc.onboarding.deleteOffboardingTask.useMutation({
+    onSuccess: () => {
+      utils.onboarding.listOffboarding.invalidate();
+      utils.onboarding.getOffboardingChecklist.invalidate({ employeeId: employee.id });
+    },
+  });
+
+  const handleTaskDelete = (taskId: string) => {
+    if (mode === 'onboarding') {
+      deleteOnboardingTask.mutate({ taskId });
+    } else {
+      deleteOffboardingTask.mutate({ taskId });
+    }
+  };
+
   const handleTaskUpdate = (taskId: string, field: 'title' | 'notes' | 'dueDate', value: string | null) => {
     const payload: any = { taskId };
     if (field === 'dueDate') {
@@ -187,6 +209,7 @@ export function EmployeeChecklistRow({ employee, mode, isDevOps = false }: Emplo
                 onStatusChange={handleStatusChange}
                 onAssigneeChange={handleAssigneeChange}
                 onTaskUpdate={handleTaskUpdate}
+                onTaskDelete={handleTaskDelete}
               />
               <button
                 type="button"

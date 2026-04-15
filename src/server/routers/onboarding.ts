@@ -275,6 +275,34 @@ export const onboardingRouter = router({
     }),
 
   // Update task fields (title, notes, dueDate)
+  // Delete onboarding task
+  deleteTask: protectedProcedure
+    .input(z.object({ taskId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const task = await ctx.db.onboardingTask.findUnique({
+        where: { id: input.taskId },
+        include: { employee: { select: { companyId: true } } },
+      });
+      if (!task || task.employee.companyId !== ctx.user.companyId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Task not found' });
+      }
+      return ctx.db.onboardingTask.delete({ where: { id: input.taskId } });
+    }),
+
+  // Delete offboarding task
+  deleteOffboardingTask: protectedProcedure
+    .input(z.object({ taskId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const task = await ctx.db.offboardingTask.findUnique({
+        where: { id: input.taskId },
+        include: { employee: { select: { companyId: true } } },
+      });
+      if (!task || task.employee.companyId !== ctx.user.companyId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Task not found' });
+      }
+      return ctx.db.offboardingTask.delete({ where: { id: input.taskId } });
+    }),
+
   updateTask: protectedProcedure
     .input(z.object({
       taskId: z.string(),

@@ -38,6 +38,12 @@ vi.mock('@/lib/trpc', () => ({
       updateOffboardingTask: {
         useMutation: vi.fn(() => ({ mutate: vi.fn(), isLoading: false })),
       },
+      deleteTask: {
+        useMutation: vi.fn(() => ({ mutate: vi.fn(), isLoading: false })),
+      },
+      deleteOffboardingTask: {
+        useMutation: vi.fn(() => ({ mutate: vi.fn(), isLoading: false })),
+      },
       listNewHires: {
         invalidate: vi.fn(),
       },

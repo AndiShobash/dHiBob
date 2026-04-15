@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { Trash2 } from 'lucide-react';
 import { StatusBadge } from './status-badge';
 import { trpc } from '@/lib/trpc';
 
@@ -30,6 +31,7 @@ interface ChecklistTableProps {
   onStatusChange?: (taskId: string, status: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE') => void;
   onAssigneeChange?: (taskId: string, assigneeId: string | null) => void;
   onTaskUpdate?: (taskId: string, field: 'title' | 'notes' | 'dueDate', value: string | null) => void;
+  onTaskDelete?: (taskId: string) => void;
   readonly?: boolean;
 }
 
@@ -217,7 +219,7 @@ function formatDate(date: Date | string | null | undefined): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export function ChecklistTable({ sections, onStatusChange, onAssigneeChange, onTaskUpdate, readonly = false }: ChecklistTableProps) {
+export function ChecklistTable({ sections, onStatusChange, onAssigneeChange, onTaskUpdate, onTaskDelete, readonly = false }: ChecklistTableProps) {
   if (sections.length === 0) return <p className="text-sm text-gray-500 py-4">No tasks yet.</p>;
 
   return (
@@ -238,6 +240,7 @@ export function ChecklistTable({ sections, onStatusChange, onAssigneeChange, onT
                 <th className="text-left py-1 px-4 font-normal w-36">Status</th>
                 <th className="text-left py-1 px-4 font-normal w-28">Date</th>
                 <th className="text-left py-1 px-4 font-normal min-w-[120px]">Notes</th>
+                {!readonly && onTaskDelete && <th className="w-8"></th>}
               </tr>
             </thead>
             <tbody>
@@ -310,6 +313,18 @@ export function ChecklistTable({ sections, onStatusChange, onAssigneeChange, onT
                       <span className="text-gray-500 text-xs">{task.notes ?? ''}</span>
                     )}
                   </td>
+                  {!readonly && onTaskDelete && (
+                    <td className="py-2 px-1">
+                      <button
+                        type="button"
+                        onClick={() => { if (confirm('Are you sure you want to delete this task?')) onTaskDelete(task.id); }}
+                        className="p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-red-400 hover:text-red-600 transition-colors"
+                        title="Delete task"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
