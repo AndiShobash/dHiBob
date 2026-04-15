@@ -619,10 +619,13 @@ function ManagerPicker({ label, currentManagerId, currentManagerName, onSave }: 
 
 export default function EmployeeProfilePage({ params }: { params: { id: string } }) {
   const { data: session } = useSession();
-  const isAdmin = session?.user.role === 'ADMIN' || session?.user.role === 'HR';
+  const role = session?.user.role;
+  const isSuperAdmin = role === 'SUPER_ADMIN';
+  const isAdmin = isSuperAdmin || role === 'ADMIN' || role === 'HR';
   const isSelf = session?.user.employeeId === params.id;
   const canEditAvatar = isAdmin || isSelf;
   const canSeeSensitive = isAdmin || isSelf;
+  const canSeeFiles = isAdmin || isSelf; // employees can't see other employees' files
 
   const { data: employee, isLoading, error } = trpc.employee.getById.useQuery(
     { id: params.id },
@@ -865,9 +868,9 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <F label="Shirt Size" value={shirtSize} onSave={pi('shirtSize')} />
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <DocumentField label="Documents" value={personalInfo.documents} onSave={isAdmin ? pi('documents') : undefined} />
-              <DocumentField label="CV" value={personalInfo.cv} onSave={isAdmin ? (val) => updatePersonalInfo.mutateAsync({ id: params.id, cv: val, cvOld: personalInfo.cv || undefined } as any) : undefined} />
-              <DocumentField label="CV Old" value={personalInfo.cvOld} onSave={isAdmin ? pi('cvOld') : undefined} />
+              {canSeeFiles && <DocumentField label="Documents" value={personalInfo.documents} onSave={isAdmin ? pi('documents') : undefined} />}
+              {canSeeFiles && <DocumentField label="CV" value={personalInfo.cv} onSave={isAdmin ? (val) => updatePersonalInfo.mutateAsync({ id: params.id, cv: val, cvOld: personalInfo.cv || undefined } as any) : undefined} />}
+              {canSeeFiles && <DocumentField label="CV Old" value={personalInfo.cvOld} onSave={isAdmin ? pi('cvOld') : undefined} />}
             </div>
           </SectionCard>
 
