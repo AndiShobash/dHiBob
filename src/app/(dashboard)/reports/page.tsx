@@ -234,6 +234,8 @@ const COMPENSATION_COLS: Column[] = [
   { key: "currentBase",   label: "Base (80%)",     format: usd,  visible: true },
   { key: "currentAdditional", label: "Additional (20%)", format: usd, visible: true },
   { key: "newSalary",     label: "New Salary",     format: usd,  visible: true },
+  { key: "newBase",       label: "New Base (80%)", format: usd,  visible: true },
+  { key: "newAdditional", label: "New Additional (20%)", format: usd, visible: true },
   { key: "effectiveDate", label: "Effective Date", visible: true },
   { key: "type",          label: "Type",           visible: true },
   { key: "changeReason",  label: "Note",           visible: true },
@@ -301,13 +303,15 @@ export default function ReportsPage() {
         return [{
           name: r.name, nationalId: r.nationalId, department: r.department, role: r.role,
           currentSalary: r.currentSalary, currentBase: r.currentBase, currentAdditional: r.currentAdditional,
-          newSalary: null, effectiveDate: "", type: "", changeReason: "",
+          newSalary: null, newBase: null, newAdditional: null, effectiveDate: "", type: "", changeReason: "",
         }];
       }
       return increases.map((fi: any) => ({
         name: r.name, nationalId: r.nationalId, department: r.department, role: r.role,
         currentSalary: r.currentSalary,
         newSalary:     fi.salary,
+        newBase:       fi.salary ? Math.round(fi.salary * 0.8) : null,
+        newAdditional: fi.salary ? Math.round(fi.salary * 0.2) : null,
         effectiveDate: fi.effectiveDate ? new Date(fi.effectiveDate).toISOString().slice(0, 10) : "",
         type:          fi.type ?? "",
         changeReason:  fi.changeReason ?? "",
