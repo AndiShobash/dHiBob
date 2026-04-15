@@ -144,7 +144,7 @@ export default function HomePage() {
             <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900">
               <CardHeader className="pb-2 border-b border-gray-50 dark:border-charcoal-800 px-4">
                 <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                  <Cake size={14} className="text-pink-500" />
+                  <Cake size={18} className="text-pink-500" />
                   Birthdays
                 </CardTitle>
               </CardHeader>
@@ -157,8 +157,8 @@ export default function HomePage() {
                     <div className="space-y-2.5">
                       {birthdays.slice(0, 5).map((event: any, i: number) => (
                         <div key={i} className="flex items-center gap-2">
-                          <div className="p-1 rounded-lg shrink-0 bg-pink-100 dark:bg-pink-900/30">
-                            <Cake size={12} className="text-pink-600" />
+                          <div className="p-1.5 rounded-lg shrink-0 bg-pink-100 dark:bg-pink-900/30">
+                            <Cake size={16} className="text-pink-600" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium truncate">{event.name}</p>
@@ -175,7 +175,7 @@ export default function HomePage() {
             <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900">
               <CardHeader className="pb-2 border-b border-gray-50 dark:border-charcoal-800 px-4">
                 <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                  <Trophy size={14} className="text-amber-500" />
+                  <Trophy size={18} className="text-amber-500" />
                   Anniversaries
                 </CardTitle>
               </CardHeader>
@@ -188,8 +188,8 @@ export default function HomePage() {
                     <div className="space-y-2.5">
                       {anniversaries.slice(0, 5).map((event: any, i: number) => (
                         <div key={i} className="flex items-center gap-2">
-                          <div className="p-1 rounded-lg shrink-0 bg-amber-100 dark:bg-amber-900/30">
-                            <Trophy size={12} className="text-amber-600" />
+                          <div className="p-1.5 rounded-lg shrink-0 bg-amber-100 dark:bg-amber-900/30">
+                            <Trophy size={16} className="text-amber-600" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium truncate">{event.name}</p>
