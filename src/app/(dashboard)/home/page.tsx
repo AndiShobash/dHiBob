@@ -139,34 +139,70 @@ export default function HomePage() {
 
         {/* Sidebar (30%) */}
         <div className="lg:col-span-3 space-y-6">
-          {/* Upcoming Events */}
-          <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900">
-            <CardHeader className="pb-2 border-b border-gray-50 dark:border-charcoal-800">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Calendar size={16} className="text-primary-500" />
-                Upcoming Events
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-3">
-              {!upcomingEvents || upcomingEvents.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-4">No upcoming events in the next 2 weeks.</p>
-              ) : (
-                <div className="space-y-3">
-                  {upcomingEvents.slice(0, 6).map((event: any, i: number) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <div className={`p-1.5 rounded-lg shrink-0 ${event.type === 'BIRTHDAY' ? 'bg-pink-100 dark:bg-pink-900/30' : 'bg-amber-100 dark:bg-amber-900/30'}`}>
-                        {event.type === 'BIRTHDAY' ? <Cake size={14} className="text-pink-600" /> : <Trophy size={14} className="text-amber-600" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{event.name}</p>
-                        <p className="text-[10px] text-gray-400">{event.detail} · {format(new Date(event.date), 'MMM d')}</p>
-                      </div>
+          {/* Upcoming Events — split into Birthdays and Anniversaries */}
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900">
+              <CardHeader className="pb-2 border-b border-gray-50 dark:border-charcoal-800 px-4">
+                <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+                  <Cake size={14} className="text-pink-500" />
+                  Birthdays
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-3 px-4">
+                {(() => {
+                  const birthdays = (upcomingEvents || []).filter((e: any) => e.type === 'BIRTHDAY');
+                  return birthdays.length === 0 ? (
+                    <p className="text-[10px] text-gray-400 text-center py-3">No upcoming birthdays</p>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {birthdays.slice(0, 5).map((event: any, i: number) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <div className="p-1 rounded-lg shrink-0 bg-pink-100 dark:bg-pink-900/30">
+                            <Cake size={12} className="text-pink-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate">{event.name}</p>
+                            <p className="text-[10px] text-gray-400">{format(new Date(event.date), 'MMM d')}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900">
+              <CardHeader className="pb-2 border-b border-gray-50 dark:border-charcoal-800 px-4">
+                <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+                  <Trophy size={14} className="text-amber-500" />
+                  Anniversaries
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-3 px-4">
+                {(() => {
+                  const anniversaries = (upcomingEvents || []).filter((e: any) => e.type === 'ANNIVERSARY');
+                  return anniversaries.length === 0 ? (
+                    <p className="text-[10px] text-gray-400 text-center py-3">No upcoming anniversaries</p>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {anniversaries.slice(0, 5).map((event: any, i: number) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <div className="p-1 rounded-lg shrink-0 bg-amber-100 dark:bg-amber-900/30">
+                            <Trophy size={12} className="text-amber-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate">{event.name}</p>
+                            <p className="text-[10px] text-gray-400">{event.detail} · {format(new Date(event.date), 'MMM d')}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          </div>
 
           <MeWidget />
           <TeamWidget />
