@@ -984,7 +984,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               });
             return (
               <SectionCard title="Compensation History">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-visible">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-200 dark:border-charcoal-700">
