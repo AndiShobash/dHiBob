@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mail, MapPin, FileText, Plus, Camera } from "lucide-react";
+import { Mail, MapPin, FileText, Plus, Camera, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
@@ -756,6 +756,10 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
     const updated = [...salaryHistory, { effectiveDate: '', contractType: '', salaryType: '', salaryAmount: '', contractDoc: '', salaryCurrency: '', note: '' }];
     updateWorkInfo.mutateAsync({ id: params.id, salaryHistory: updated } as any);
   };
+  const deleteSalaryEntry = (idx: number) => {
+    const updated = salaryHistory.filter((_, i) => i !== idx);
+    updateWorkInfo.mutateAsync({ id: params.id, salaryHistory: updated } as any);
+  };
 
   const saveAssetField = (idx: number, field: string) => isAdmin
     ? (val: string) => {
@@ -997,8 +1001,8 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-200 dark:border-charcoal-700">
-                        {['Effective date', 'Contract Type', 'Salary Type', 'Salary Amount', 'Contract Documents', 'Salary Currency', 'Note'].map(col => (
-                          <th key={col} className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 pr-4 whitespace-nowrap">{col}</th>
+                        {['Effective date', 'Contract Type', 'Salary Type', 'Salary Amount', 'Contract Documents', 'Salary Currency', 'Note', ...(isAdmin ? [''] : [])].map(col => (
+                          <th key={col || 'actions'} className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 pr-4 whitespace-nowrap">{col}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1026,6 +1030,17 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                           <td className="py-3 min-w-[160px]">
                             <F label="" value={entry.note || ''} onSave={saveSalaryField(idx, 'note')} />
                           </td>
+                          {isAdmin && (
+                            <td className="py-3 pl-2">
+                              <button
+                                onClick={() => { if (confirm('Delete this salary entry?')) deleteSalaryEntry(idx); }}
+                                className="p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-red-400 hover:text-red-600 transition-colors"
+                                title="Delete entry"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
