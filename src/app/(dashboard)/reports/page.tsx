@@ -245,6 +245,7 @@ const TABS: { key: TabKey; label: string }[] = [
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("termination");
   const [departmentFilter, setDepartmentFilter] = useState("");
+  const [monthFilter, setMonthFilter] = useState(""); // e.g. "2026-04"
 
   // Column visibility state per tab
   const [terminationCols, setTerminationCols] = useState<Column[]>(TERMINATION_COLS);
@@ -313,17 +314,28 @@ export default function ReportsPage() {
     setCols(cols.map((c) => (c.key === key ? { ...c, visible: !c.visible } : c)));
   }
 
+  // Filter rows by month
+  function filterByMonth(data: any[], dateKey: string): any[] {
+    if (!monthFilter) return data;
+    return data.filter(row => {
+      const val = row[dateKey];
+      if (!val) return false;
+      const dateStr = val instanceof Date ? val.toISOString() : String(val);
+      return dateStr.startsWith(monthFilter);
+    });
+  }
+
   // Resolve current tab's data
   const { rows, cols, setCols, isLoading } = useMemo(() => {
     switch (activeTab) {
       case "termination":
-        return { rows: terminationQ.data?.rows ?? [], cols: terminationCols, setCols: setTerminationCols, isLoading: terminationQ.isLoading };
+        return { rows: filterByMonth(terminationQ.data?.rows ?? [], 'endDate'), cols: terminationCols, setCols: setTerminationCols, isLoading: terminationQ.isLoading };
       case "active":
-        return { rows: activeQ.data?.rows ?? [], cols: activeCols, setCols: setActiveCols, isLoading: activeQ.isLoading };
+        return { rows: filterByMonth(activeQ.data?.rows ?? [], 'startDate'), cols: activeCols, setCols: setActiveCols, isLoading: activeQ.isLoading };
       case "compensation":
-        return { rows: compensationRows, cols: compensationCols, setCols: setCompensationCols, isLoading: salaryQ.isLoading };
+        return { rows: filterByMonth(compensationRows, 'effectiveDate'), cols: compensationCols, setCols: setCompensationCols, isLoading: salaryQ.isLoading };
     }
-  }, [activeTab, terminationQ, activeQ, salaryQ, terminationCols, activeCols, compensationCols, compensationRows]);
+  }, [activeTab, terminationQ, activeQ, salaryQ, terminationCols, activeCols, compensationCols, compensationRows, monthFilter]);
 
   // Sorted rows (same logic used by both table display and export)
   const sortedRows = useMemo(() => {
@@ -361,14 +373,25 @@ export default function ReportsPage() {
         </Button>
       </div>
 
-      {/* Department filter */}
-      <div className="flex gap-3 items-center">
+      {/* Filters */}
+      <div className="flex gap-3 items-center flex-wrap">
         <Input
           placeholder="Filter by department…"
           value={departmentFilter}
           onChange={(e) => setDepartmentFilter(e.target.value)}
           className="max-w-xs"
         />
+        <input
+          type="month"
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+          className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white"
+        />
+        {monthFilter && (
+          <Button variant="ghost" size="sm" onClick={() => setMonthFilter("")} className="text-xs text-gray-500">
+            Clear month
+          </Button>
+        )}
       </div>
 
       {/* Tab bar */}
