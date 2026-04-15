@@ -15,6 +15,18 @@ import * as XLSX from "xlsx";
 type SortDir = "asc" | "desc" | null;
 type TabKey = "termination" | "active" | "compensation";
 
+/** Format any date-like value to YYYY-MM-DD */
+function fmtDate(val: unknown): string {
+  if (!val) return '—';
+  const s = String(val);
+  if (s.includes('T')) return s.slice(0, 10);
+  try {
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  } catch {}
+  return s;
+}
+
 // ---------------------------------------------------------------------------
 // Skeleton
 // ---------------------------------------------------------------------------
@@ -42,6 +54,7 @@ function downloadExcel(filename: string, visibleColumns: Column[], rows: Record<
         const val = row[col.key];
         if (col.format) return col.format(val);
         if (val instanceof Date) return val.toISOString().slice(0, 10);
+        if (typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T/)) return val.slice(0, 10);
         return val ?? "";
       })
     ),
@@ -94,6 +107,8 @@ function SortableTable({
   function formatCell(col: Column, val: unknown): string {
     if (col.format) return col.format(val);
     if (val instanceof Date) return val.toISOString().slice(0, 10);
+    // Auto-detect date strings like "2020-05-12T00:00:00.000Z"
+    if (typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T/)) return val.slice(0, 10);
     return String(val ?? "—");
   }
 
