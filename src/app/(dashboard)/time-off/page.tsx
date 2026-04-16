@@ -216,7 +216,7 @@ export default function TimeOffPage() {
                 <div className="h-8 bg-gray-100 dark:bg-gray-800 rounded animate-pulse w-16" />
               </CardContent></Card>
             ))
-          : policyBalances?.map(p => (
+          : policyBalances?.filter((p: any) => p.accrualRate > 0).map(p => (
               <PolicyBalanceCard
                 key={p.policyId}
                 policyName={p.policyName}

@@ -39,9 +39,8 @@ vi.mock('@/lib/trpc', () => ({
   trpc: {
     timeoff: {
       getPolicyBalances: { useQuery: () => ({ data: [
-        { policyId: 'pol-1', policyName: 'Vacation', allocated: 20, used: 5, available: 15, accrued: 10, projectedYearEnd: 18 },
-        { policyId: 'pol-2', policyName: 'Sick Leave', allocated: 10, used: 2, available: 8, accrued: 5, projectedYearEnd: 10 },
-        { policyId: 'pol-3', policyName: 'Personal', allocated: 3, used: 0, available: 3, accrued: 2, projectedYearEnd: 3 },
+        { policyId: 'pol-1', policyName: 'Vacation', accrualRate: 2.083, allocated: 20, used: 5, available: 15, accrued: 10, projectedYearEnd: 18 },
+        { policyId: 'pol-2', policyName: 'Sick Leave', accrualRate: 0.833, allocated: 10, used: 2, available: 8, accrued: 5, projectedYearEnd: 10 },
       ], isLoading: false, refetch: vi.fn() }) },
       listRequests: { useQuery: () => ({ data: { requests: mockRequests, nextCursor: undefined }, isLoading: false, refetch: vi.fn() }) },
       listPolicies: { useQuery: () => ({ data: [], isLoading: false }) },
@@ -51,6 +50,7 @@ vi.mock('@/lib/trpc', () => ({
       cancelRequest: { useMutation: () => ({ mutate: vi.fn(), isPending: false, isLoading: false }) },
       editRequest: { useMutation: () => ({ mutate: vi.fn(), isPending: false, isLoading: false, error: null }) },
       createPolicy: { useMutation: () => ({ mutate: vi.fn(), isPending: false, isLoading: false }) },
+      updatePolicy: { useMutation: () => ({ mutate: vi.fn(), isPending: false, isLoading: false }) },
       teamCalendar: { useQuery: () => ({ data: [] }) },
     },
     employee: {

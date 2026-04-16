@@ -126,8 +126,8 @@ export default function RequestFormModal({ employeeId, open, onOpenChange }: Pro
           </div>
 
           {isOverBalance && (
-            <p className="text-sm text-red-500 font-medium">
-              Insufficient balance for the requested duration.
+            <p className="text-sm text-amber-500 font-medium">
+              This will result in a negative balance.
             </p>
           )}
 
@@ -139,7 +139,7 @@ export default function RequestFormModal({ employeeId, open, onOpenChange }: Pro
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={submitMutation.isPending || !!isOverBalance}>
+            <Button type="submit" disabled={submitMutation.isPending}>
               {submitMutation.isPending ? "Submitting…" : "Submit Request"}
             </Button>
           </div>

@@ -49,8 +49,8 @@ export function MeWidget() {
                 </div>
               )}
             </div>
-            {/* Show other policies if any */}
-            {balances.filter((b: any) => b !== vacation && b !== sick).map((b: any) => (
+            {/* Show other policies with accrual if any */}
+            {balances.filter((b: any) => b !== vacation && b !== sick && (b.accrualRate ?? 0) > 0).map((b: any) => (
               <div key={b.policyId} className="flex items-center justify-between">
                 <p className="text-xs text-gray-500 font-bold">{b.policyName}</p>
                 <p className="text-sm font-bold">{b.available.toFixed(1)} <span className="text-xs font-normal text-gray-400">days</span></p>

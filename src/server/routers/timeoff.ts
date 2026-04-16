@@ -142,6 +142,7 @@ export const timeoffRouter = router({
       return {
         policyId: policy.id,
         policyName: policy.name,
+        accrualRate: policy.accrualRate || 0,
         accrued: current.accrued,
         used: current.used,
         available: current.available,
@@ -180,7 +181,7 @@ export const timeoffRouter = router({
       carryover: 0
     });
 
-    if (projection.available < days) {
+    if (!policy.allowNegative && projection.available < days) {
       throw new TRPCError({ code: 'BAD_REQUEST', message: 'Insufficient accrued balance for the requested dates.' });
     }
 
