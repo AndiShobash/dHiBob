@@ -11,6 +11,10 @@ vi.mock('@/lib/trpc', () => ({
     onboarding: {
       listNewHires: { useQuery: vi.fn() },
       listOffboarding: { useQuery: vi.fn() },
+      addNewHire: { useMutation: vi.fn(() => ({ mutate: vi.fn(), isLoading: false })) },
+    },
+    workforce: {
+      departments: { useQuery: vi.fn(() => ({ data: [] })) },
     },
     useUtils: vi.fn(() => ({
       onboarding: {
