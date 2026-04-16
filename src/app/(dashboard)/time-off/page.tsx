@@ -142,7 +142,7 @@ function TeamCalendarGrid({ currentMonth, policies }: { currentMonth: Date; poli
 export default function TimeOffPage() {
   const { data: session } = useSession();
   const employeeId = session?.user?.employeeId;
-  const isManager = session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ADMIN" || session?.user?.role === "MANAGER" || session?.user?.role === "HR";
+  const isManager = session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ADMIN" || session?.user?.role === "HR";
   const utils = trpc.useUtils();
 
   const [modalOpen, setModalOpen] = useState(false);
