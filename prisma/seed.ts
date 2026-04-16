@@ -404,9 +404,8 @@ async function main() {
 
   // Create Time Off Policies
   const policies = await Promise.all([
-    prisma.timeOffPolicy.create({ data: { companyId: company.id, name: "Vacation", type: "VACATION", color: "#3b82f6", accrualRate: 2.083, maxCarryOver: 5, allowNegative: false } }),
-    prisma.timeOffPolicy.create({ data: { companyId: company.id, name: "Sick Leave", type: "SICK", color: "#f97316", accrualRate: 0.833, maxCarryOver: 10, allowNegative: false } }),
-    prisma.timeOffPolicy.create({ data: { companyId: company.id, name: "Personal Days", type: "PERSONAL", color: "#8b5cf6", accrualRate: 0.417, maxCarryOver: 3, allowNegative: false } }),
+    prisma.timeOffPolicy.create({ data: { companyId: company.id, name: "Vacation", type: "VACATION", color: "#3b82f6", accrualRate: 2.083, maxCarryOver: 5, allowNegative: true } }),
+    prisma.timeOffPolicy.create({ data: { companyId: company.id, name: "Sick Leave", type: "SICK", color: "#f97316", accrualRate: 0.833, maxCarryOver: 10, allowNegative: true } }),
   ]);
 
   // Create Time Off Requests
@@ -432,12 +431,12 @@ async function main() {
     // Others — more variety
     { emp: 24, pol: 1, start: new Date(currentYear, currentMonth, 8), end: new Date(currentYear, currentMonth, 8), days: 1, status: "APPROVED", reason: "Sick day", revBy: 0, revAt: new Date() },
     { emp: 5, pol: 0, start: new Date(currentYear, currentMonth, 15), end: new Date(currentYear, currentMonth, 18), days: 4, status: "APPROVED", reason: "Family visit", revBy: 4, revAt: new Date() },
-    { emp: 9, pol: 2, start: new Date(currentYear, currentMonth, 22), end: new Date(currentYear, currentMonth, 22), days: 1, status: "APPROVED", reason: "Moving day", revBy: 7, revAt: new Date() },
+    { emp: 9, pol: 0, start: new Date(currentYear, currentMonth, 22), end: new Date(currentYear, currentMonth, 22), days: 1, status: "APPROVED", reason: "Moving day", revBy: 7, revAt: new Date() },
     { emp: 12, pol: 0, start: new Date(currentYear, currentMonth + 1, 5), end: new Date(currentYear, currentMonth + 1, 9), days: 5, status: "PENDING", reason: "Conference trip" },
     { emp: 14, pol: 0, start: new Date(currentYear, currentMonth + 1, 15), end: new Date(currentYear, currentMonth + 1, 23), days: 7, status: "APPROVED", reason: "Summer holiday", revBy: 3, revAt: new Date() },
     { emp: 16, pol: 1, start: new Date(currentYear, currentMonth, 3), end: new Date(currentYear, currentMonth, 4), days: 2, status: "APPROVED", reason: "Flu", revBy: 0, revAt: new Date() },
     { emp: 19, pol: 0, start: new Date(currentYear, currentMonth + 2, 1), end: new Date(currentYear, currentMonth + 2, 5), days: 5, status: "PENDING", reason: "Road trip" },
-    { emp: 21, pol: 2, start: new Date(currentYear, currentMonth, 28), end: new Date(currentYear, currentMonth, 28), days: 1, status: "APPROVED", reason: "Birthday", revBy: 19, revAt: new Date() },
+    { emp: 21, pol: 0, start: new Date(currentYear, currentMonth, 28), end: new Date(currentYear, currentMonth, 28), days: 1, status: "APPROVED", reason: "Birthday", revBy: 19, revAt: new Date() },
     { emp: 8, pol: 0, start: new Date(currentYear, currentMonth + 1, 20), end: new Date(currentYear, currentMonth + 1, 30), days: 8, status: "APPROVED", reason: "Back home to Brazil", revBy: 7, revAt: new Date() },
     { emp: 11, pol: 1, start: new Date(currentYear, currentMonth, 12), end: new Date(currentYear, currentMonth, 12), days: 1, status: "APPROVED", reason: "Doctor appointment", revBy: 10, revAt: new Date() },
     { emp: 17, pol: 0, start: new Date(currentYear, currentMonth + 2, 10), end: new Date(currentYear, currentMonth + 2, 14), days: 5, status: "PENDING", reason: "Visit family in Germany" },
@@ -445,13 +444,13 @@ async function main() {
 
     // More current month — overlapping days to test "+N more" on calendar
     { emp: 0, pol: 0, start: new Date(currentYear, currentMonth, 14), end: new Date(currentYear, currentMonth, 18), days: 5, status: "APPROVED", reason: "CEO retreat", revBy: 22, revAt: new Date() },
-    { emp: 3, pol: 2, start: new Date(currentYear, currentMonth, 15), end: new Date(currentYear, currentMonth, 15), days: 1, status: "APPROVED", reason: "Personal errand", revBy: 0, revAt: new Date() },
+    { emp: 3, pol: 0, start: new Date(currentYear, currentMonth, 15), end: new Date(currentYear, currentMonth, 15), days: 1, status: "APPROVED", reason: "Personal errand", revBy: 0, revAt: new Date() },
     { emp: 10, pol: 0, start: new Date(currentYear, currentMonth, 14), end: new Date(currentYear, currentMonth, 16), days: 3, status: "APPROVED", reason: "Short trip", revBy: 1, revAt: new Date() },
     { emp: 13, pol: 0, start: new Date(currentYear, currentMonth, 21), end: new Date(currentYear, currentMonth, 25), days: 5, status: "PENDING", reason: "Spring break" },
     { emp: 15, pol: 1, start: new Date(currentYear, currentMonth, 7), end: new Date(currentYear, currentMonth, 8), days: 2, status: "APPROVED", reason: "Not feeling well", revBy: 14, revAt: new Date() },
     { emp: 18, pol: 0, start: new Date(currentYear, currentMonth, 10), end: new Date(currentYear, currentMonth, 11), days: 2, status: "APPROVED", reason: "Wedding", revBy: 16, revAt: new Date() },
     { emp: 20, pol: 0, start: new Date(currentYear, currentMonth, 15), end: new Date(currentYear, currentMonth, 17), days: 3, status: "PENDING", reason: "Long weekend getaway" },
-    { emp: 25, pol: 2, start: new Date(currentYear, currentMonth, 22), end: new Date(currentYear, currentMonth, 22), days: 1, status: "APPROVED", reason: "DMV appointment", revBy: 24, revAt: new Date() },
+    { emp: 25, pol: 0, start: new Date(currentYear, currentMonth, 22), end: new Date(currentYear, currentMonth, 22), days: 1, status: "APPROVED", reason: "DMV appointment", revBy: 24, revAt: new Date() },
     { emp: 6, pol: 0, start: new Date(currentYear, currentMonth, 7), end: new Date(currentYear, currentMonth, 11), days: 5, status: "APPROVED", reason: "Berlin staycation", revBy: 4, revAt: new Date() },
     { emp: 26, pol: 0, start: new Date(currentYear, currentMonth, 21), end: new Date(currentYear, currentMonth, 22), days: 2, status: "APPROVED", reason: "Moving offices", revBy: 0, revAt: new Date() },
   ];
