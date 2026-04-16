@@ -84,7 +84,7 @@ export const timeoffRouter = router({
       where,
       include: {
         employee: { select: { id: true, firstName: true, lastName: true, department: { select: { name: true } } } },
-        policy: { select: { id: true, name: true, type: true } },
+        policy: { select: { id: true, name: true, type: true, color: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
@@ -303,7 +303,7 @@ export const timeoffRouter = router({
         },
         include: {
           employee: { select: { id: true, firstName: true, lastName: true, avatar: true, department: { select: { name: true } } } },
-          policy: { select: { name: true, type: true } },
+          policy: { select: { id: true, name: true, type: true, color: true } },
         },
         orderBy: { startDate: 'asc' },
       });
