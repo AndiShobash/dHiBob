@@ -110,6 +110,9 @@ export function AddTaskModal({ employeeId, employeeName, mode = 'onboarding', op
   const [presets, setPresets] = useState<TaskPreset[]>([]);
   const [newPresetTitle, setNewPresetTitle] = useState('');
   const [newPresetSection, setNewPresetSection] = useState('');
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editSection, setEditSection] = useState('');
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { section: 'General' },
@@ -138,6 +141,20 @@ export function AddTaskModal({ employeeId, employeeName, mode = 'onboarding', op
     const updated = presets.filter((_, i) => i !== idx);
     setPresets(updated);
     savePresets(mode, updated);
+  }
+
+  function startEdit(idx: number) {
+    setEditingIdx(idx);
+    setEditTitle(presets[idx].title);
+    setEditSection(presets[idx].section);
+  }
+
+  function saveEdit() {
+    if (editingIdx === null || !editTitle.trim()) return;
+    const updated = presets.map((p, i) => i === editingIdx ? { title: editTitle.trim(), section: editSection.trim() || p.section } : p);
+    setPresets(updated);
+    savePresets(mode, updated);
+    setEditingIdx(null);
   }
 
   const onSubmit = async (values: FormValues) => {
@@ -199,12 +216,27 @@ export function AddTaskModal({ employeeId, employeeName, mode = 'onboarding', op
                   <p className="text-xs font-semibold text-gray-500 mt-2 mb-1">{section}</p>
                   {presets.filter(p => p.section === section).map((preset, _) => {
                     const idx = presets.indexOf(preset);
+                    if (editingIdx === idx) {
+                      return (
+                        <div key={idx} className="flex items-center gap-2 py-1 px-2 bg-gray-50 dark:bg-gray-800 rounded">
+                          <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} className="flex-1 h-7 text-sm" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') setEditingIdx(null); }} autoFocus />
+                          <Input value={editSection} onChange={e => setEditSection(e.target.value)} className="w-28 h-7 text-sm" placeholder="Section" />
+                          <Button type="button" size="sm" className="h-7 px-2 text-xs" onClick={saveEdit}>Save</Button>
+                          <button type="button" onClick={() => setEditingIdx(null)} className="text-xs text-gray-400">Cancel</button>
+                        </div>
+                      );
+                    }
                     return (
                       <div key={idx} className="flex items-center justify-between py-1 px-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded text-sm group">
                         <span className="truncate flex-1">{preset.title}</span>
-                        <button type="button" onClick={() => removePreset(idx)} className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 shrink-0 ml-2">
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 shrink-0 ml-2">
+                          <button type="button" onClick={() => startEdit(idx)} className="text-gray-400 hover:text-primary-500">
+                            <Pencil size={13} />
+                          </button>
+                          <button type="button" onClick={() => removePreset(idx)} className="text-red-400 hover:text-red-600">
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
