@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -7,16 +7,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
+import { Plus, Trash2, Pencil } from "lucide-react";
 
-// Onboarding task presets from the screenshots
-const ONBOARDING_TASKS = [
-  // Pre-boarding
+type TaskPreset = { title: string; section: string };
+
+// Default onboarding task presets
+const DEFAULT_ONBOARDING_TASKS: TaskPreset[] = [
   { title: 'Approving recruitment', section: 'Pre-boarding' },
   { title: 'Notifying Candidate & HR', section: 'Pre-boarding' },
   { title: 'Contact Candidate for onboarding', section: 'Pre-boarding' },
   { title: 'Is computer needed?', section: 'Pre-boarding' },
   { title: 'Sending work start invite (on-site / remote)', section: 'Pre-boarding' },
-  // Upcoming meetings
   { title: 'Scheduling a Welcome meeting with TL', section: 'Upcoming meetings' },
   { title: 'Scheduling a Welcome meeting with Head of delivery', section: 'Upcoming meetings' },
   { title: 'Scheduling a meeting with Shani', section: 'Upcoming meetings' },
@@ -25,7 +26,6 @@ const ONBOARDING_TASKS = [
   { title: 'Scheduling a meeting with HR - 1 week later', section: 'Upcoming meetings' },
   { title: 'Scheduling a meeting with HR - 1 month later', section: 'Upcoming meetings' },
   { title: 'Scheduling a meeting with HR - 3 months later', section: 'Upcoming meetings' },
-  // HR touchpoints
   { title: 'Contract', section: 'HR touchpoints' },
   { title: 'Buddy', section: 'HR touchpoints' },
   { title: 'Sending the employee a "welcome aboard" mail', section: 'HR touchpoints' },
@@ -47,8 +47,8 @@ const ONBOARDING_TASKS = [
   { title: 'Welcome gift', section: 'HR touchpoints' },
 ];
 
-// Offboarding task presets (translated from Hebrew screenshots)
-const OFFBOARDING_TASKS = [
+// Default offboarding task presets
+const DEFAULT_OFFBOARDING_TASKS: TaskPreset[] = [
   { title: 'Was the employee fired or resigned?', section: 'Administrative' },
   { title: 'Employment termination letter', section: 'Administrative' },
   { title: 'Update manager on employment end and close user', section: 'Administrative' },
@@ -68,6 +68,21 @@ const OFFBOARDING_TASKS = [
   { title: 'Execute share purchase in payslip', section: 'HR & Finance' },
   { title: 'Transfer employee details to former employees tab', section: 'Administrative' },
 ];
+
+function getStoredPresets(mode: string): TaskPreset[] {
+  if (typeof window === 'undefined') return mode === 'onboarding' ? DEFAULT_ONBOARDING_TASKS : DEFAULT_OFFBOARDING_TASKS;
+  const key = `task-presets-${mode}`;
+  const stored = localStorage.getItem(key);
+  if (stored) {
+    try { return JSON.parse(stored); } catch {}
+  }
+  return mode === 'onboarding' ? DEFAULT_ONBOARDING_TASKS : DEFAULT_OFFBOARDING_TASKS;
+}
+
+function savePresets(mode: string, presets: TaskPreset[]) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(`task-presets-${mode}`, JSON.stringify(presets));
+}
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -91,20 +106,39 @@ export function AddTaskModal({ employeeId, employeeName, mode = 'onboarding', op
   const utils = trpc.useUtils();
   const [assigneeId, setAssigneeId] = useState<string>('');
   const [customTitle, setCustomTitle] = useState(false);
+  const [editingList, setEditingList] = useState(false);
+  const [presets, setPresets] = useState<TaskPreset[]>([]);
+  const [newPresetTitle, setNewPresetTitle] = useState('');
+  const [newPresetSection, setNewPresetSection] = useState('');
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { section: 'General' },
   });
 
+  useEffect(() => { setPresets(getStoredPresets(mode)); }, [mode, open]);
+
   const createOnboardingTask = trpc.onboarding.createTask.useMutation();
   const createOffboardingTask = trpc.onboarding.createOffboardingTask.useMutation();
-  const { data: employees } = trpc.employee.list.useQuery(
-    { limit: 100 },
-    { enabled: open }
-  );
+  const { data: employees } = trpc.employee.list.useQuery({ limit: 100 }, { enabled: open });
 
   const isLoading = mode === 'onboarding' ? createOnboardingTask.isLoading : createOffboardingTask.isLoading;
-  const presets = mode === 'onboarding' ? ONBOARDING_TASKS : OFFBOARDING_TASKS;
+  const sections = [...new Set(presets.map(p => p.section))];
+
+  function addPreset() {
+    if (!newPresetTitle.trim()) return;
+    const section = newPresetSection.trim() || 'General';
+    const updated = [...presets, { title: newPresetTitle.trim(), section }];
+    setPresets(updated);
+    savePresets(mode, updated);
+    setNewPresetTitle('');
+    setNewPresetSection('');
+  }
+
+  function removePreset(idx: number) {
+    const updated = presets.filter((_, i) => i !== idx);
+    setPresets(updated);
+    savePresets(mode, updated);
+  }
 
   const onSubmit = async (values: FormValues) => {
     const payload = {
@@ -128,86 +162,134 @@ export function AddTaskModal({ employeeId, employeeName, mode = 'onboarding', op
     reset();
     setAssigneeId('');
     setCustomTitle(false);
+    setEditingList(false);
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add {mode === 'offboarding' ? 'Offboarding' : 'Onboarding'} Task for {employeeName}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium">Task Title</label>
-              <button type="button" onClick={() => setCustomTitle(!customTitle)} className="text-xs text-primary-500 hover:text-primary-600">
-                {customTitle ? 'Choose from list' : 'Custom title'}
+
+        {editingList ? (
+          /* ─── Edit Preset List ─── */
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Edit Task List</p>
+              <button type="button" onClick={() => setEditingList(false)} className="text-xs text-primary-500 hover:text-primary-600">
+                ← Back
               </button>
             </div>
-            {customTitle ? (
-              <Input {...register("title")} placeholder="Type a custom task title..." />
-            ) : (
-              <select
-                {...register("title")}
-                onChange={e => {
-                  const selected = presets.find(p => p.title === e.target.value);
-                  setValue('title', e.target.value);
-                  if (selected) setValue('section', selected.section);
-                }}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white"
-              >
-                <option value="">Select a task...</option>
-                {(() => {
-                  const sections = [...new Set(presets.map(p => p.section))];
-                  return sections.map(section => (
+
+            {/* Add new preset */}
+            <div className="flex gap-2">
+              <Input value={newPresetTitle} onChange={e => setNewPresetTitle(e.target.value)} placeholder="New task title" className="flex-1" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPreset(); } }} />
+              <Input value={newPresetSection} onChange={e => setNewPresetSection(e.target.value)} placeholder="Section" className="w-32" />
+              <Button type="button" size="sm" onClick={addPreset} disabled={!newPresetTitle.trim()}>
+                <Plus size={14} />
+              </Button>
+            </div>
+
+            {/* Preset list */}
+            <div className="max-h-[300px] overflow-y-auto space-y-1">
+              {sections.map(section => (
+                <div key={section}>
+                  <p className="text-xs font-semibold text-gray-500 mt-2 mb-1">{section}</p>
+                  {presets.filter(p => p.section === section).map((preset, _) => {
+                    const idx = presets.indexOf(preset);
+                    return (
+                      <div key={idx} className="flex items-center justify-between py-1 px-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded text-sm group">
+                        <span className="truncate flex-1">{preset.title}</span>
+                        <button type="button" onClick={() => removePreset(idx)} className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 shrink-0 ml-2">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+
+            <p className="text-[10px] text-gray-400">Changes are saved to your browser automatically.</p>
+          </div>
+        ) : (
+          /* ─── Add Task Form ─── */
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium">Task Title</label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setCustomTitle(!customTitle)} className="text-xs text-primary-500 hover:text-primary-600">
+                    {customTitle ? 'Choose from list' : 'Custom title'}
+                  </button>
+                  <button type="button" onClick={() => setEditingList(true)} className="text-xs text-gray-400 hover:text-gray-600">
+                    <Pencil size={12} className="inline mr-0.5" />Edit list
+                  </button>
+                </div>
+              </div>
+              {customTitle ? (
+                <Input {...register("title")} placeholder="Type a custom task title..." />
+              ) : (
+                <select
+                  {...register("title")}
+                  onChange={e => {
+                    const selected = presets.find(p => p.title === e.target.value);
+                    setValue('title', e.target.value);
+                    if (selected) setValue('section', selected.section);
+                  }}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white"
+                >
+                  <option value="">Select a task...</option>
+                  {sections.map(section => (
                     <optgroup key={section} label={section}>
                       {presets.filter(p => p.section === section).map(p => (
                         <option key={p.title} value={p.title}>{p.title}</option>
                       ))}
                     </optgroup>
-                  ));
-                })()}
+                  ))}
+                </select>
+              )}
+              {errors.title && <p className="text-xs text-red-600 mt-1">{errors.title.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="section" className="block text-sm font-medium mb-1">Section</label>
+              <Input id="section" {...register("section")} placeholder="e.g. Pre-boarding, HR touchpoints" />
+              {errors.section && <p className="text-xs text-red-600 mt-1">{errors.section.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="assignee" className="block text-sm font-medium mb-1">Assigned to</label>
+              <select
+                id="assignee"
+                value={assigneeId}
+                onChange={e => setAssigneeId(e.target.value)}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400"
+              >
+                <option value="">No one assigned</option>
+                {(employees?.employees ?? []).map((emp: any) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.firstName} {emp.lastName}
+                  </option>
+                ))}
               </select>
-            )}
-            {errors.title && <p className="text-xs text-red-600 mt-1">{errors.title.message}</p>}
-          </div>
-          <div>
-            <label htmlFor="section" className="block text-sm font-medium mb-1">Section</label>
-            <Input id="section" {...register("section")} placeholder="e.g. Pre-boarding, HR touchpoints" />
-            {errors.section && <p className="text-xs text-red-600 mt-1">{errors.section.message}</p>}
-          </div>
-          <div>
-            <label htmlFor="assignee" className="block text-sm font-medium mb-1">Assigned to</label>
-            <select
-              id="assignee"
-              value={assigneeId}
-              onChange={e => setAssigneeId(e.target.value)}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400"
-            >
-              <option value="">No one assigned</option>
-              {(employees?.employees ?? []).map((emp: any) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.firstName} {emp.lastName}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium mb-1">Description</label>
-            <Input id="description" {...register("description")} placeholder="Optional details..." />
-          </div>
-          <div>
-            <label htmlFor="dueDate" className="block text-sm font-medium mb-1">Due Date</label>
-            <Input id="dueDate" type="date" {...register("dueDate")} />
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Adding..." : "Add Task"}
-            </Button>
-          </div>
-        </form>
+            </div>
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium mb-1">Description</label>
+              <Input id="description" {...register("description")} placeholder="Optional details..." />
+            </div>
+            <div>
+              <label htmlFor="dueDate" className="block text-sm font-medium mb-1">Due Date</label>
+              <Input id="dueDate" type="date" {...register("dueDate")} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Adding..." : "Add Task"}
+              </Button>
+            </div>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );
