@@ -156,6 +156,74 @@ export const onboardingRouter = router({
       });
     }),
 
+  // Add a new hire — creates employee with PENDING_HIRE status and starts onboarding
+  addNewHire: protectedProcedure
+    .input(z.object({
+      firstName: z.string().min(1),
+      lastName: z.string().min(1),
+      email: z.string().email(),
+      departmentId: z.string().optional(),
+      startDate: z.coerce.date(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Create employee with PENDING_HIRE status (not yet in People)
+      const employee = await ctx.db.employee.create({
+        data: {
+          companyId: ctx.user.companyId,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          displayName: `${input.firstName} ${input.lastName}`,
+          email: input.email,
+          status: 'PENDING_HIRE',
+          employmentType: 'FULL_TIME',
+          startDate: input.startDate,
+          departmentId: input.departmentId || undefined,
+          personalInfo: JSON.stringify({}),
+          workInfo: JSON.stringify({}),
+        },
+        include: { department: { select: { name: true } } },
+      });
+
+      // Auto-detect DevOps and create onboarding tasks
+      const isDevOps = (employee as any).department?.name?.toLowerCase().includes('engineering') ?? false;
+      const tasks = DEFAULT_ONBOARDING_TASKS.filter(t => isDevOps || t.sectionType !== 'DEVOPS');
+      await ctx.db.onboardingTask.createMany({
+        data: tasks.map(t => ({
+          employeeId: employee.id,
+          title: t.title,
+          section: t.section,
+          sectionType: t.sectionType,
+          status: 'NOT_STARTED' as const,
+          sortOrder: t.sortOrder,
+        })),
+        skipDuplicates: true,
+      });
+
+      return employee;
+    }),
+
+  // Convert pending hire to active employee (called when Contract task is done)
+  activateHire: protectedProcedure
+    .input(z.object({ employeeId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const employee = await ctx.db.employee.findFirst({
+        where: { id: input.employeeId, companyId: ctx.user.companyId },
+      });
+      if (!employee) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      // Create a user account for the new employee
+      const bcrypt = await import('bcryptjs');
+      const passwordHash = await bcrypt.hash('password123', 10);
+      await ctx.db.user.create({
+        data: { email: employee.email, passwordHash, role: 'EMPLOYEE', employeeId: employee.id },
+      }).catch(() => {}); // Ignore if user already exists
+
+      return ctx.db.employee.update({
+        where: { id: input.employeeId },
+        data: { status: 'ACTIVE' },
+      });
+    }),
+
   createOffboardingTask: protectedProcedure
     .input(z.object({
       employeeId: z.string(),
@@ -212,7 +280,7 @@ export const onboardingRouter = router({
 
   listNewHires: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.employee.findMany({
-      where: { companyId: ctx.user.companyId, status: 'ACTIVE' },
+      where: { companyId: ctx.user.companyId, status: { in: ['ACTIVE', 'PENDING_HIRE'] } },
       include: {
         onboardingTasks: {
           orderBy: [{ section: 'asc' }, { sortOrder: 'asc' }],
@@ -260,18 +328,33 @@ export const onboardingRouter = router({
     .mutation(async ({ ctx, input }) => {
       const task = await ctx.db.onboardingTask.findUnique({
         where: { id: input.taskId },
-        include: { employee: { select: { companyId: true } } },
+        include: { employee: { select: { id: true, companyId: true, status: true } } },
       });
       if (!task || task.employee.companyId !== ctx.user.companyId) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Task not found' });
       }
-      return ctx.db.onboardingTask.update({
+      const updated = await ctx.db.onboardingTask.update({
         where: { id: input.taskId },
         data: {
           status: input.status,
           completedAt: input.status === 'DONE' ? new Date() : null,
         },
       });
+
+      // Auto-activate hire when "Contract" task is marked Done
+      if (input.status === 'DONE' && task.title.toLowerCase().includes('contract') && task.employee.status === 'PENDING_HIRE') {
+        const bcrypt = await import('bcryptjs');
+        const emp = await ctx.db.employee.findUnique({ where: { id: task.employee.id } });
+        if (emp) {
+          await ctx.db.employee.update({ where: { id: emp.id }, data: { status: 'ACTIVE' } });
+          const passwordHash = await bcrypt.hash('password123', 10);
+          await ctx.db.user.create({
+            data: { email: emp.email, passwordHash, role: 'EMPLOYEE', employeeId: emp.id },
+          }).catch(() => {});
+        }
+      }
+
+      return updated;
     }),
 
   // Update task fields (title, notes, dueDate)
