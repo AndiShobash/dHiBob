@@ -149,6 +149,7 @@ export default function TimeOffPage() {
   const [editingRequest, setEditingRequest] = useState<any>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [addPolicyOpen, setAddPolicyOpen] = useState(false);
+  const [policyColor, setPolicyColor] = useState('#3b82f6');
 
   const { data: policyBalances, isLoading: balancesLoading, error: balancesError, refetch: refetchBalances } = trpc.timeoff.getPolicyBalances.useQuery(
     { employeeId: employeeId! },
@@ -391,11 +392,13 @@ export default function TimeOffPage() {
             <form onSubmit={e => {
               e.preventDefault();
               const fd = new FormData(e.target as HTMLFormElement);
+              const name = fd.get('name') as string;
               createPolicyMutation.mutate({
-                name: fd.get('name') as string,
-                type: (fd.get('name') as string).toUpperCase().replace(/\s+/g, '_'),
-                color: fd.get('color') as string,
+                name,
+                type: name.toUpperCase().replace(/\s+/g, '_'),
+                color: policyColor,
               });
+              setPolicyColor('#3b82f6');
             }} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Name</label>
@@ -404,8 +407,9 @@ export default function TimeOffPage() {
               <div>
                 <label className="block text-sm font-medium mb-1">Color</label>
                 <div className="flex items-center gap-3">
-                  <input name="color" type="color" defaultValue="#3b82f6" className="w-10 h-10 rounded cursor-pointer border-0 p-0" />
+                  <input type="color" value={policyColor} onChange={e => setPolicyColor(e.target.value)} className="w-10 h-10 rounded cursor-pointer border-0 p-0" />
                   <span className="text-xs text-gray-500">Pick a color for the calendar</span>
+                  <span className="text-xs font-mono text-gray-400">{policyColor}</span>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
