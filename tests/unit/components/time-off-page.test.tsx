@@ -51,6 +51,7 @@ vi.mock('@/lib/trpc', () => ({
       editRequest: { useMutation: () => ({ mutate: vi.fn(), isPending: false, isLoading: false, error: null }) },
       createPolicy: { useMutation: () => ({ mutate: vi.fn(), isPending: false, isLoading: false }) },
       updatePolicy: { useMutation: () => ({ mutate: vi.fn(), isPending: false, isLoading: false }) },
+      deletePolicy: { useMutation: () => ({ mutate: vi.fn(), isPending: false, isLoading: false }) },
       teamCalendar: { useQuery: () => ({ data: [] }) },
     },
     employee: {

@@ -179,6 +179,10 @@ export default function TimeOffPage() {
     onSuccess: () => { utils.timeoff.listPolicies.invalidate(); utils.timeoff.teamCalendar.invalidate(); setEditingPolicyId(null); },
   });
 
+  const deletePolicyMutation = trpc.timeoff.deletePolicy.useMutation({
+    onSuccess: () => { utils.timeoff.listPolicies.invalidate(); utils.timeoff.teamCalendar.invalidate(); },
+  });
+
   const myRequests = useMemo(() => {
     return allRequestsData?.requests.filter(r => r.employeeId === employeeId) || [];
   }, [allRequestsData, employeeId]);
@@ -271,6 +275,16 @@ export default function TimeOffPage() {
                     />
                   )}
                   {p.name}
+                  {isManager && !(p.accrualRate > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => { if (confirm(`Delete "${p.name}" leave type?`)) deletePolicyMutation.mutate({ id: p.id }); }}
+                      className="text-red-400 hover:text-red-600 ml-0.5"
+                      title="Delete leave type"
+                    >
+                      ×
+                    </button>
+                  )}
                 </span>
               ))}
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-400 opacity-60" /> Pending</span>
