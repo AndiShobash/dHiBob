@@ -150,6 +150,7 @@ export default function TimeOffPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [addPolicyOpen, setAddPolicyOpen] = useState(false);
   const [newPolicyColor, setNewPolicyColor] = useState('#3b82f6');
+  const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
 
   const { data: policyBalances, isLoading: balancesLoading, error: balancesError, refetch: refetchBalances } = trpc.timeoff.getPolicyBalances.useQuery(
     { employeeId: employeeId! },
@@ -172,6 +173,10 @@ export default function TimeOffPage() {
 
   const createPolicyMutation = trpc.timeoff.createPolicy.useMutation({
     onSuccess: () => { utils.timeoff.listPolicies.invalidate(); utils.timeoff.getPolicyBalances.invalidate(); setAddPolicyOpen(false); },
+  });
+
+  const updatePolicyMutation = trpc.timeoff.updatePolicy.useMutation({
+    onSuccess: () => { utils.timeoff.listPolicies.invalidate(); utils.timeoff.teamCalendar.invalidate(); setEditingPolicyId(null); },
   });
 
   const myRequests = useMemo(() => {
@@ -247,8 +252,25 @@ export default function TimeOffPage() {
           <div className="flex items-center justify-between">
             <div className="flex gap-4 text-xs text-gray-500 flex-wrap">
               {(policiesData || []).map((p: any) => (
-                <span key={p.id} className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded" style={{ backgroundColor: p.color || DEFAULT_COLOR }} /> {p.name}
+                <span key={p.id} className="flex items-center gap-1 relative">
+                  {isManager && editingPolicyId === p.id ? (
+                    <input
+                      type="color"
+                      defaultValue={p.color || DEFAULT_COLOR}
+                      autoFocus
+                      onChange={e => updatePolicyMutation.mutate({ id: p.id, color: e.target.value })}
+                      onBlur={() => setEditingPolicyId(null)}
+                      className="w-4 h-4 rounded cursor-pointer border-0 p-0"
+                    />
+                  ) : (
+                    <span
+                      className={`w-3 h-3 rounded ${isManager ? 'cursor-pointer hover:ring-2 hover:ring-primary-300' : ''}`}
+                      style={{ backgroundColor: p.color || DEFAULT_COLOR }}
+                      onClick={() => isManager && setEditingPolicyId(p.id)}
+                      title={isManager ? 'Click to change color' : undefined}
+                    />
+                  )}
+                  {p.name}
                 </span>
               ))}
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-400 opacity-60" /> Pending</span>
