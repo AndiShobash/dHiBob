@@ -331,6 +331,22 @@ export const employeeRouter = router({
     return terminated;
   }),
 
+  // Update employee's system role (SUPER_ADMIN/ADMIN only)
+  updateRole: protectedProcedure
+    .input(z.object({ employeeId: z.string(), role: z.enum(['EMPLOYEE', 'IT', 'ADMIN', 'SUPER_ADMIN']) }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'SUPER_ADMIN' && ctx.user.role !== 'ADMIN') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can change roles' });
+      }
+      const employee = await ctx.db.employee.findFirst({ where: { id: input.employeeId, companyId: ctx.user.companyId } });
+      if (!employee) throw new TRPCError({ code: 'NOT_FOUND' });
+      await ctx.db.user.updateMany({
+        where: { employeeId: input.employeeId },
+        data: { role: input.role },
+      });
+      return { success: true };
+    }),
+
   getOrgChartData: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.employee.findMany({
       where: { 

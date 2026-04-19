@@ -645,6 +645,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
 
   const updateEmployee = trpc.employee.update.useMutation({ onSuccess: invalidate });
   const terminateEmployee = trpc.employee.terminate.useMutation({ onSuccess: invalidate });
+  const updateRole = trpc.employee.updateRole.useMutation({ onSuccess: invalidate });
   const updatePersonalInfo = trpc.employee.updatePersonalInfo.useMutation({ onSuccess: invalidate });
   const updateWorkInfo = trpc.employee.updateWorkInfo.useMutation({ onSuccess: invalidate });
 
@@ -825,6 +826,18 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                   </div>
                 ) : (
                   <Badge variant={statusVariant(employee.status)}>{statusLabel(employee.status)}</Badge>
+                )}
+                {isAdmin && (employee as any).user && (
+                  <select
+                    value={(employee as any).user.role}
+                    onChange={e => updateRole.mutateAsync({ employeeId: params.id, role: e.target.value as any })}
+                    className="text-xs border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 bg-white dark:bg-charcoal-800 text-gray-700 dark:text-gray-300"
+                  >
+                    <option value="EMPLOYEE">Employee</option>
+                    <option value="IT">IT</option>
+                    <option value="ADMIN">Admin</option>
+                    <option value="SUPER_ADMIN">Super Admin</option>
+                  </select>
                 )}
               </div>
               <p className="text-gray-500 dark:text-gray-400 font-medium">
