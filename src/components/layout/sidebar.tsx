@@ -3,10 +3,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { Menu, X, Home, Users, UserCheck, UserMinus, Calendar, DollarSign, TrendingUp, Briefcase, BookOpen, BarChart3, Users2, FileText, Settings, Network, ClipboardList, LayoutDashboard } from "lucide-react";
+import { Menu, X, Home, Users, UserCheck, UserMinus, Calendar, TrendingUp, Briefcase, BookOpen, BarChart3, FileText, Settings, Network, ClipboardList, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const HR_ONLY_HREFS = new Set(['/onboarding', '/offboarding', '/payroll', '/hiring', '/analytics', '/reports', '/workforce-planning']);
+const HR_ONLY_HREFS = new Set(['/onboarding', '/offboarding', '/hiring', '/analytics', '/reports']);
 
 const navigationItems = [
   { label: "Home", href: "/home", icon: Home },
@@ -15,14 +15,12 @@ const navigationItems = [
   { label: "Onboarding", href: "/onboarding", icon: UserCheck },
   { label: "Offboarding", href: "/offboarding", icon: UserMinus },
   { label: "Time Off", href: "/time-off", icon: Calendar },
-  { label: "Payroll", href: "/payroll", icon: DollarSign },
   { label: "Performance", href: "/performance", icon: TrendingUp },
   { label: "Hiring", href: "/hiring", icon: Briefcase },
   { label: "Learning", href: "/learning", icon: BookOpen },
   { label: "Surveys", href: "/surveys", icon: BarChart3 },
   { label: "Analytics", href: "/analytics", icon: TrendingUp },
   { label: "Reports", href: "/reports", icon: ClipboardList },
-  { label: "Workforce Planning", href: "/workforce-planning", icon: Users2 },
   { label: "HR Portal", href: "/hr-portal", icon: LayoutDashboard },
   { label: "Documents", href: "/documents", icon: FileText },
   { label: "Settings", href: "/settings", icon: Settings },
