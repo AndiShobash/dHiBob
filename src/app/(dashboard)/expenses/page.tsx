@@ -35,14 +35,25 @@ export default function ExpensesPage() {
   const utils = trpc.useUtils();
   const [addOpen, setAddOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [monthFilter, setMonthFilter] = useState('');
+  const [yearFilter, setYearFilter] = useState('');
   const [activeTab, setActiveTab] = useState('current');
+
+  // Compute date range from month + year filters
+  const dateRange = (() => {
+    if (!monthFilter && !yearFilter) return {};
+    const y = yearFilter ? parseInt(yearFilter) : new Date().getFullYear();
+    if (monthFilter) {
+      const m = parseInt(monthFilter) - 1;
+      return { startDate: new Date(y, m, 1), endDate: new Date(y, m + 1, 0, 23, 59, 59) };
+    }
+    return { startDate: new Date(y, 0, 1), endDate: new Date(y, 11, 31, 23, 59, 59) };
+  })();
 
   const { data: expenses, isLoading } = trpc.expenses.list.useQuery({
     status: statusFilter ? statusFilter as any : undefined,
-    startDate: startDate ? new Date(startDate) : undefined,
-    endDate: endDate ? new Date(endDate) : undefined,
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
   });
   const { data: summary } = trpc.expenses.summary.useQuery();
 
@@ -83,7 +94,7 @@ export default function ExpensesPage() {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Expenses");
-    XLSX.writeFile(wb, `expense-report${startDate ? `-from-${startDate}` : ''}${endDate ? `-to-${endDate}` : ''}.xlsx`);
+    XLSX.writeFile(wb, `expense-report${yearFilter ? `-${yearFilter}` : ''}${monthFilter ? `-${monthFilter}` : ''}.xlsx`);
   }
 
   // Split expenses into current (pending) and history (approved/rejected)
@@ -184,15 +195,23 @@ export default function ExpensesPage() {
           <option value="APPROVED">Approved</option>
           <option value="REJECTED">Rejected</option>
         </select>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <span>From</span>
-          <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-40" />
-          <span>To</span>
-          <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-40" />
-          {(startDate || endDate) && (
-            <button onClick={() => { setStartDate(''); setEndDate(''); }} className="text-xs text-primary-500 hover:text-primary-600">Clear</button>
-          )}
-        </div>
+        <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)}
+          className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white min-w-[140px]">
+          <option value="">All Months</option>
+          {['January','February','March','April','May','June','July','August','September','October','November','December'].map((name, i) => (
+            <option key={i} value={String(i + 1).padStart(2, '0')}>{name}</option>
+          ))}
+        </select>
+        <select value={yearFilter} onChange={e => setYearFilter(e.target.value)}
+          className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white min-w-[100px]">
+          <option value="">All Years</option>
+          {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+            <option key={y} value={String(y)}>{y}</option>
+          ))}
+        </select>
+        {(monthFilter || yearFilter) && (
+          <button onClick={() => { setMonthFilter(''); setYearFilter(''); }} className="text-xs text-primary-500 hover:text-primary-600">Clear</button>
+        )}
       </div>
 
       {/* Tabs: Current / History */}
