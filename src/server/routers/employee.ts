@@ -297,6 +297,7 @@ export const employeeRouter = router({
     trainingFundStartDate: z.string().optional(),
     trainingFundId: z.string().optional(),
     trainingFundDoc: z.string().optional(),
+    workerType: z.string().optional(),
   })).mutation(async ({ ctx, input }) => {
     const { id, ...fields } = input;
     const current = await ctx.db.employee.findUnique({ where: { id } });
