@@ -836,7 +836,6 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                     <option value="EMPLOYEE">Employee</option>
                     <option value="IT">IT</option>
                     <option value="ADMIN">Admin</option>
-                    <option value="SUPER_ADMIN">Super Admin</option>
                   </select>
                 )}
               </div>
