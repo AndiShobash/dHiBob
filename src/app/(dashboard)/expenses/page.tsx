@@ -205,7 +205,7 @@ export default function ExpensesPage() {
         <select value={yearFilter} onChange={e => setYearFilter(e.target.value)}
           className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white min-w-[100px]">
           <option value="">All Years</option>
-          {Array.from({ length: 53 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+          {Array.from({ length: new Date().getFullYear() - 2010 + 51 }, (_, i) => 2010 + i).map(y => (
             <option key={y} value={String(y)}>{y}</option>
           ))}
         </select>
