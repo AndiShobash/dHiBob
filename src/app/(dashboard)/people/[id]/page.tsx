@@ -96,24 +96,30 @@ function DateField({ label, value, onSave }: {
 }) {
   const [editing, setEditing] = useState(false);
 
-  // Convert display value to ISO for the input
+  // Convert display value to YYYY-MM-DD for the date input
   function toIso(v: string | null | undefined): string {
     if (!v) return '';
+    const s = String(v);
+    // Already YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // ISO string with time — extract date part
+    if (s.includes('T')) return s.slice(0, 10);
+    // Try parsing but use UTC parts to avoid timezone shift
     try {
-      const d = new Date(v);
+      const d = new Date(s);
       if (isNaN(d.getTime())) return '';
-      return d.toISOString().slice(0, 10);
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
     } catch { return ''; }
   }
 
   // Format for display
   function toDisplay(v: string | null | undefined): string {
     if (!v) return '';
-    try {
-      const d = new Date(v);
-      if (isNaN(d.getTime())) return v;
-      return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-    } catch { return v; }
+    const iso = toIso(v);
+    if (!iso) return String(v);
+    const [year, month, day] = iso.split('-').map(Number);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[month - 1]} ${day}, ${year}`;
   }
 
   if (!onSave) {
