@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -371,6 +372,51 @@ function SurveyResults({ surveyId, onClose }: { surveyId: string; onClose: () =>
           </Card>
         );
       })}
+
+      {/* Individual Responses — for non-anonymous surveys */}
+      {!survey.anonymous && responses.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Individual Responses</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-xs text-gray-500">
+                    <th className="text-left p-2 font-medium">Employee</th>
+                    {questions.map((q: any, i: number) => (
+                      <th key={q.id} className="text-left p-2 font-medium">{i + 1}. {q.title}</th>
+                    ))}
+                    <th className="text-left p-2 font-medium">Submitted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {responses.map((r: any, i: number) => (
+                    <tr key={i} className="border-b border-gray-100 dark:border-gray-800">
+                      <td className="p-2 font-medium whitespace-nowrap">
+                        {r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : 'Unknown'}
+                      </td>
+                      {questions.map((q: any) => (
+                        <td key={q.id} className="p-2 text-gray-600 dark:text-gray-400 max-w-[200px] truncate">
+                          {Array.isArray(r.answers[q.id]) ? r.answers[q.id].join(', ') : String(r.answers[q.id] ?? '—')}
+                        </td>
+                      ))}
+                      <td className="p-2 text-gray-400 text-xs whitespace-nowrap">
+                        {r.submittedAt ? new Date(r.submittedAt).toLocaleDateString() : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {survey.anonymous && (
+        <p className="text-xs text-gray-400 text-center">This survey is anonymous — individual responses are not linked to employees.</p>
+      )}
     </div>
   );
 }
@@ -400,14 +446,18 @@ export default function SurveysPage() {
   }
 
   const statusVariant = (s: string) => s === 'ACTIVE' ? 'success' : s === 'COMPLETED' ? 'secondary' : 'outline';
+  const { data: session } = useSession();
+  const canManageSurveys = session?.user?.role === 'SUPER_ADMIN' || session?.user?.role === 'ADMIN' || session?.user?.role === 'HR' || session?.user?.role === 'IT';
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Surveys</h1>
-        <Button onClick={() => { setEditSurvey(null); setView('create'); }} className="gap-2">
-          <Plus size={16} /> Create Survey
-        </Button>
+        {canManageSurveys && (
+          <Button onClick={() => { setEditSurvey(null); setView('create'); }} className="gap-2">
+            <Plus size={16} /> Create Survey
+          </Button>
+        )}
       </div>
 
       {isLoading && (
@@ -448,12 +498,12 @@ export default function SurveysPage() {
                           <Send size={14} /> Fill
                         </Button>
                       )}
-                      {survey.status !== 'DRAFT' && (
+                      {survey.status !== 'DRAFT' && canManageSurveys && (
                         <Button size="sm" variant="outline" onClick={() => { setSelectedSurveyId(survey.id); setView('results'); }} className="gap-1">
                           <BarChart3 size={14} /> Results
                         </Button>
                       )}
-                      {survey.status === 'DRAFT' && (
+                      {survey.status === 'DRAFT' && canManageSurveys && (
                         <>
                           <Button size="sm" variant="outline" onClick={() => { setEditSurvey({ ...survey, questions }); setView('create'); }} className="gap-1">
                             <Eye size={14} /> Edit
@@ -463,14 +513,16 @@ export default function SurveysPage() {
                           </Button>
                         </>
                       )}
-                      {survey.status === 'ACTIVE' && (
+                      {survey.status === 'ACTIVE' && canManageSurveys && (
                         <Button size="sm" variant="outline" onClick={() => closeMutation.mutate({ id: survey.id })}>
                           Close
                         </Button>
                       )}
-                      <Button size="sm" variant="outline" onClick={() => { if (confirm('Delete this survey?')) deleteMutation.mutate({ id: survey.id }); }} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
-                        <Trash2 size={14} />
-                      </Button>
+                      {canManageSurveys && (
+                        <Button size="sm" variant="outline" onClick={() => { if (confirm('Delete this survey?')) deleteMutation.mutate({ id: survey.id }); }} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+                          <Trash2 size={14} />
+                        </Button>
+                      )}
                     </div>
                   </div>
 
