@@ -6,7 +6,8 @@ import { useSession } from "next-auth/react";
 import { Menu, X, Home, Users, UserCheck, UserMinus, Calendar, TrendingUp, Briefcase, BookOpen, BarChart3, FileText, Settings, Network, ClipboardList, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const HR_ONLY_HREFS = new Set(['/onboarding', '/offboarding', '/hiring', '/analytics', '/reports']);
+const HR_ONLY_HREFS = new Set(['/hiring', '/analytics', '/reports']);
+const IT_ALLOWED_HREFS = new Set(['/onboarding', '/offboarding']);
 
 const navigationItems = [
   { label: "Home", href: "/home", icon: Home },
@@ -32,9 +33,15 @@ export default function Sidebar() {
   const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
-  const isHrOrAdmin = session?.user?.role === 'SUPER_ADMIN' || session?.user?.role === 'ADMIN' || session?.user?.role === 'HR';
+  const role = session?.user?.role;
+  const isHrOrAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'HR';
+  const isIT = role === 'IT';
 
-  const visibleItems = navigationItems.filter(item => !HR_ONLY_HREFS.has(item.href) || isHrOrAdmin);
+  const visibleItems = navigationItems.filter(item => {
+    if (HR_ONLY_HREFS.has(item.href)) return isHrOrAdmin;
+    if (IT_ALLOWED_HREFS.has(item.href)) return isHrOrAdmin || isIT;
+    return true;
+  });
 
   return (
     <>
