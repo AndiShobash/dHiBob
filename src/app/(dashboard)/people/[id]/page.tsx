@@ -169,6 +169,9 @@ const BADGE_COLORS: Record<string, string> = {
   bonus:        'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
   commission:   'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
   equity:       'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  // Worker Type
+  'in-house':   'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  freelance:    'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
   // Currency
   usd:          'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
   eur:          'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -966,7 +969,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <DateField label="" value={startDateFormatted}
                 onSave={isAdmin ? (val) => updateEmployee.mutateAsync({ id: params.id, startDate: val } as any) : undefined} />
             </div>
-            <div className="grid grid-cols-5 gap-4">
+            <div className="grid grid-cols-6 gap-4">
               <F label="Job" value={jobTitle} onSave={wi('jobTitle')} />
               <ManagerPicker
                 label="Reports To"
@@ -977,6 +980,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <F label="Team" value={team} onSave={wi('team')} />
               <F label="Office" value={officeDisplay} onSave={wi('office')} />
               <F label="HR" value={hrContact} onSave={wi('hrContact')} />
+              <DropdownBadgeField label="Worker Type" value={workInfo.workerType || ''} options={['In-house', 'Freelance']} onSave={isAdmin ? wi('workerType') : undefined} />
             </div>
             {(employee as any).directReports?.length > 0 && (
               <div className="mt-4 pt-4 border-t border-gray-100 dark:border-charcoal-800">
