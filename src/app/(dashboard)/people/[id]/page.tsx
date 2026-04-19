@@ -163,7 +163,7 @@ const BADGE_COLORS: Record<string, string> = {
   // Contract Type
   'full-time':  'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
   'part-time':  'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-  freelance:    'bg-orange-200 text-orange-800 dark:bg-orange-800/40 dark:text-orange-200',
+  freelance:    'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300',
   // Salary Type
   'base salary':'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
   bonus:        'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
