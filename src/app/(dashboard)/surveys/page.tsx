@@ -426,6 +426,7 @@ export default function SurveysPage() {
   const [view, setView] = useState<View>('list');
   const [selectedSurveyId, setSelectedSurveyId] = useState<string | null>(null);
   const [editSurvey, setEditSurvey] = useState<any>(null);
+  const { data: session } = useSession();
 
   const utils = trpc.useUtils();
   const { data: surveys, isLoading } = trpc.surveys.list.useQuery();
@@ -446,7 +447,6 @@ export default function SurveysPage() {
   }
 
   const statusVariant = (s: string) => s === 'ACTIVE' ? 'success' : s === 'COMPLETED' ? 'secondary' : 'outline';
-  const { data: session } = useSession();
   const canManageSurveys = session?.user?.role === 'SUPER_ADMIN' || session?.user?.role === 'ADMIN' || session?.user?.role === 'HR' || session?.user?.role === 'IT';
 
   return (
