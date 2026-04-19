@@ -398,6 +398,9 @@ async function main() {
   for (const hrEmp of hrEmployees) {
     await prisma.user.updateMany({ where: { employeeId: hrEmp.id }, data: { role: "ADMIN" } });
   }
+
+  // Make Ryan Torres (DevOps team lead) IT role
+  await prisma.user.updateMany({ where: { employeeId: employees[10].id }, data: { role: "IT" } });
   await Promise.all(employees.map(emp =>
     prisma.user.create({ data: { email: emp.email, passwordHash: employeePassword, role: "EMPLOYEE", employeeId: emp.id } })
   ));
