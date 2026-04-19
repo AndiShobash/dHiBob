@@ -21,6 +21,7 @@ const navigationItems = [
   { label: "Surveys", href: "/surveys", icon: BarChart3 },
   { label: "Analytics", href: "/analytics", icon: TrendingUp },
   { label: "Reports", href: "/reports", icon: ClipboardList },
+  { label: "Expenses", href: "/expenses", icon: FileText },
   { label: "HR Portal", href: "/hr-portal", icon: LayoutDashboard },
   { label: "Documents", href: "/documents", icon: FileText },
   { label: "Settings", href: "/settings", icon: Settings },

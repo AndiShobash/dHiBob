@@ -34,5 +34,6 @@ export const config = {
     "/reports/:path*",
     "/offboarding/:path*",
     "/hr-portal/:path*",
+    "/expenses/:path*",
   ],
 };
