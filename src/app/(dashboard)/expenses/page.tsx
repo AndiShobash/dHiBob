@@ -44,10 +44,13 @@ export default function ExpensesPage() {
     if (!monthFilter && !yearFilter) return {};
     const y = yearFilter ? parseInt(yearFilter) : new Date().getFullYear();
     if (monthFilter) {
-      const m = parseInt(monthFilter) - 1;
-      return { startDate: new Date(y, m, 1), endDate: new Date(y, m + 1, 0, 23, 59, 59) };
+      const m = parseInt(monthFilter);
+      // Use ISO strings to avoid timezone issues
+      const start = `${y}-${String(m).padStart(2, '0')}-01T00:00:00.000Z`;
+      const nextMonth = m === 12 ? `${y + 1}-01-01T00:00:00.000Z` : `${y}-${String(m + 1).padStart(2, '0')}-01T00:00:00.000Z`;
+      return { startDate: new Date(start), endDate: new Date(new Date(nextMonth).getTime() - 1) };
     }
-    return { startDate: new Date(y, 0, 1), endDate: new Date(y, 11, 31, 23, 59, 59) };
+    return { startDate: new Date(`${y}-01-01T00:00:00.000Z`), endDate: new Date(`${y}-12-31T23:59:59.999Z`) };
   })();
 
   const { data: expenses, isLoading } = trpc.expenses.list.useQuery({
