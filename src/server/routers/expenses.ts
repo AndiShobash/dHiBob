@@ -8,7 +8,8 @@ export const expensesRouter = router({
     .input(z.object({
       status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
       employeeId: z.string().optional(),
-      month: z.string().optional(), // e.g. "2026-04"
+      startDate: z.coerce.date().optional(),
+      endDate: z.coerce.date().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
       const isAdmin = ctx.user.role === 'SUPER_ADMIN' || ctx.user.role === 'ADMIN' || ctx.user.role === 'HR';
@@ -21,7 +22,11 @@ export const expensesRouter = router({
       }
 
       if (input?.status) where.status = input.status;
-      if (input?.month) where.payrollMonth = input.month;
+      if (input?.startDate || input?.endDate) {
+        where.expenseDate = {};
+        if (input?.startDate) where.expenseDate.gte = input.startDate;
+        if (input?.endDate) where.expenseDate.lte = input.endDate;
+      }
 
       return ctx.db.expenseClaim.findMany({
         where,
