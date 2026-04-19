@@ -101,6 +101,13 @@ export default function ExpensesPage() {
   const currentExpenses = (expenses || []).filter((e: any) => e.status === 'PENDING');
   const historyExpenses = (expenses || []).filter((e: any) => e.status !== 'PENDING');
 
+  // Compute filtered stats from the current query results
+  const filteredPending = currentExpenses.length;
+  const filteredApproved = (expenses || []).filter((e: any) => e.status === 'APPROVED');
+  const filteredApprovedTotal = filteredApproved.reduce((s: number, e: any) => s + e.amount, 0);
+  const filteredRejected = (expenses || []).filter((e: any) => e.status === 'REJECTED').length;
+  const hasFilter = !!(monthFilter || yearFilter || statusFilter);
+
   function renderTable(items: any[], showActions: boolean) {
     if (items.length === 0) return (
       <div className="p-12 text-center text-gray-500">
@@ -180,10 +187,10 @@ export default function ExpensesPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="Pending" value={summary?.pending ?? '—'} icon={<Clock size={20} />} />
-        <StatCard title="Approved" value={summary?.approvedCount ?? '—'} icon={<CheckCircle size={20} />} />
-        <StatCard title="Total Approved" value={summary?.approvedTotal ? `$${summary.approvedTotal.toLocaleString()}` : '—'} icon={<DollarSign size={20} />} />
-        <StatCard title="Rejected" value={summary?.rejected ?? '—'} icon={<XCircle size={20} />} />
+        <StatCard title="Pending" value={hasFilter ? filteredPending : (summary?.pending ?? '—')} icon={<Clock size={20} />} />
+        <StatCard title="Approved" value={hasFilter ? filteredApproved.length : (summary?.approvedCount ?? '—')} icon={<CheckCircle size={20} />} />
+        <StatCard title="Total Approved" value={`$${(hasFilter ? filteredApprovedTotal : (summary?.approvedTotal ?? 0)).toLocaleString()}`} icon={<DollarSign size={20} />} />
+        <StatCard title="Rejected" value={hasFilter ? filteredRejected : (summary?.rejected ?? '—')} icon={<XCircle size={20} />} />
       </div>
 
       {/* Filters */}
