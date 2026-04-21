@@ -58,17 +58,34 @@ export default function OrgChartPage() {
     const topLevel = employees.filter(e => !e.managerId || !byId.has(e.managerId as string));
     if (!topLevel.length) return employees[0].id;
 
-    // Count transitive descendants to pick the biggest tree
-    const descendantCount = new Map<string, number>();
-    const countFor = (id: string): number => {
-      if (descendantCount.has(id)) return descendantCount.get(id)!;
-      const kids = employees.filter(e => e.managerId === id);
-      const total = kids.reduce((s, k) => s + 1 + countFor(k.id), 0);
-      descendantCount.set(id, total);
+    // Count transitive descendants to pick the biggest tree (iterative, cycle-safe)
+    const childrenByParent = new Map<string, string[]>();
+    employees.forEach(e => {
+      if (e.managerId) {
+        if (!childrenByParent.has(e.managerId)) childrenByParent.set(e.managerId, []);
+        childrenByParent.get(e.managerId)!.push(e.id);
+      }
+    });
+    const countFrom = (startId: string): number => {
+      const seen = new Set<string>();
+      const stack = [startId];
+      let total = 0;
+      while (stack.length) {
+        const id = stack.pop()!;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const kids = childrenByParent.get(id) ?? [];
+        for (const k of kids) {
+          if (!seen.has(k)) {
+            total++;
+            stack.push(k);
+          }
+        }
+      }
       return total;
     };
-    topLevel.forEach(e => countFor(e.id));
-    topLevel.sort((a, b) => (descendantCount.get(b.id) ?? 0) - (descendantCount.get(a.id) ?? 0));
+    const counts = new Map(topLevel.map(e => [e.id, countFrom(e.id)]));
+    topLevel.sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0));
     return topLevel[0].id;
   }, [employees, byId, focusedId]);
 

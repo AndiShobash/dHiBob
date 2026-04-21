@@ -58,17 +58,20 @@ function buildTree(
 ): TreeNode | null {
   const root = byId.get(rootId);
   if (!root) return null;
-  function walk(emp: OrgEmployee): TreeNode {
-    const kids = childrenByParent.get(emp.id) ?? [];
+  // Track the set of ancestor IDs along the current walk so we never recurse
+  // into a cycle (defensive — shouldn't happen in clean data).
+  function walk(emp: OrgEmployee, ancestors: Set<string>): TreeNode {
+    const kids = (childrenByParent.get(emp.id) ?? []).filter(k => !ancestors.has(k.id));
     const isExpanded = expanded.has(emp.id);
+    const nextAncestors = new Set(ancestors); nextAncestors.add(emp.id);
     return {
       id: emp.id,
       employee: emp,
-      children: isExpanded ? kids.map(walk) : undefined,
+      children: isExpanded ? kids.map(k => walk(k, nextAncestors)) : undefined,
       hiddenChildCount: isExpanded ? 0 : kids.length,
     };
   }
-  return walk(root);
+  return walk(root, new Set());
 }
 
 export function TreeView({ rootId, employees, expandedIds, onToggleExpand, highlightedId }: TreeViewProps) {
@@ -97,13 +100,18 @@ export function TreeView({ rootId, employees, expandedIds, onToggleExpand, highl
   }, [employees]);
 
   const layout = useMemo(() => {
-    const root = buildTree(rootId, byId, childrenByParent, expandedIds);
-    if (!root) return null;
-    const h = hierarchy<TreeNode>(root);
-    const t = tree<TreeNode>()
-      .nodeSize([CARD_WIDTH + 40, LEVEL_HEIGHT])
-      .separation((a, b) => (a.parent === b.parent ? 1 : 1.3));
-    return t(h);
+    try {
+      const root = buildTree(rootId, byId, childrenByParent, expandedIds);
+      if (!root) return null;
+      const h = hierarchy<TreeNode>(root);
+      const t = tree<TreeNode>()
+        .nodeSize([CARD_WIDTH + 40, LEVEL_HEIGHT])
+        .separation((a, b) => (a.parent === b.parent ? 1 : 1.3));
+      return t(h);
+    } catch (err) {
+      console.error("Org chart layout error:", err);
+      return null;
+    }
   }, [rootId, byId, childrenByParent, expandedIds]);
 
   // Fit content in viewport on first render / when layout changes structurally
