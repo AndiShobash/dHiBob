@@ -134,10 +134,12 @@ export function TreeView({ rootId, employees, expandedIds, onToggleExpand, highl
 
   // Pan / zoom handlers
   const onWheel = (e: React.WheelEvent) => {
+    const container = containerRef.current;
+    if (!container) return;
     e.preventDefault();
     const delta = -e.deltaY * 0.001;
     const newScale = Math.min(2.5, Math.max(0.15, transform.scale * (1 + delta)));
-    const rect = containerRef.current!.getBoundingClientRect();
+    const rect = container.getBoundingClientRect();
     const cx = e.clientX - rect.left;
     const cy = e.clientY - rect.top;
     const ratio = newScale / transform.scale;
@@ -152,12 +154,11 @@ export function TreeView({ rootId, employees, expandedIds, onToggleExpand, highl
     panStart.current = { x: e.clientX, y: e.clientY, tx: transform.x, ty: transform.y };
   };
   const onMouseMove = (e: React.MouseEvent) => {
-    if (!panStart.current) return;
-    setTransform(t => ({
-      ...t,
-      x: panStart.current!.tx + (e.clientX - panStart.current!.x),
-      y: panStart.current!.ty + (e.clientY - panStart.current!.y),
-    }));
+    const start = panStart.current;
+    if (!start) return;
+    const nextX = start.tx + (e.clientX - start.x);
+    const nextY = start.ty + (e.clientY - start.y);
+    setTransform(t => ({ ...t, x: nextX, y: nextY }));
   };
   const onMouseUp = () => { panStart.current = null; };
 
