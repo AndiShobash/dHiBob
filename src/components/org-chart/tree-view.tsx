@@ -184,13 +184,6 @@ export function TreeView({ rootId, employees, expandedIds, onToggleExpand, highl
       onMouseLeave={onMouseUp}
     >
       <svg ref={svgRef} width="100%" height="100%" style={{ display: "block" }}>
-        {/* Dot grid background */}
-        <defs>
-          <pattern id="org-dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="1" className="fill-gray-300/50 dark:fill-gray-600/40" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#org-dot-grid)" />
         <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
           {/* Edges — orthogonal elbow with rounded corners, traditional org-chart style */}
           {links.map((link, i) => (

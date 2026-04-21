@@ -43,19 +43,33 @@ export default function OrgChartPage() {
     return m;
   }, [employees]);
 
-  // Resolve root: prefer focused person's top-of-chain, else the person with no manager (CEO)
+  // Resolve root: prefer focused person's top-of-chain, else the top-level employee
+  // with the largest subtree (so we land on the CEO, not a top-level employee who happens
+  // to have no reports).
   const rootId = useMemo(() => {
     if (!employees.length) return "";
     if (focusedId) {
-      // Walk up from focus to the top
       let cur = byId.get(focusedId);
       while (cur?.managerId && byId.has(cur.managerId)) {
         cur = byId.get(cur.managerId);
       }
       if (cur) return cur.id;
     }
-    const ceo = employees.find(e => !e.managerId || !byId.has(e.managerId as string));
-    return ceo?.id ?? employees[0].id;
+    const topLevel = employees.filter(e => !e.managerId || !byId.has(e.managerId as string));
+    if (!topLevel.length) return employees[0].id;
+
+    // Count transitive descendants to pick the biggest tree
+    const descendantCount = new Map<string, number>();
+    const countFor = (id: string): number => {
+      if (descendantCount.has(id)) return descendantCount.get(id)!;
+      const kids = employees.filter(e => e.managerId === id);
+      const total = kids.reduce((s, k) => s + 1 + countFor(k.id), 0);
+      descendantCount.set(id, total);
+      return total;
+    };
+    topLevel.forEach(e => countFor(e.id));
+    topLevel.sort((a, b) => (descendantCount.get(b.id) ?? 0) - (descendantCount.get(a.id) ?? 0));
+    return topLevel[0].id;
   }, [employees, byId, focusedId]);
 
   // Default expansion: open root + immediate level; when focusing on someone, open the full chain to them.
@@ -252,7 +266,7 @@ export default function OrgChartPage() {
         </div>
       </div>
 
-      <div className="h-[calc(100vh-220px)] border rounded-xl bg-white dark:bg-charcoal-950 border-gray-200 dark:border-charcoal-700 overflow-hidden">
+      <div className="h-[calc(100vh-220px)] border rounded-xl bg-gradient-to-br from-gray-50 to-white dark:from-charcoal-950 dark:to-charcoal-900 border-gray-200 dark:border-charcoal-700 overflow-hidden">
         <TreeView
           rootId={rootId}
           employees={visibleEmployees}
