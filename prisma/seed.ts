@@ -18,80 +18,182 @@ async function main() {
   // Create Company — fixed ID so session tokens survive rebuilds
   const company = await prisma.company.create({
     data: {
-      id: "acme-technologies-seed-company",
-      name: "Acme Technologies", logo: "https://via.placeholder.com/200x200?text=Acme",
-      domain: "acme.tech",
-      settings: JSON.stringify({ timezone: "UTC", language: "en", currency: "USD" }),
+      id: "develeap-seed-company",
+      name: "Develeap", logo: "https://via.placeholder.com/200x200?text=Develeap",
+      domain: "develeap.com",
+      settings: JSON.stringify({ timezone: "Asia/Jerusalem", language: "en", currency: "ILS" }),
     },
   });
 
-  // Create Sites
+  // Create Sites — all employees are in Tel Aviv; other cities kept for reports/positions demo.
   const sites = await Promise.all([
-    prisma.site.create({ data: { companyId: company.id, name: "New York", address: "123 Tech Avenue, New York, NY 10001", country: "USA", timezone: "America/New_York" } }),
-    prisma.site.create({ data: { companyId: company.id, name: "London", address: "456 Innovation Street, London, UK", country: "UK", timezone: "Europe/London" } }),
-    prisma.site.create({ data: { companyId: company.id, name: "Tel Aviv", address: "789 Tech Park, Tel Aviv, Israel", country: "Israel", timezone: "Asia/Jerusalem" } }),
-    prisma.site.create({ data: { companyId: company.id, name: "Berlin", address: "321 Digital Way, Berlin, Germany", country: "Germany", timezone: "Europe/Berlin" } }),
-    prisma.site.create({ data: { companyId: company.id, name: "Sydney", address: "654 Future Lane, Sydney, Australia", country: "Australia", timezone: "Australia/Sydney" } }),
+    prisma.site.create({ data: { companyId: company.id, name: "Tel Aviv", address: "Develeap HQ, Tel Aviv, Israel", country: "Israel", timezone: "Asia/Jerusalem" } }),
+    prisma.site.create({ data: { companyId: company.id, name: "Remote", address: "Remote", country: "Israel", timezone: "Asia/Jerusalem" } }),
+    prisma.site.create({ data: { companyId: company.id, name: "London", address: "London, UK", country: "UK", timezone: "Europe/London" } }),
+    prisma.site.create({ data: { companyId: company.id, name: "Berlin", address: "Berlin, Germany", country: "Germany", timezone: "Europe/Berlin" } }),
+    prisma.site.create({ data: { companyId: company.id, name: "New York", address: "New York, NY, USA", country: "USA", timezone: "America/New_York" } }),
   ]);
 
   // Create Departments
   const departments = await Promise.all([
     prisma.department.create({ data: { companyId: company.id, name: "Executive" } }),
     prisma.department.create({ data: { companyId: company.id, name: "Engineering" } }),
-    prisma.department.create({ data: { companyId: company.id, name: "Product" } }),
-    prisma.department.create({ data: { companyId: company.id, name: "Design" } }),
-    prisma.department.create({ data: { companyId: company.id, name: "Marketing" } }),
+    prisma.department.create({ data: { companyId: company.id, name: "Education" } }),
+    prisma.department.create({ data: { companyId: company.id, name: "Partnerships" } }),
     prisma.department.create({ data: { companyId: company.id, name: "Sales" } }),
     prisma.department.create({ data: { companyId: company.id, name: "HR" } }),
     prisma.department.create({ data: { companyId: company.id, name: "Finance" } }),
     prisma.department.create({ data: { companyId: company.id, name: "Operations" } }),
   ]);
-  const [execDept, engDept, prodDept, desDept, markDept, salesDept, hrDept, finDept, opsDept] = departments;
+  const [execDept, engDept, eduDept, partDept, salesDept, hrDept, finDept, opsDept] = departments;
+  // Aliases kept so downstream references that reused these names still compile
+  const prodDept = execDept;
+  const desDept = engDept;
+  const markDept = opsDept;
 
-  // Create Teams
+  // Create Teams — five Engineering groups (named after their group lead)
   const teams = await Promise.all([
-    prisma.team.create({ data: { departmentId: engDept.id, name: "Backend" } }),
-    prisma.team.create({ data: { departmentId: engDept.id, name: "Frontend" } }),
-    prisma.team.create({ data: { departmentId: engDept.id, name: "DevOps" } }),
-    prisma.team.create({ data: { departmentId: prodDept.id, name: "Core Product" } }),
-    prisma.team.create({ data: { departmentId: prodDept.id, name: "Analytics" } }),
-    prisma.team.create({ data: { departmentId: desDept.id, name: "UI/UX" } }),
-    prisma.team.create({ data: { departmentId: markDept.id, name: "Content" } }),
-    prisma.team.create({ data: { departmentId: markDept.id, name: "Growth" } }),
-    prisma.team.create({ data: { departmentId: salesDept.id, name: "Enterprise" } }),
-    prisma.team.create({ data: { departmentId: salesDept.id, name: "Mid-Market" } }),
+    prisma.team.create({ data: { departmentId: engDept.id, name: "Efi's Group" } }),        // 0
+    prisma.team.create({ data: { departmentId: engDept.id, name: "Gilad's Group" } }),      // 1
+    prisma.team.create({ data: { departmentId: engDept.id, name: "Shoshi's Group" } }),     // 2
+    prisma.team.create({ data: { departmentId: engDept.id, name: "Shay's Group" } }),       // 3
+    prisma.team.create({ data: { departmentId: engDept.id, name: "Shem Tov's Group" } }),   // 4
   ]);
 
   // Create Employees
   const empData = [
-    { email: "sarah.johnson@acme.tech", first: "Sarah", last: "Johnson", dept: execDept.id, site: 0, team: null, type: "FULL_TIME", start: "2015-01-15", title: "Chief Executive Officer" },
-    { email: "michael.chen@acme.tech", first: "Michael", last: "Chen", dept: engDept.id, site: 0, team: null, type: "FULL_TIME", start: "2016-06-20", title: "VP of Engineering" },
-    { email: "emma.watson@acme.tech", first: "Emma", last: "Watson", dept: prodDept.id, site: 1, team: null, type: "FULL_TIME", start: "2017-03-10", title: "VP of Product" },
-    { email: "alex.rivera@acme.tech", first: "Alex", last: "Rivera", dept: desDept.id, site: 2, team: null, type: "FULL_TIME", start: "2018-01-08", title: "VP of Design" },
-    { email: "james.smith@acme.tech", first: "James", last: "Smith", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2018-04-15", title: "Engineering Manager" },
-    { email: "priya.patel@acme.tech", first: "Priya", last: "Patel", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2019-08-01", title: "Senior Backend Engineer" },
-    { email: "david.kumar@acme.tech", first: "David", last: "Kumar", dept: engDept.id, site: 3, team: 0, type: "FULL_TIME", start: "2020-05-12", title: "Backend Engineer" },
-    { email: "olivia.brown@acme.tech", first: "Olivia", last: "Brown", dept: engDept.id, site: 1, team: 1, type: "FULL_TIME", start: "2018-09-20", title: "Engineering Manager" },
-    { email: "lucas.silva@acme.tech", first: "Lucas", last: "Silva", dept: engDept.id, site: 1, team: 1, type: "FULL_TIME", start: "2019-04-18", title: "Senior Frontend Engineer" },
-    { email: "isabella.rossi@acme.tech", first: "Isabella", last: "Rossi", dept: engDept.id, site: 4, team: 1, type: "FULL_TIME", start: "2021-06-01", title: "Frontend Engineer" },
-    { email: "ryan.torres@acme.tech", first: "Ryan", last: "Torres", dept: engDept.id, site: 2, team: 2, type: "FULL_TIME", start: "2017-11-13", title: "Engineering Manager" },
-    { email: "natalia.koleva@acme.tech", first: "Natalia", last: "Koleva", dept: engDept.id, site: 2, team: 2, type: "FULL_TIME", start: "2020-02-10", title: "DevOps Engineer" },
-    { email: "marcus.johnson@acme.tech", first: "Marcus", last: "Johnson", dept: prodDept.id, site: 1, team: 3, type: "FULL_TIME", start: "2019-04-22", title: "Senior Product Manager" },
-    { email: "sophie.martin@acme.tech", first: "Sophie", last: "Martin", dept: prodDept.id, site: 1, team: 4, type: "FULL_TIME", start: "2020-08-24", title: "Product Analyst" },
-    { email: "carlos.mendez@acme.tech", first: "Carlos", last: "Mendez", dept: desDept.id, site: 2, team: 5, type: "FULL_TIME", start: "2017-09-25", title: "Design Lead" },
-    { email: "yuki.tanaka@acme.tech", first: "Yuki", last: "Tanaka", dept: desDept.id, site: 4, team: 5, type: "FULL_TIME", start: "2021-01-11", title: "UI Designer" },
-    { email: "rebecca.hall@acme.tech", first: "Rebecca", last: "Hall", dept: markDept.id, site: 3, team: 6, type: "FULL_TIME", start: "2018-05-14", title: "Marketing Manager" },
-    { email: "thomas.weber@acme.tech", first: "Thomas", last: "Weber", dept: markDept.id, site: 3, team: 6, type: "FULL_TIME", start: "2020-09-07", title: "Content Writer" },
-    { email: "amelia.lee@acme.tech", first: "Amelia", last: "Lee", dept: markDept.id, site: 0, team: 7, type: "FULL_TIME", start: "2021-03-22", title: "Growth Marketing Specialist" },
-    { email: "christopher.quinn@acme.tech", first: "Christopher", last: "Quinn", dept: salesDept.id, site: 0, team: 8, type: "FULL_TIME", start: "2017-07-10", title: "Sales Manager" },
-    { email: "diana.foster@acme.tech", first: "Diana", last: "Foster", dept: salesDept.id, site: 0, team: 8, type: "FULL_TIME", start: "2019-04-09", title: "Account Executive" },
-    { email: "erik.anderson@acme.tech", first: "Erik", last: "Anderson", dept: salesDept.id, site: 3, team: 9, type: "FULL_TIME", start: "2020-04-25", title: "Sales Development Rep" },
-    { email: "helen.clark@acme.tech", first: "Helen", last: "Clark", dept: hrDept.id, site: 0, team: null, type: "FULL_TIME", start: "2016-02-01", title: "HR Manager" },
-    { email: "jessica.white@acme.tech", first: "Jessica", last: "White", dept: hrDept.id, site: 1, team: null, type: "FULL_TIME", start: "2019-11-04", title: "Recruiter" },
-    { email: "george.phillips@acme.tech", first: "George", last: "Phillips", dept: finDept.id, site: 0, team: null, type: "FULL_TIME", start: "2015-08-17", title: "Finance Manager" },
-    { email: "victoria.adams@acme.tech", first: "Victoria", last: "Adams", dept: finDept.id, site: 0, team: null, type: "FULL_TIME", start: "2020-01-20", title: "Accountant" },
-    { email: "william.turner@acme.tech", first: "William", last: "Turner", dept: opsDept.id, site: 0, team: null, type: "FULL_TIME", start: "2018-10-08", title: "Operations Manager" },
-    { email: "zoey.sanders@acme.tech", first: "Zoey", last: "Sanders", dept: hrDept.id, site: 0, team: null, type: "INTERN", start: "2023-06-01", title: "HR Intern" },
+    { email: "aleksandra.rikelman@develeap.com", first: "Aleksandra", last: "Rikelman", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2015-01-01", title: "DevOps Engineer" },
+    { email: "alon.efrati@develeap.com", first: "Alon", last: "Efrati", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2022-02-02", title: "DevOps Engineer" },
+    { email: "alon.rosenwasser@develeap.com", first: "Alon", last: "Rosenwasser", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2019-03-03", title: "Team leader & DevOps Engineer" },
+    { email: "amir.bialek@develeap.com", first: "Amir", last: "Bialek", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2016-04-04", title: "Team leader & DevOps Engineer" },
+    { email: "amir.shalem@develeap.com", first: "Amir", last: "Shalem", dept: execDept.id, site: 0, team: null, type: "FULL_TIME", start: "2023-05-05", title: "DevOps Engineer" },
+    { email: "amos.elitzur@develeap.com", first: "Amos", last: "Elitzur", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2020-06-06", title: "DevOps Engineer" },
+    { email: "andi.shobash@develeap.com", first: "Andi", last: "Shobash", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2017-07-07", title: "DevOps Engineer" },
+    { email: "andrey.petrenko@develeap.com", first: "Andrey", last: "Petrenko", dept: engDept.id, site: 0, team: 4, type: "FULL_TIME", start: "2024-08-08", title: "DevOps Engineer" },
+    { email: "andy.thaok@develeap.com", first: "Andy", last: "Thaok", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2021-09-09", title: "DevOps Engineer" },
+    { email: "anton.nahhas@develeap.com", first: "Anton", last: "Nahhas", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2018-10-10", title: "DevOps Engineer" },
+    { email: "aran.shavit@develeap.com", first: "Aran", last: "Shavit", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2015-11-11", title: "Team leader & DevOps Engineer" },
+    { email: "arnon.tzori@develeap.com", first: "Arnon", last: "Tzori", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2022-12-12", title: "DevOps Engineer" },
+    { email: "asif.asido@develeap.com", first: "Asif", last: "Asido", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2019-01-13", title: "DevOps Engineer" },
+    { email: "avihai.ziv@develeap.com", first: "Avihai", last: "Ziv", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2016-02-14", title: "DevOps Engineer" },
+    { email: "avital.yehudai@develeap.com", first: "Avital", last: "Yehudai", dept: execDept.id, site: 0, team: null, type: "FULL_TIME", start: "2023-03-15", title: "CFO" },
+    { email: "ayala.markowits@develeap.com", first: "Ayala", last: "Markowits", dept: engDept.id, site: 0, team: 4, type: "FULL_TIME", start: "2020-04-16", title: "DevOps Engineer" },
+    { email: "barak.arzuan@develeap.com", first: "Barak", last: "Arzuan", dept: engDept.id, site: 0, team: 4, type: "FULL_TIME", start: "2017-05-17", title: "DevOps Engineer" },
+    { email: "barel.elbaz@develeap.com", first: "Barel", last: "Elbaz", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2024-06-18", title: "DevOps Engineer" },
+    { email: "baruch.bazak@develeap.com", first: "Baruch", last: "Bazak", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2021-07-19", title: "DevOps Engineer" },
+    { email: "boris.tsigelman@develeap.com", first: "Boris", last: "Tsigelman", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2018-08-20", title: "DevOps Engineer" },
+    { email: "carmel.amarilio@develeap.com", first: "Carmel", last: "Amarilio", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2015-09-21", title: "DevOps Engineer" },
+    { email: "carmit.haas@develeap.com", first: "Carmit", last: "Shemesh Haas", dept: eduDept.id, site: 0, team: null, type: "FULL_TIME", start: "2022-10-22", title: "Bootcamp mentor, DevOps Engineer" },
+    { email: "chani.friedler@develeap.com", first: "Chani", last: "Friedler", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2019-11-23", title: "DevOps Engineer" },
+    { email: "christina.babitski@develeap.com", first: "Christina", last: "Babitski", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2016-12-24", title: "DevOps Engineer" },
+    { email: "dakar.tal@develeap.com", first: "Dakar", last: "Tal", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2023-01-25", title: "DevOps Engineer" },
+    { email: "dalit.verner@develeap.com", first: "Dalit", last: "Verner", dept: engDept.id, site: 0, team: 4, type: "FULL_TIME", start: "2020-02-26", title: "DevOps Engineer" },
+    { email: "dan.arbib@develeap.com", first: "Dan", last: "Arbib", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2017-03-27", title: "DevOps Engineer" },
+    { email: "daniel.nefesh@develeap.com", first: "Daniel", last: "Nefesh", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2024-04-01", title: "DevOps Engineer" },
+    { email: "daniel.yakov@develeap.com", first: "Daniel", last: "Yakov", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2021-05-02", title: "DevOps Engineer" },
+    { email: "denis.lazar@develeap.com", first: "Denis", last: "Lazar", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2018-06-03", title: "DevOps Engineer" },
+    { email: "dominik.borkowski@develeap.com", first: "Dominik", last: "Borkowski", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2015-07-04", title: "DevOps Engineer" },
+    { email: "dor.solomon@develeap.com", first: "Dor", last: "Solomon", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2022-08-05", title: "DevOps Engineer" },
+    { email: "dori.kafri@develeap.com", first: "Dori", last: "Kafri", dept: execDept.id, site: 0, team: null, type: "FULL_TIME", start: "2019-09-06", title: "CEO" },
+    { email: "dvir.pashut@develeap.com", first: "Dvir", last: "Pashut", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2016-10-07", title: "DevOps Engineer" },
+    { email: "eden.friedman@develeap.com", first: "Eden", last: "Friedman", dept: hrDept.id, site: 0, team: null, type: "FULL_TIME", start: "2023-11-08", title: "HRBP & Welfare" },
+    { email: "efi.shimon@develeap.com", first: "Efi", last: "Shimon", dept: execDept.id, site: 0, team: null, type: "FULL_TIME", start: "2020-12-09", title: "Group lead" },
+    { email: "elad.cirt@develeap.com", first: "Elad", last: "Cirt", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2017-01-10", title: "Team leader & DevOps Engineer" },
+    { email: "eli.hatamov@develeap.com", first: "Eli", last: "Hatamov", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2024-02-11", title: "DevOps Engineer" },
+    { email: "elior.estrin@develeap.com", first: "Elior", last: "Estrin", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2021-03-12", title: "DevOps Engineer" },
+    { email: "eran.braylovski@develeap.com", first: "Eran", last: "Braylovski", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2018-04-13", title: "Team leader & DevOps Engineer" },
+    { email: "eran.levy@develeap.com", first: "Eran", last: "Levy", dept: engDept.id, site: 0, team: 4, type: "FULL_TIME", start: "2015-05-14", title: "Team leader & DevOps Engineer" },
+    { email: "erik.gavrilov@develeap.com", first: "Erik", last: "Gavrilov", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2022-06-15", title: "DevOps Engineer" },
+    { email: "ester.steinberger@develeap.com", first: "Ester", last: "Steinberger", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2019-07-16", title: "DevOps Engineer" },
+    { email: "eyal.paz@develeap.com", first: "Eyal", last: "Paz", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2016-08-17", title: "DevOps Engineer" },
+    { email: "farid.manashirov@develeap.com", first: "Farid", last: "Manashirov", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2023-09-18", title: "DevOps Engineer" },
+    { email: "gal.salomon@develeap.com", first: "Gal", last: "Salomon", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2020-10-19", title: "DevOps Engineer" },
+    { email: "gilad.neiger@develeap.com", first: "Gilad", last: "Neiger", dept: execDept.id, site: 0, team: null, type: "FULL_TIME", start: "2017-11-20", title: "Group lead, Head of delivery, VP PS" },
+    { email: "hadar.naveh@develeap.com", first: "Hadar", last: "Naveh", dept: partDept.id, site: 0, team: null, type: "FULL_TIME", start: "2024-12-21", title: "Partnerships manager" },
+    { email: "hadas.kablan@develeap.com", first: "Hadas", last: "Kablan", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2021-01-22", title: "Team leader & DevOps Engineer" },
+    { email: "hana.temstet@develeap.com", first: "Hana", last: "Temstet", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2018-02-23", title: "DevOps Engineer" },
+    { email: "harel.sultan@develeap.com", first: "Harel", last: "Sultan", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2015-03-24", title: "DevOps Engineer" },
+    { email: "idan.cohen@develeap.com", first: "Idan", last: "Cohen", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2022-04-25", title: "DevOps Engineer" },
+    { email: "idan.korkidi@develeap.com", first: "Idan", last: "Korkidi", dept: eduDept.id, site: 0, team: null, type: "FULL_TIME", start: "2019-05-26", title: "Education Team Lead" },
+    { email: "ido.gada@develeap.com", first: "Ido", last: "Gada", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2016-06-27", title: "DevOps Engineer" },
+    { email: "igor.enenberg@develeap.com", first: "Igor", last: "Enenberg", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2023-07-01", title: "DevOps Engineer" },
+    { email: "igor.mumladze@develeap.com", first: "Igor", last: "Mumladze", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2020-08-02", title: "DevOps Engineer" },
+    { email: "igor.rozenberg@develeap.com", first: "Igor", last: "Rozenberg", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2017-09-03", title: "DevOps Engineer" },
+    { email: "igor.shternik@develeap.com", first: "Igor", last: "Shternik", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2024-10-04", title: "DevOps Engineer" },
+    { email: "ilia.vapnik@develeap.com", first: "Ilia", last: "Vapnik", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2021-11-05", title: "DevOps Engineer" },
+    { email: "inbal.drori@develeap.com", first: "Inbal", last: "Drori", dept: execDept.id, site: 0, team: null, type: "FULL_TIME", start: "2018-12-06", title: "COO" },
+    { email: "ishay.ezagoury@develeap.com", first: "Ishay", last: "Ezagoury", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2015-01-07", title: "DevOps Engineer" },
+    { email: "izhak.latovski@develeap.com", first: "Izhak", last: "Latovski", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2022-02-08", title: "DevOps Engineer" },
+    { email: "kareem.yahia@develeap.com", first: "Kareem", last: "Yahia", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2019-03-09", title: "Team leader & DevOps Engineer" },
+    { email: "khaled.salhab@develeap.com", first: "Khaled", last: "Salhab", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2016-04-10", title: "DevOps Engineer" },
+    { email: "leila.awawdeh@develeap.com", first: "Leila", last: "Awawdeh", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2023-05-11", title: "DevOps Engineer" },
+    { email: "lejb.golovatyi@develeap.com", first: "Lejb", last: "Golovatyi", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2020-06-12", title: "DevOps Engineer" },
+    { email: "leon.lax@develeap.com", first: "Leon", last: "Lax", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2017-07-13", title: "DevOps Engineer" },
+    { email: "leon.orlinsky@develeap.com", first: "Leon", last: "Orlinsky", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2024-08-14", title: "DevOps Engineer" },
+    { email: "lior.atari@develeap.com", first: "Lior", last: "Atari", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2021-09-15", title: "DevOps Engineer" },
+    { email: "lior.dux@develeap.com", first: "Lior", last: "Dux", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2018-10-16", title: "DevOps Engineer" },
+    { email: "maayan.levari@develeap.com", first: "Maayan", last: "Lev-Ari", dept: salesDept.id, site: 0, team: null, type: "FULL_TIME", start: "2015-11-17", title: "Director of sales" },
+    { email: "malki.attal@develeap.com", first: "Malki", last: "Attal", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2022-12-18", title: "DevOps Engineer" },
+    { email: "mark.tatarinov@develeap.com", first: "Mark", last: "Tatarinov", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2019-01-19", title: "DevOps Engineer" },
+    { email: "matan.avital@develeap.com", first: "Matan", last: "Avital", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2016-02-20", title: "DevOps Engineer" },
+    { email: "matan.peretz@develeap.com", first: "Matan", last: "Peretz", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2023-03-21", title: "DevOps Engineer" },
+    { email: "max.strunin@develeap.com", first: "Max", last: "Strunin", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2020-04-22", title: "DevOps Engineer" },
+    { email: "may.perlman@develeap.com", first: "May", last: "Perlman", dept: opsDept.id, site: 0, team: null, type: "FULL_TIME", start: "2017-05-23", title: "Business Operations manager & Team  lead" },
+    { email: "maya.chernobroda@develeap.com", first: "Maya", last: "Chernobroda", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2024-06-24", title: "DevOps Engineer" },
+    { email: "maya.fearman@develeap.com", first: "Maya", last: "Fearman", dept: engDept.id, site: 0, team: 4, type: "FULL_TIME", start: "2021-07-25", title: "DevOps Engineer" },
+    { email: "megane.dreyfuss@develeap.com", first: "Megane", last: "Dreyfuss", dept: eduDept.id, site: 0, team: null, type: "FULL_TIME", start: "2018-08-26", title: "head of education & training" },
+    { email: "meidan.yona@develeap.com", first: "Meidan", last: "Yona", dept: engDept.id, site: 0, team: 4, type: "FULL_TIME", start: "2015-09-27", title: "DevOps Engineer" },
+    { email: "michal.edelman@develeap.com", first: "Michal", last: "Edelman", dept: opsDept.id, site: 0, team: null, type: "FULL_TIME", start: "2022-10-01", title: "Office manager" },
+    { email: "michel.hawa@develeap.com", first: "Michel", last: "Hawa", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2019-11-02", title: "DevOps Engineer" },
+    { email: "mohamed.kittany@develeap.com", first: "Mohamed", last: "Kittany", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2016-12-03", title: "DevOps Engineer" },
+    { email: "moriya.nadav@develeap.com", first: "Moriya", last: "Nadav", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2023-01-04", title: "DevOps Engineer" },
+    { email: "nadav.spiegler@develeap.com", first: "Nadav", last: "Spiegler", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2020-02-05", title: "DevOps Engineer" },
+    { email: "naor.hadad@develeap.com", first: "Naor", last: "Hadad", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2017-03-06", title: "DevOps Engineer" },
+    { email: "nava.naane@develeap.com", first: "Nava", last: "Naane", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2024-04-07", title: "DevOps Engineer" },
+    { email: "nico.aroyo@develeap.com", first: "Nico", last: "Aroyo", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2021-05-08", title: "DevOps Engineer" },
+    { email: "nofar.barzilay@develeap.com", first: "Nofar", last: "Barzilay", dept: finDept.id, site: 0, team: null, type: "FULL_TIME", start: "2018-06-09", title: "Finance manager" },
+    { email: "ofira.ashkenazi@develeap.com", first: "Ofira", last: "Ashkenazi", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2015-07-10", title: "DevOps Engineer" },
+    { email: "oleg.alpert@develeap.com", first: "Oleg", last: "Alpert", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2022-08-11", title: "DevOps Engineer" },
+    { email: "omri.spector@develeap.com", first: "Omri", last: "Spector", dept: execDept.id, site: 0, team: null, type: "FULL_TIME", start: "2019-09-12", title: "COO" },
+    { email: "orel.neto@develeap.com", first: "Orel", last: "Neto", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2016-10-13", title: "DevOps Engineer" },
+    { email: "oron.cohen@develeap.com", first: "Oron", last: "Cohen", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2023-11-14", title: "Team leader & DevOps Engineer" },
+    { email: "penina.schuss@develeap.com", first: "Penina", last: "Schuss", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2020-12-15", title: "DevOps Engineer" },
+    { email: "rachel.hadad@develeap.com", first: "Rachel", last: "Hadad", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2017-01-16", title: "DevOps Engineer" },
+    { email: "rachel.naane@develeap.com", first: "Rachel", last: "Naane", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2024-02-17", title: "DevOps Engineer" },
+    { email: "raziel.afandaev@develeap.com", first: "Raziel", last: "Afandaev", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2021-03-18", title: "DevOps Engineer" },
+    { email: "roi.bandel@develeap.com", first: "Ro'i", last: "Bandel", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2018-04-19", title: "DevOps Engineer" },
+    { email: "roey.wullman@develeap.com", first: "Roey", last: "Wullman", dept: eduDept.id, site: 0, team: null, type: "FULL_TIME", start: "2015-05-20", title: "Bootcamp mentor, DevOps Engineer" },
+    { email: "ron.sharabi@develeap.com", first: "Ron", last: "Sharabi", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2022-06-21", title: "DevOps Engineer" },
+    { email: "ron.spector@develeap.com", first: "Ron", last: "Spector", dept: eduDept.id, site: 0, team: null, type: "FULL_TIME", start: "2019-07-22", title: "Education" },
+    { email: "ronen.zohar@develeap.com", first: "Ronen", last: "Zohar", dept: opsDept.id, site: 0, team: null, type: "FULL_TIME", start: "2016-08-23", title: "IT" },
+    { email: "roni.nir@develeap.com", first: "Roni", last: "Nir", dept: opsDept.id, site: 0, team: null, type: "FULL_TIME", start: "2023-09-24", title: "Social Media & Business Development" },
+    { email: "roni.shamir@develeap.com", first: "Roni", last: "Paley Shamir", dept: salesDept.id, site: 0, team: null, type: "FULL_TIME", start: "2020-10-25", title: "Sales manager" },
+    { email: "rotem.kalman@develeap.com", first: "Rotem", last: "Kalman", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2017-11-26", title: "DevOps Engineer" },
+    { email: "roy.zohar@develeap.com", first: "Roy", last: "Zohar", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2024-12-27", title: "DevOps Engineer" },
+    { email: "saar.cohen@develeap.com", first: "Saar", last: "Cohen", dept: partDept.id, site: 0, team: null, type: "FULL_TIME", start: "2021-01-01", title: "VP strategic Partnerships" },
+    { email: "saar.katz@develeap.com", first: "Saar", last: "Katz", dept: engDept.id, site: 0, team: 2, type: "FULL_TIME", start: "2018-02-02", title: "DevOps Engineer" },
+    { email: "shahaf.segev@develeap.com", first: "Shahaf", last: "Segev", dept: engDept.id, site: 0, team: 4, type: "FULL_TIME", start: "2015-03-03", title: "Team leader & DevOps Engineer" },
+    { email: "shai.hod@develeap.com", first: "Shai", last: "Hod", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2022-04-04", title: "DevOps Engineer" },
+    { email: "shay.levin@develeap.com", first: "Shay", last: "Levin", dept: execDept.id, site: 0, team: null, type: "FULL_TIME", start: "2019-05-05", title: "Group lead, DevOps Engineer" },
+    { email: "shem.fisher@develeap.com", first: "Shem", last: "Tov Fisher", dept: execDept.id, site: 0, team: null, type: "FULL_TIME", start: "2016-06-06", title: "Group lead, DevOps Engineer" },
+    { email: "shirly.alon@develeap.com", first: "Shirly", last: "Alon", dept: hrDept.id, site: 0, team: null, type: "FULL_TIME", start: "2023-07-07", title: "HRBP & Lead recruiter" },
+    { email: "shoshi.revivo@develeap.com", first: "Shoshi", last: "Revivo", dept: execDept.id, site: 0, team: null, type: "FULL_TIME", start: "2020-08-08", title: "Group lead, DevOps Engineer" },
+    { email: "tal.koosh@develeap.com", first: "Tal", last: "Koosh", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2017-09-09", title: "DevOps Engineer" },
+    { email: "tom.richner@develeap.com", first: "Tom", last: "Richner", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2024-10-10", title: "Team leader & DevOps Engineer" },
+    { email: "tomer.edelsberg@develeap.com", first: "Tomer", last: "Edelsberg", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2021-11-11", title: "DevOps Engineer" },
+    { email: "tomer.goldenberg@develeap.com", first: "Tomer", last: "Goldenberg", dept: opsDept.id, site: 0, team: null, type: "FULL_TIME", start: "2018-12-12", title: "Designer" },
+    { email: "victor.churikov@develeap.com", first: "Victor", last: "Churikov", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2015-01-13", title: "DevOps Engineer" },
+    { email: "victor.romanov@develeap.com", first: "Victor", last: "Romanov", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2022-02-14", title: "DevOps Engineer" },
+    { email: "yaakov.avshalom@develeap.com", first: "Yaakov", last: "Avshalom", dept: execDept.id, site: 0, team: null, type: "FULL_TIME", start: "2019-03-15", title: "CTO" },
+    { email: "yael.brand@develeap.com", first: "Yael", last: "Brand", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2016-04-16", title: "DevOps Engineer" },
+    { email: "yair.damri@develeap.com", first: "Yair", last: "Damri", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2023-05-17", title: "DevOps Engineer" },
+    { email: "yana.tyshler@develeap.com", first: "Yana", last: "Plotchenko Tyshler", dept: hrDept.id, site: 0, team: null, type: "FULL_TIME", start: "2020-06-18", title: "HRBP" },
+    { email: "yasmin.gudha@develeap.com", first: "Yasmin", last: "Gudha", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2017-07-19", title: "DevOps Engineer" },
+    { email: "yoav.edelist@develeap.com", first: "Yoav", last: "Edelist", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2024-08-20", title: "DevOps Engineer" },
+    { email: "yosef.nahari@develeap.com", first: "Yosef", last: "Nahari", dept: engDept.id, site: 0, team: 4, type: "FULL_TIME", start: "2021-09-21", title: "DevOps Engineer" },
+    { email: "yotam.halperin@develeap.com", first: "Yotam", last: "Halperin", dept: engDept.id, site: 0, team: 1, type: "FULL_TIME", start: "2018-10-22", title: "Team leader & DevOps Engineer" },
+    { email: "yuval.kashi@develeap.com", first: "Yuval", last: "Kashi", dept: engDept.id, site: 0, team: 3, type: "FULL_TIME", start: "2015-11-23", title: "DevOps Engineer" },
+    { email: "yuval.levy@develeap.com", first: "Yuval", last: "Levy", dept: engDept.id, site: 0, team: 0, type: "FULL_TIME", start: "2022-12-24", title: "DevOps Engineer" },
   ];
 
   // Salary history per employee index — mirrors workInfo.salaryHistory used on the profile page.
@@ -281,7 +383,7 @@ async function main() {
   // Terminated employees
   await Promise.all([
     prisma.employee.create({ data: {
-      companyId: company.id, email: "daniel.morgan@acme.tech",
+      companyId: company.id, email: "daniel.morgan@develeap.com",
       firstName: "Daniel", lastName: "Morgan", displayName: "Daniel Morgan",
       status: "TERMINATED", employmentType: "FULL_TIME",
       startDate: new Date("2019-02-11"), endDate: new Date("2025-09-15"),
@@ -295,7 +397,7 @@ async function main() {
       }),
     }}),
     prisma.employee.create({ data: {
-      companyId: company.id, email: "laura.kim@acme.tech",
+      companyId: company.id, email: "laura.kim@develeap.com",
       firstName: "Laura", lastName: "Kim", displayName: "Laura Kim",
       status: "TERMINATED", employmentType: "FULL_TIME",
       startDate: new Date("2020-07-06"), endDate: new Date("2025-12-31"),
@@ -309,7 +411,7 @@ async function main() {
       }),
     }}),
     prisma.employee.create({ data: {
-      companyId: company.id, email: "ben.fischer@acme.tech",
+      companyId: company.id, email: "ben.fischer@develeap.com",
       firstName: "Ben", lastName: "Fischer", displayName: "Ben Fischer",
       status: "TERMINATED", employmentType: "FULL_TIME",
       startDate: new Date("2021-03-15"), endDate: new Date("2026-01-31"),
@@ -322,7 +424,7 @@ async function main() {
       }),
     }}),
     prisma.employee.create({ data: {
-      companyId: company.id, email: "nina.okafor@acme.tech",
+      companyId: company.id, email: "nina.okafor@develeap.com",
       firstName: "Nina", lastName: "Okafor", displayName: "Nina Okafor",
       status: "TERMINATED", employmentType: "CONTRACT",
       startDate: new Date("2022-01-10"), endDate: new Date("2025-07-15"),
@@ -335,7 +437,7 @@ async function main() {
       }),
     }}),
     prisma.employee.create({ data: {
-      companyId: company.id, email: "andrei.popescu@acme.tech",
+      companyId: company.id, email: "andrei.popescu@develeap.com",
       firstName: "Andrei", lastName: "Popescu", displayName: "Andrei Popescu",
       status: "TERMINATED", employmentType: "FULL_TIME",
       startDate: new Date("2017-05-22"), endDate: new Date("2025-11-30"),
@@ -350,7 +452,7 @@ async function main() {
       }),
     }}),
     prisma.employee.create({ data: {
-      companyId: company.id, email: "chloe.dupont@acme.tech",
+      companyId: company.id, email: "chloe.dupont@develeap.com",
       firstName: "Chloe", lastName: "Dupont", displayName: "Chloe Dupont",
       status: "TERMINATED", employmentType: "FULL_TIME",
       startDate: new Date("2023-04-03"), endDate: new Date("2026-02-15"),
@@ -364,8 +466,8 @@ async function main() {
     }}),
   ]);
 
-  // Set up manager relationships
-  const mgrMap = [[1,0],[2,0],[3,0],[4,1],[5,4],[6,4],[7,1],[8,7],[9,7],[10,1],[11,10],[12,2],[13,2],[14,3],[15,14],[16,0],[17,16],[18,16],[19,0],[20,19],[21,19],[22,0],[23,22],[24,0],[25,24],[26,0],[27,22]];
+  // Set up manager relationships (derived from the Excel "Reports To" column)
+  const mgrMap = [[0,98],[1,112],[2,46],[3,35],[4,32],[5,112],[6,42],[7,113],[8,98],[9,46],[10,115],[11,3],[12,112],[13,39],[15,113],[16,113],[17,3],[18,39],[19,115],[20,94],[21,4],[22,94],[23,3],[24,42],[25,110],[26,39],[28,10],[29,48],[30,2],[31,112],[33,62],[34,59],[35,32],[36,112],[37,10],[38,62],[39,46],[40,113],[41,112],[42,35],[43,3],[44,62],[45,94],[46,32],[47,108],[48,112],[49,129],[50,42],[51,62],[52,4],[53,48],[54,112],[55,2],[56,10],[57,3],[58,112],[59,32],[60,112],[61,39],[62,112],[63,98],[64,98],[65,48],[66,117],[67,112],[68,36],[69,39],[70,32],[71,48],[72,112],[73,39],[74,62],[75,117],[76,59],[77,36],[78,113],[79,59],[80,40],[81,59],[82,36],[83,62],[84,48],[85,112],[86,36],[87,112],[88,42],[89,32],[90,48],[91,117],[94,115],[95,98],[96,42],[97,35],[98,46],[99,117],[100,4],[101,2],[102,52],[103,59],[104,59],[105,108],[107,36],[108,32],[109,94],[110,113],[111,48],[112,46],[113,46],[114,59],[115,46],[116,42],[117,35],[118,98],[120,3],[121,117],[122,32],[123,112],[124,112],[125,59],[126,117],[127,112],[128,40],[129,2],[130,112],[131,36]];
   await Promise.all(mgrMap.map(([emp, mgr]) =>
     prisma.employee.update({ where: { id: employees[emp].id }, data: { managerId: employees[mgr].id } })
   ));
@@ -375,7 +477,7 @@ async function main() {
     data: {
       id: 'admin-employee-seed',
       companyId: company.id,
-      email: 'admin@acme.tech',
+      email: 'admin@develeap.com',
       firstName: 'Admin',
       lastName: 'User',
       displayName: 'Admin User',
@@ -391,19 +493,30 @@ async function main() {
   // Create Users
   const adminPasswordHash = await bcrypt.hash("password123", 10);
   const employeePassword = await bcrypt.hash("password123", 10);
-  await prisma.user.create({ data: { email: "admin@acme.tech", passwordHash: adminPasswordHash, role: "SUPER_ADMIN", employeeId: adminEmployee.id } });
+  await prisma.user.create({ data: { email: "admin@develeap.com", passwordHash: adminPasswordHash, role: "SUPER_ADMIN", employeeId: adminEmployee.id } });
 
-  // Make all HR department employees ADMIN
+  // Create all employee user accounts first so we can then upgrade specific roles
+  await Promise.all(employees.map(emp =>
+    prisma.user.create({ data: { email: emp.email, passwordHash: employeePassword, role: "EMPLOYEE", employeeId: emp.id } })
+  ));
+
+  // Make all HR-department employees ADMIN (they fulfil the HR approver slot for time-off)
   const hrEmployees = await prisma.employee.findMany({ where: { departmentId: hrDept.id } });
   for (const hrEmp of hrEmployees) {
     await prisma.user.updateMany({ where: { employeeId: hrEmp.id }, data: { role: "ADMIN" } });
   }
 
-  // Make Ryan Torres (DevOps team lead) IT role
-  await prisma.user.updateMany({ where: { employeeId: employees[10].id }, data: { role: "IT" } });
-  await Promise.all(employees.map(emp =>
-    prisma.user.create({ data: { email: emp.email, passwordHash: employeePassword, role: "EMPLOYEE", employeeId: emp.id } })
-  ));
+  // Make Ronen Zohar (IT) the IT-role user
+  const ronenIdx = empData.findIndex(e => e.email === "ronen.zohar@develeap.com");
+  if (ronenIdx >= 0) {
+    await prisma.user.updateMany({ where: { employeeId: employees[ronenIdx].id }, data: { role: "IT" } });
+  }
+
+  // Give the CEO SUPER_ADMIN privileges
+  const ceoIdx = empData.findIndex(e => e.email === "dori.kafri@develeap.com");
+  if (ceoIdx >= 0) {
+    await prisma.user.updateMany({ where: { employeeId: employees[ceoIdx].id }, data: { role: "SUPER_ADMIN" } });
+  }
 
   // Create Time Off Policies
   const policies = await Promise.all([
