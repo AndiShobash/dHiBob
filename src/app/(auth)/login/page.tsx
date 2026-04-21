@@ -56,7 +56,7 @@ export default function LoginPage() {
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-          <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">Demo: admin@acme.tech / password123</p>
+          <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">Demo: admin@develeap.com / password123</p>
         </CardContent>
       </Card>
     </div>
