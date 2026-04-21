@@ -142,8 +142,18 @@ function TeamCalendarGrid({ currentMonth, policies }: { currentMonth: Date; poli
 export default function TimeOffPage() {
   const { data: session } = useSession();
   const employeeId = session?.user?.employeeId;
-  const isManager = session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ADMIN" || session?.user?.role === "HR";
+  const isHrRole = session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ADMIN" || session?.user?.role === "HR";
   const utils = trpc.useUtils();
+
+  // Check if current user is an approver (HR role or has direct reports)
+  const { data: myProfile } = trpc.employee.getById.useQuery(
+    { id: employeeId! },
+    { enabled: !!employeeId }
+  );
+  const hasDirectReports = (myProfile?.directReports?.length ?? 0) > 0;
+  const isManager = isHrRole || hasDirectReports;
+  // isHrRole controls access to policy management (add/edit/delete leave types)
+  const canManagePolicies = isHrRole;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRequest, setEditingRequest] = useState<any>(null);
@@ -257,7 +267,7 @@ export default function TimeOffPage() {
             <div className="flex gap-4 text-xs text-gray-500 flex-wrap">
               {(policiesData || []).map((p: any) => (
                 <span key={p.id} className="flex items-center gap-1 relative">
-                  {isManager && editingPolicyId === p.id ? (
+                  {canManagePolicies && editingPolicyId === p.id ? (
                     <input
                       type="color"
                       defaultValue={p.color || DEFAULT_COLOR}
@@ -268,14 +278,14 @@ export default function TimeOffPage() {
                     />
                   ) : (
                     <span
-                      className={`w-3 h-3 rounded ${isManager ? 'cursor-pointer hover:ring-2 hover:ring-primary-300' : ''}`}
+                      className={`w-3 h-3 rounded ${canManagePolicies ? 'cursor-pointer hover:ring-2 hover:ring-primary-300' : ''}`}
                       style={{ backgroundColor: p.color || DEFAULT_COLOR }}
-                      onClick={() => isManager && setEditingPolicyId(p.id)}
-                      title={isManager ? 'Click to change color' : undefined}
+                      onClick={() => canManagePolicies && setEditingPolicyId(p.id)}
+                      title={canManagePolicies ? 'Click to change color' : undefined}
                     />
                   )}
                   {p.name}
-                  {isManager && !(p.accrualRate > 0) && (
+                  {canManagePolicies && !(p.accrualRate > 0) && (
                     <button
                       type="button"
                       onClick={() => { if (confirm(`Delete "${p.name}" leave type?`)) deletePolicyMutation.mutate({ id: p.id }); }}
@@ -289,7 +299,7 @@ export default function TimeOffPage() {
               ))}
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-400 opacity-60" /> Pending</span>
             </div>
-            {isManager && (
+            {canManagePolicies && (
               <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => setAddPolicyOpen(true)}>
                 <Plus size={14} /> Add Leave Type
               </Button>

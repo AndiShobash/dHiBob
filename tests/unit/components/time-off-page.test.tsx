@@ -56,6 +56,7 @@ vi.mock('@/lib/trpc', () => ({
     },
     employee: {
       list: { useQuery: () => ({ data: { employees: [] }, isLoading: false }) },
+      getById: { useQuery: () => ({ data: { id: 'emp-1', directReports: [] }, isLoading: false }) },
     },
     useContext: () => ({
       timeoff: { listRequests: { invalidate: vi.fn() }, getPolicyBalances: { invalidate: vi.fn() }, teamCalendar: { invalidate: vi.fn() } },

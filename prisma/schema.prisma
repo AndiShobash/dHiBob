@@ -193,6 +193,20 @@ model TimeOffRequest {
   reason     String?
   reviewedBy String?
   reviewedAt DateTime?
+
+  // Multi-approver workflow — each slot is PENDING | APPROVED | REJECTED | SKIPPED
+  hrStatus             String    @default("PENDING")
+  hrApprovedBy         String?
+  hrApprovedAt         DateTime?
+  teamLeaderId         String?
+  teamLeaderStatus     String    @default("PENDING")
+  teamLeaderApprovedBy String?
+  teamLeaderApprovedAt DateTime?
+  groupLeaderId        String?
+  groupLeaderStatus    String    @default("PENDING")
+  groupLeaderApprovedBy String?
+  groupLeaderApprovedAt DateTime?
+
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   employee Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -200,6 +214,8 @@ model TimeOffRequest {
   @@index([employeeId])
   @@index([policyId])
   @@index([status])
+  @@index([teamLeaderId])
+  @@index([groupLeaderId])
 }
 
 model Attendance {

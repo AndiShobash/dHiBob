@@ -12,28 +12,48 @@ vi.mock('next-auth/react', () => ({
 vi.mock('@/lib/trpc', () => ({
   trpc: {
     timeoff: {
-      listRequests: {
+      listMyApprovals: {
         useQuery: () => ({
-          data: {
-            requests: [{
-              id: 'req-1',
-              status: 'PENDING',
-              startDate: new Date('2024-06-10'),
-              endDate: new Date('2024-06-14'),
-              days: 5,
-              reason: 'Summer vacation',
-              employee: { id: 'emp-1', firstName: 'Bob', lastName: 'Smith', department: { name: 'Engineering' } },
-              policy: { name: 'Vacation', type: 'VACATION' },
-            }],
-            nextCursor: undefined,
-          },
+          data: [{
+            id: 'req-1',
+            status: 'PENDING',
+            startDate: new Date('2024-06-10'),
+            endDate: new Date('2024-06-14'),
+            days: 5,
+            reason: 'Summer vacation',
+            employee: { id: 'emp-1', firstName: 'Bob', lastName: 'Smith', department: { name: 'Engineering' } },
+            policy: { name: 'Vacation', type: 'VACATION' },
+            hrStatus: 'PENDING',
+            hrApprovedAt: null,
+            hrApprovedByName: null,
+            teamLeaderId: null,
+            teamLeaderStatus: 'SKIPPED',
+            teamLeaderApprovedAt: null,
+            teamLeaderApprovedByName: null,
+            teamLeaderName: null,
+            groupLeaderId: null,
+            groupLeaderStatus: 'SKIPPED',
+            groupLeaderApprovedAt: null,
+            groupLeaderApprovedByName: null,
+            groupLeaderName: null,
+            canActAsHr: true,
+            canActAsTeamLeader: false,
+            canActAsGroupLeader: false,
+          }],
           isLoading: false,
         }),
       },
       approve: { useMutation: () => ({ mutate: mockApprove, isPending: false }) },
       reject: { useMutation: () => ({ mutate: mockReject, isPending: false }) },
     },
-    useContext: () => ({ timeoff: { listRequests: { invalidate: mockInvalidate } } }),
+    useContext: () => ({
+      timeoff: {
+        listMyApprovals: { invalidate: mockInvalidate },
+        listRequests: { invalidate: mockInvalidate },
+        getPolicyBalances: { invalidate: mockInvalidate },
+        teamCalendar: { invalidate: mockInvalidate },
+      },
+    }),
   },
 }));
 
@@ -60,5 +80,12 @@ describe('ApprovalQueue', () => {
     await waitFor(() => {
       expect(mockReject).toHaveBeenCalledWith({ requestId: 'req-1' });
     });
+  });
+
+  it('shows per-slot status (HR, Team Leader, Group Leader)', () => {
+    render(<ApprovalQueue />);
+    expect(screen.getByText('HR')).toBeDefined();
+    expect(screen.getByText('Team Leader')).toBeDefined();
+    expect(screen.getByText('Group Leader')).toBeDefined();
   });
 });

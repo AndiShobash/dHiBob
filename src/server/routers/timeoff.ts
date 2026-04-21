@@ -95,7 +95,32 @@ export const timeoffRouter = router({
       const nextItem = requests.pop();
       nextCursor = nextItem?.id;
     }
-    return { requests, nextCursor };
+
+    // Attach approver name snapshots so My Requests can show approval progress
+    const leaderIds = new Set<string>();
+    for (const r of requests) {
+      if (r.teamLeaderId) leaderIds.add(r.teamLeaderId);
+      if (r.groupLeaderId) leaderIds.add(r.groupLeaderId);
+      if (r.hrApprovedBy) leaderIds.add(r.hrApprovedBy);
+      if (r.teamLeaderApprovedBy) leaderIds.add(r.teamLeaderApprovedBy);
+      if (r.groupLeaderApprovedBy) leaderIds.add(r.groupLeaderApprovedBy);
+    }
+    const leaders = leaderIds.size
+      ? await ctx.db.employee.findMany({
+          where: { id: { in: Array.from(leaderIds) } },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : [];
+    const leaderMap = Object.fromEntries(leaders.map(l => [l.id, `${l.firstName} ${l.lastName}`]));
+    const enriched = requests.map(r => ({
+      ...r,
+      teamLeaderName: r.teamLeaderId ? leaderMap[r.teamLeaderId] ?? null : null,
+      groupLeaderName: r.groupLeaderId ? leaderMap[r.groupLeaderId] ?? null : null,
+      hrApprovedByName: r.hrApprovedBy ? leaderMap[r.hrApprovedBy] ?? null : null,
+      teamLeaderApprovedByName: r.teamLeaderApprovedBy ? leaderMap[r.teamLeaderApprovedBy] ?? null : null,
+      groupLeaderApprovedByName: r.groupLeaderApprovedBy ? leaderMap[r.groupLeaderApprovedBy] ?? null : null,
+    }));
+    return { requests: enriched, nextCursor };
   }),
 
   getPolicyBalances: protectedProcedure.input(getBalanceSchema).query(async ({ ctx, input }) => {
@@ -153,7 +178,10 @@ export const timeoffRouter = router({
 
   submitRequest: protectedProcedure.input(submitRequestSchema).mutation(async ({ ctx, input }) => {
     const { employeeId, policyId, startDate, endDate, reason } = input;
-    const employee = await ctx.db.employee.findUnique({ where: { id: employeeId } });
+    const employee = await ctx.db.employee.findUnique({
+      where: { id: employeeId },
+      include: { manager: true },
+    });
     if (!employee) throw new TRPCError({ code: 'NOT_FOUND', message: 'Employee not found' });
     if (employee.companyId !== ctx.user.companyId) {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have access to this employee' });
@@ -185,6 +213,26 @@ export const timeoffRouter = router({
       throw new TRPCError({ code: 'BAD_REQUEST', message: 'Insufficient accrued balance for the requested dates.' });
     }
 
+    // Resolve approvers: team leader = direct manager; group leader = manager's manager
+    const teamLeaderId = employee.managerId ?? null;
+    let groupLeaderId: string | null = null;
+    if (employee.manager?.managerId) {
+      groupLeaderId = employee.manager.managerId;
+    }
+    // Avoid self-approval: employee's manager cannot act as group leader via chain
+    if (groupLeaderId === teamLeaderId) groupLeaderId = null;
+
+    // Find HR users in company (any user with HR/ADMIN/SUPER_ADMIN role)
+    const hrUsers = await ctx.db.user.findMany({
+      where: {
+        role: { in: ['HR', 'ADMIN', 'SUPER_ADMIN'] },
+        employee: { companyId: ctx.user.companyId },
+      },
+      select: { employeeId: true },
+    });
+    const hrEmployeeIds = hrUsers.map(u => u.employeeId).filter((id): id is string => !!id);
+    const hasHr = hrEmployeeIds.length > 0;
+
     const request = await ctx.db.timeOffRequest.create({
       data: {
         employeeId,
@@ -194,50 +242,240 @@ export const timeoffRouter = router({
         days,
         reason,
         status: 'PENDING',
+        hrStatus: hasHr ? 'PENDING' : 'SKIPPED',
+        teamLeaderId,
+        teamLeaderStatus: teamLeaderId ? 'PENDING' : 'SKIPPED',
+        groupLeaderId,
+        groupLeaderStatus: groupLeaderId ? 'PENDING' : 'SKIPPED',
       },
       include: { employee: true, policy: true },
     });
+
+    // If nothing to approve (no HR, no managers), auto-approve
+    if (!hasHr && !teamLeaderId && !groupLeaderId) {
+      await ctx.db.timeOffRequest.update({
+        where: { id: request.id },
+        data: { status: 'APPROVED', reviewedBy: ctx.user.employeeId ?? null, reviewedAt: new Date() },
+      });
+    } else {
+      // Notify approvers
+      const recipients = new Set<string>();
+      hrEmployeeIds.forEach(id => recipients.add(id));
+      if (teamLeaderId) recipients.add(teamLeaderId);
+      if (groupLeaderId) recipients.add(groupLeaderId);
+      recipients.delete(employeeId); // don't notify the requester themselves
+
+      if (recipients.size > 0) {
+        await ctx.db.notification.createMany({
+          data: Array.from(recipients).map(recipientId => ({
+            companyId: ctx.user.companyId,
+            employeeId: recipientId,
+            type: 'TIMEOFF_REQUEST',
+            title: `${employee.firstName} ${employee.lastName} requested time off`,
+            message: `${policy.name} · ${days} day(s) · ${startDate.toISOString().slice(0, 10)} to ${endDate.toISOString().slice(0, 10)}`,
+            linkUrl: '/time-off',
+          })),
+        });
+      }
+    }
+
     return request;
   }),
 
   approve: protectedProcedure.input(approveRejectSchema).mutation(async ({ ctx, input }) => {
     const request = await ctx.db.timeOffRequest.findUnique({
       where: { id: input.requestId },
-      include: { employee: true },
+      include: { employee: true, policy: true },
     });
     if (!request) throw new TRPCError({ code: 'NOT_FOUND', message: 'Request not found' });
     if (request.employee.companyId !== ctx.user.companyId) {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have access to this request' });
     }
-    return ctx.db.timeOffRequest.update({
+    if (request.status !== 'PENDING') {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'Request is not pending' });
+    }
+
+    const actorEmployeeId = ctx.user.employeeId;
+    const isHrRole = ['HR', 'ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role);
+    const isTeamLeader = !!actorEmployeeId && actorEmployeeId === request.teamLeaderId;
+    const isGroupLeader = !!actorEmployeeId && actorEmployeeId === request.groupLeaderId;
+
+    if (!isHrRole && !isTeamLeader && !isGroupLeader) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'You are not authorized to approve this request' });
+    }
+
+    const now = new Date();
+    const data: Record<string, unknown> = {};
+    if (isHrRole && request.hrStatus === 'PENDING') {
+      data.hrStatus = 'APPROVED';
+      data.hrApprovedBy = actorEmployeeId;
+      data.hrApprovedAt = now;
+    }
+    if (isTeamLeader && request.teamLeaderStatus === 'PENDING') {
+      data.teamLeaderStatus = 'APPROVED';
+      data.teamLeaderApprovedBy = actorEmployeeId;
+      data.teamLeaderApprovedAt = now;
+    }
+    if (isGroupLeader && request.groupLeaderStatus === 'PENDING') {
+      data.groupLeaderStatus = 'APPROVED';
+      data.groupLeaderApprovedBy = actorEmployeeId;
+      data.groupLeaderApprovedAt = now;
+    }
+    if (Object.keys(data).length === 0) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'No pending slots for you to approve' });
+    }
+
+    // Recompute overall status
+    const hr = (data.hrStatus as string) ?? request.hrStatus;
+    const tl = (data.teamLeaderStatus as string) ?? request.teamLeaderStatus;
+    const gl = (data.groupLeaderStatus as string) ?? request.groupLeaderStatus;
+    const allResolved = [hr, tl, gl].every(s => s === 'APPROVED' || s === 'SKIPPED');
+    if (allResolved) {
+      data.status = 'APPROVED';
+      data.reviewedBy = actorEmployeeId ?? null;
+      data.reviewedAt = now;
+    }
+
+    const updated = await ctx.db.timeOffRequest.update({
       where: { id: input.requestId },
-      data: {
-        status: 'APPROVED',
-        reviewedBy: ctx.user.employeeId ?? null,
-        reviewedAt: new Date(),
-      },
+      data,
       include: { employee: true, policy: true },
     });
+
+    if (allResolved) {
+      await ctx.db.notification.create({
+        data: {
+          companyId: ctx.user.companyId,
+          employeeId: request.employeeId,
+          type: 'TIMEOFF_APPROVED',
+          title: `Your time off request was approved`,
+          message: `${request.policy.name} · ${request.startDate.toISOString().slice(0, 10)} to ${request.endDate.toISOString().slice(0, 10)}`,
+          linkUrl: '/time-off',
+        },
+      });
+    }
+
+    return updated;
   }),
 
   reject: protectedProcedure.input(approveRejectSchema).mutation(async ({ ctx, input }) => {
     const request = await ctx.db.timeOffRequest.findUnique({
       where: { id: input.requestId },
-      include: { employee: true },
+      include: { employee: true, policy: true },
     });
     if (!request) throw new TRPCError({ code: 'NOT_FOUND', message: 'Request not found' });
     if (request.employee.companyId !== ctx.user.companyId) {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have access to this request' });
     }
-    return ctx.db.timeOffRequest.update({
+    if (request.status !== 'PENDING') {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'Request is not pending' });
+    }
+
+    const actorEmployeeId = ctx.user.employeeId;
+    const isHrRole = ['HR', 'ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role);
+    const isTeamLeader = !!actorEmployeeId && actorEmployeeId === request.teamLeaderId;
+    const isGroupLeader = !!actorEmployeeId && actorEmployeeId === request.groupLeaderId;
+
+    if (!isHrRole && !isTeamLeader && !isGroupLeader) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'You are not authorized to reject this request' });
+    }
+
+    const now = new Date();
+    const data: Record<string, unknown> = {
+      status: 'REJECTED',
+      reviewedBy: actorEmployeeId ?? null,
+      reviewedAt: now,
+    };
+    if (isHrRole && request.hrStatus === 'PENDING') {
+      data.hrStatus = 'REJECTED';
+      data.hrApprovedBy = actorEmployeeId;
+      data.hrApprovedAt = now;
+    }
+    if (isTeamLeader && request.teamLeaderStatus === 'PENDING') {
+      data.teamLeaderStatus = 'REJECTED';
+      data.teamLeaderApprovedBy = actorEmployeeId;
+      data.teamLeaderApprovedAt = now;
+    }
+    if (isGroupLeader && request.groupLeaderStatus === 'PENDING') {
+      data.groupLeaderStatus = 'REJECTED';
+      data.groupLeaderApprovedBy = actorEmployeeId;
+      data.groupLeaderApprovedAt = now;
+    }
+
+    const updated = await ctx.db.timeOffRequest.update({
       where: { id: input.requestId },
-      data: {
-        status: 'REJECTED',
-        reviewedBy: ctx.user.employeeId ?? null,
-        reviewedAt: new Date(),
-      },
+      data,
       include: { employee: true, policy: true },
     });
+
+    await ctx.db.notification.create({
+      data: {
+        companyId: ctx.user.companyId,
+        employeeId: request.employeeId,
+        type: 'TIMEOFF_REJECTED',
+        title: `Your time off request was rejected`,
+        message: `${request.policy.name} · ${request.startDate.toISOString().slice(0, 10)} to ${request.endDate.toISOString().slice(0, 10)}`,
+        linkUrl: '/time-off',
+      },
+    });
+
+    return updated;
+  }),
+
+  // Returns pending requests the current user can act on (HR, direct manager, or skip-level manager)
+  listMyApprovals: protectedProcedure.query(async ({ ctx }) => {
+    const actorEmployeeId = ctx.user.employeeId;
+    const isHrRole = ['HR', 'ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role);
+
+    const orConditions: any[] = [];
+    if (isHrRole) orConditions.push({ hrStatus: 'PENDING' });
+    if (actorEmployeeId) {
+      orConditions.push({ teamLeaderId: actorEmployeeId, teamLeaderStatus: 'PENDING' });
+      orConditions.push({ groupLeaderId: actorEmployeeId, groupLeaderStatus: 'PENDING' });
+    }
+    if (orConditions.length === 0) return [];
+
+    const requests = await ctx.db.timeOffRequest.findMany({
+      where: {
+        status: 'PENDING',
+        employee: { companyId: ctx.user.companyId },
+        OR: orConditions,
+      },
+      include: {
+        employee: { select: { id: true, firstName: true, lastName: true, department: { select: { name: true } } } },
+        policy: { select: { id: true, name: true, type: true, color: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Attach approver name snapshots
+    const leaderIds = new Set<string>();
+    for (const r of requests) {
+      if (r.teamLeaderId) leaderIds.add(r.teamLeaderId);
+      if (r.groupLeaderId) leaderIds.add(r.groupLeaderId);
+      if (r.hrApprovedBy) leaderIds.add(r.hrApprovedBy);
+      if (r.teamLeaderApprovedBy) leaderIds.add(r.teamLeaderApprovedBy);
+      if (r.groupLeaderApprovedBy) leaderIds.add(r.groupLeaderApprovedBy);
+    }
+    const leaders = leaderIds.size
+      ? await ctx.db.employee.findMany({
+          where: { id: { in: Array.from(leaderIds) } },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : [];
+    const leaderMap = Object.fromEntries(leaders.map(l => [l.id, `${l.firstName} ${l.lastName}`]));
+
+    return requests.map(r => ({
+      ...r,
+      teamLeaderName: r.teamLeaderId ? leaderMap[r.teamLeaderId] ?? null : null,
+      groupLeaderName: r.groupLeaderId ? leaderMap[r.groupLeaderId] ?? null : null,
+      hrApprovedByName: r.hrApprovedBy ? leaderMap[r.hrApprovedBy] ?? null : null,
+      teamLeaderApprovedByName: r.teamLeaderApprovedBy ? leaderMap[r.teamLeaderApprovedBy] ?? null : null,
+      groupLeaderApprovedByName: r.groupLeaderApprovedBy ? leaderMap[r.groupLeaderApprovedBy] ?? null : null,
+      canActAsHr: isHrRole && r.hrStatus === 'PENDING',
+      canActAsTeamLeader: !!actorEmployeeId && r.teamLeaderId === actorEmployeeId && r.teamLeaderStatus === 'PENDING',
+      canActAsGroupLeader: !!actorEmployeeId && r.groupLeaderId === actorEmployeeId && r.groupLeaderStatus === 'PENDING',
+    }));
   }),
 
   // Cancel a pending request (employee can cancel their own)

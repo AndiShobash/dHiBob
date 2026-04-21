@@ -27,14 +27,23 @@ const db = {
   },
   employee: {
     findUnique: vi.fn(),
+    findMany: vi.fn().mockResolvedValue([]),
+  },
+  user: {
+    findMany: vi.fn().mockResolvedValue([]),
+  },
+  notification: {
+    create: vi.fn(),
+    createMany: vi.fn(),
   },
 };
 
-function makeCtx(overrides?: Partial<typeof mockEmployee>) {
+function makeCtx(overrides?: Record<string, unknown>) {
+  const user = { id: 'user-1', email: 'a@b.com', role: 'EMPLOYEE', companyId: 'co-1', employeeId: 'emp-1', name: 'Alice', ...overrides };
   return {
     db: db as any,
-    session: { user: { id: 'user-1', email: 'a@b.com', role: 'EMPLOYEE', companyId: 'co-1', employeeId: 'emp-1', name: 'Alice' }, expires: '' },
-    user: { id: 'user-1', email: 'a@b.com', role: 'EMPLOYEE', companyId: 'co-1', employeeId: 'emp-1', name: 'Alice', ...overrides },
+    session: { user, expires: '' },
+    user,
   };
 }
 
@@ -144,29 +153,61 @@ describe('timeoffRouter', () => {
   });
 
   describe('approve', () => {
-    it('sets status APPROVED with reviewedBy and reviewedAt', async () => {
-      db.timeOffRequest.findUnique.mockResolvedValue(mockRequest);
-      db.timeOffRequest.update.mockResolvedValue({ ...mockRequest, status: 'APPROVED', reviewedBy: 'emp-1', reviewedAt: new Date() });
-      const result = await createCaller(makeCtx()).approve({ requestId: 'req-1' });
+    it('approves the HR slot for an HR/Admin user; overall APPROVED once all slots resolved', async () => {
+      // Request has no team/group leader (both SKIPPED) and HR slot PENDING
+      const pendingReq = {
+        ...mockRequest,
+        status: 'PENDING',
+        hrStatus: 'PENDING',
+        teamLeaderId: null,
+        teamLeaderStatus: 'SKIPPED',
+        groupLeaderId: null,
+        groupLeaderStatus: 'SKIPPED',
+      };
+      db.timeOffRequest.findUnique.mockResolvedValue(pendingReq);
+      db.timeOffRequest.update.mockResolvedValue({ ...pendingReq, status: 'APPROVED', reviewedBy: 'emp-admin', reviewedAt: new Date() });
+      const ctx = makeCtx({ role: 'ADMIN', employeeId: 'emp-admin' });
+      const result = await createCaller(ctx).approve({ requestId: 'req-1' });
       expect(result.status).toBe('APPROVED');
       const updateCall = db.timeOffRequest.update.mock.calls[0][0];
-      expect(updateCall.data.reviewedBy).toBe('emp-1');
+      expect(updateCall.data.hrStatus).toBe('APPROVED');
+      expect(updateCall.data.hrApprovedBy).toBe('emp-admin');
+      expect(updateCall.data.status).toBe('APPROVED');
       expect(updateCall.data.reviewedAt).toBeInstanceOf(Date);
-      expect(updateCall.data.approverId).toBeUndefined();
-      expect(updateCall.data.approvedDate).toBeUndefined();
-      expect(updateCall.data.notes).toBeUndefined();
+    });
+
+    it('rejects approval from a non-eligible user (employee with no approver role)', async () => {
+      const pendingReq = {
+        ...mockRequest,
+        hrStatus: 'PENDING',
+        teamLeaderId: 'mgr-x',
+        teamLeaderStatus: 'PENDING',
+        groupLeaderId: null,
+        groupLeaderStatus: 'SKIPPED',
+      };
+      db.timeOffRequest.findUnique.mockResolvedValue(pendingReq);
+      await expect(createCaller(makeCtx()).approve({ requestId: 'req-1' })).rejects.toThrow(TRPCError);
     });
   });
 
   describe('reject', () => {
-    it('sets status REJECTED with reviewedBy and reviewedAt', async () => {
-      db.timeOffRequest.findUnique.mockResolvedValue(mockRequest);
-      db.timeOffRequest.update.mockResolvedValue({ ...mockRequest, status: 'REJECTED', reviewedBy: 'emp-1', reviewedAt: new Date() });
-      const result = await createCaller(makeCtx()).reject({ requestId: 'req-1' });
+    it('sets status REJECTED when an eligible approver rejects', async () => {
+      const pendingReq = {
+        ...mockRequest,
+        hrStatus: 'PENDING',
+        teamLeaderId: null,
+        teamLeaderStatus: 'SKIPPED',
+        groupLeaderId: null,
+        groupLeaderStatus: 'SKIPPED',
+      };
+      db.timeOffRequest.findUnique.mockResolvedValue(pendingReq);
+      db.timeOffRequest.update.mockResolvedValue({ ...pendingReq, status: 'REJECTED', reviewedBy: 'emp-admin', reviewedAt: new Date() });
+      const ctx = makeCtx({ role: 'ADMIN', employeeId: 'emp-admin' });
+      const result = await createCaller(ctx).reject({ requestId: 'req-1' });
       expect(result.status).toBe('REJECTED');
       const updateCall = db.timeOffRequest.update.mock.calls[0][0];
       expect(updateCall.data.status).toBe('REJECTED');
-      expect(updateCall.data.approverId).toBeUndefined();
+      expect(updateCall.data.hrStatus).toBe('REJECTED');
     });
   });
 
