@@ -184,16 +184,26 @@ export function TreeView({ rootId, employees, expandedIds, onToggleExpand, highl
       onMouseLeave={onMouseUp}
     >
       <svg ref={svgRef} width="100%" height="100%" style={{ display: "block" }}>
+        {/* Dot grid background */}
+        <defs>
+          <pattern id="org-dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="1" className="fill-gray-300/50 dark:fill-gray-600/40" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#org-dot-grid)" />
         <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
-          {/* Edges */}
+          {/* Edges — orthogonal elbow with rounded corners, traditional org-chart style */}
           {links.map((link, i) => (
             <path
               key={i}
-              d={curvedPath(link.source, link.target)}
+              d={elbowPath(link.source, link.target)}
               fill="none"
-              stroke="#cbd5e1"
-              strokeWidth={1.5}
-              className="dark:stroke-gray-600"
+              stroke="#94a3b8"
+              strokeOpacity={0.6}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="dark:stroke-gray-500"
             />
           ))}
           {/* Nodes */}
@@ -338,14 +348,28 @@ function EmployeeCard({
   );
 }
 
-// S-curve path between parent and child nodes
-function curvedPath(source: HierarchyPointNode<TreeNode>, target: HierarchyPointNode<TreeNode>) {
+// Orthogonal elbow path with rounded corners — the traditional org-chart connector.
+// Drops straight down from the parent, turns, travels horizontally, turns, drops into the child.
+function elbowPath(source: HierarchyPointNode<TreeNode>, target: HierarchyPointNode<TreeNode>) {
   const sx = source.x;
   const sy = source.y + CARD_HEIGHT / 2;
   const tx = target.x;
   const ty = target.y - CARD_HEIGHT / 2;
-  const midY = (sy + ty) / 2;
-  return `M${sx},${sy} C${sx},${midY} ${tx},${midY} ${tx},${ty}`;
+  if (sx === tx) {
+    return `M${sx},${sy} L${tx},${ty}`;
+  }
+  const midY = sy + (ty - sy) / 2;
+  const r = Math.min(10, Math.abs(tx - sx) / 2, Math.abs(ty - sy) / 2);
+  const dir = tx > sx ? 1 : -1;
+  // Down from parent, round corner, horizontal to above child, round corner, down into child
+  return [
+    `M${sx},${sy}`,
+    `L${sx},${midY - r}`,
+    `Q${sx},${midY} ${sx + dir * r},${midY}`,
+    `L${tx - dir * r},${midY}`,
+    `Q${tx},${midY} ${tx},${midY + r}`,
+    `L${tx},${ty}`,
+  ].join(" ");
 }
 
 function computeBBox(root: HierarchyPointNode<TreeNode>) {
