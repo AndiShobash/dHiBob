@@ -472,23 +472,25 @@ export const timeoffRouter = router({
     const actorEmployeeId = ctx.user.employeeId;
     const isHrRole = ['HR', 'ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role);
 
-    const orConditions: any[] = [];
-    if (isHrRole) orConditions.push({}); // HR sees every pending request in the company
-    if (actorEmployeeId) {
-      orConditions.push({ teamLeaderId: actorEmployeeId });
-      orConditions.push({ groupLeaderId: actorEmployeeId });
-      // Fallback for legacy requests with null snapshots: match by the employee's current manager chain
-      orConditions.push({ teamLeaderId: null, employee: { managerId: actorEmployeeId } });
-      orConditions.push({ groupLeaderId: null, employee: { manager: { managerId: actorEmployeeId } } });
+    const where: any = {
+      status: 'PENDING',
+      employee: { companyId: ctx.user.companyId },
+    };
+    // Non-HR users only see requests where they're a team/group leader;
+    // HR sees every pending request in the company.
+    if (!isHrRole) {
+      if (!actorEmployeeId) return [];
+      where.OR = [
+        { teamLeaderId: actorEmployeeId },
+        { groupLeaderId: actorEmployeeId },
+        // Fallback for legacy requests with null snapshots
+        { teamLeaderId: null, employee: { managerId: actorEmployeeId } },
+        { groupLeaderId: null, employee: { manager: { managerId: actorEmployeeId } } },
+      ];
     }
-    if (orConditions.length === 0) return [];
 
     const requests = await ctx.db.timeOffRequest.findMany({
-      where: {
-        status: 'PENDING',
-        employee: { companyId: ctx.user.companyId },
-        OR: orConditions,
-      },
+      where,
       include: {
         employee: {
           select: {
