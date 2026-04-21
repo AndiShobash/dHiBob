@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Check, X, Clock, Minus } from "lucide-react";
+import { Check, X, Clock, Minus, Undo2 } from "lucide-react";
 
 interface ApprovalQueueProps {
   onMutationSuccess?: () => void;
@@ -86,6 +86,7 @@ export default function ApprovalQueue({ onMutationSuccess }: ApprovalQueueProps)
 
   const approveMutation = trpc.timeoff.approve.useMutation({ onSuccess: handleSuccess });
   const rejectMutation = trpc.timeoff.reject.useMutation({ onSuccess: handleSuccess });
+  const unapproveMutation = trpc.timeoff.unapprove.useMutation({ onSuccess: handleSuccess });
 
   if (isLoading) return <p className="text-sm text-gray-400">Loading pending requests...</p>;
   if (!data?.length) {
@@ -122,27 +123,40 @@ export default function ApprovalQueue({ onMutationSuccess }: ApprovalQueueProps)
                   <p className="text-sm text-gray-400 italic font-medium">&quot;{req.reason}&quot;</p>
                 )}
               </div>
-              {canAct && (
-                <div className="flex gap-2 shrink-0">
+              <div className="flex gap-2 shrink-0">
+                {req.canUndo && (
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-red-600 border-red-200 dark:border-charcoal-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    onClick={() => rejectMutation.mutate({ requestId: req.id })}
-                    disabled={rejectMutation.isPending || approveMutation.isPending}
+                    className="gap-1 text-gray-600"
+                    onClick={() => unapproveMutation.mutate({ requestId: req.id })}
+                    disabled={unapproveMutation.isPending || approveMutation.isPending || rejectMutation.isPending}
                   >
-                    Reject
+                    <Undo2 size={14} /> Undo my approval
                   </Button>
-                  <Button
-                    size="sm"
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                    onClick={() => approveMutation.mutate({ requestId: req.id })}
-                    disabled={approveMutation.isPending || rejectMutation.isPending}
-                  >
-                    Approve as {myRoles.join(" + ")}
-                  </Button>
-                </div>
-              )}
+                )}
+                {canAct && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-red-600 border-red-200 dark:border-charcoal-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      onClick={() => rejectMutation.mutate({ requestId: req.id })}
+                      disabled={rejectMutation.isPending || approveMutation.isPending || unapproveMutation.isPending}
+                    >
+                      Reject
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                      onClick={() => approveMutation.mutate({ requestId: req.id })}
+                      disabled={approveMutation.isPending || rejectMutation.isPending || unapproveMutation.isPending}
+                    >
+                      Approve as {myRoles.join(" + ")}
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="border-t dark:border-charcoal-700 pt-2 divide-y divide-gray-100 dark:divide-charcoal-700">

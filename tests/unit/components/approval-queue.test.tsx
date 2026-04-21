@@ -45,6 +45,7 @@ vi.mock('@/lib/trpc', () => ({
       },
       approve: { useMutation: () => ({ mutate: mockApprove, isPending: false }) },
       reject: { useMutation: () => ({ mutate: mockReject, isPending: false }) },
+      unapprove: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
     },
     useContext: () => ({
       timeoff: {
