@@ -266,7 +266,7 @@ export default function OrgChartPage() {
         </div>
       </div>
 
-      <div className="h-[calc(100vh-220px)] border rounded-xl bg-gradient-to-br from-gray-50 to-white dark:from-charcoal-950 dark:to-charcoal-900 border-gray-200 dark:border-charcoal-700 overflow-hidden">
+      <div className="h-[calc(100vh-220px)] border rounded-xl bg-gradient-to-br from-gray-50 to-white dark:bg-charcoal-950 dark:bg-none border-gray-200 dark:border-charcoal-700 overflow-hidden">
         <TreeView
           rootId={rootId}
           employees={visibleEmployees}
