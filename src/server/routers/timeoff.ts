@@ -83,7 +83,20 @@ export const timeoffRouter = router({
     const requests = await ctx.db.timeOffRequest.findMany({
       where,
       include: {
-        employee: { select: { id: true, firstName: true, lastName: true, department: { select: { name: true } } } },
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            department: { select: { name: true } },
+            manager: {
+              select: {
+                id: true, firstName: true, lastName: true,
+                manager: { select: { id: true, firstName: true, lastName: true } },
+              },
+            },
+          },
+        },
         policy: { select: { id: true, name: true, type: true, color: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -96,7 +109,9 @@ export const timeoffRouter = router({
       nextCursor = nextItem?.id;
     }
 
-    // Attach approver name snapshots so My Requests can show approval progress
+    // Attach approver name snapshots so My Requests can show approval progress.
+    // Fall back to the employee's current manager chain for legacy requests
+    // that predate the snapshot columns.
     const leaderIds = new Set<string>();
     for (const r of requests) {
       if (r.teamLeaderId) leaderIds.add(r.teamLeaderId);
@@ -112,14 +127,26 @@ export const timeoffRouter = router({
         })
       : [];
     const leaderMap = Object.fromEntries(leaders.map(l => [l.id, `${l.firstName} ${l.lastName}`]));
-    const enriched = requests.map(r => ({
-      ...r,
-      teamLeaderName: r.teamLeaderId ? leaderMap[r.teamLeaderId] ?? null : null,
-      groupLeaderName: r.groupLeaderId ? leaderMap[r.groupLeaderId] ?? null : null,
-      hrApprovedByName: r.hrApprovedBy ? leaderMap[r.hrApprovedBy] ?? null : null,
-      teamLeaderApprovedByName: r.teamLeaderApprovedBy ? leaderMap[r.teamLeaderApprovedBy] ?? null : null,
-      groupLeaderApprovedByName: r.groupLeaderApprovedBy ? leaderMap[r.groupLeaderApprovedBy] ?? null : null,
-    }));
+    const enriched = requests.map(r => {
+      const currentManager = r.employee.manager;
+      const currentSkipLevel = r.employee.manager?.manager;
+      const effectiveTeamLeaderId = r.teamLeaderId ?? currentManager?.id ?? null;
+      const effectiveGroupLeaderId = r.groupLeaderId ?? currentSkipLevel?.id ?? null;
+      const teamLeaderName = effectiveTeamLeaderId
+        ? leaderMap[effectiveTeamLeaderId] ?? (currentManager ? `${currentManager.firstName} ${currentManager.lastName}` : null)
+        : null;
+      const groupLeaderName = effectiveGroupLeaderId
+        ? leaderMap[effectiveGroupLeaderId] ?? (currentSkipLevel ? `${currentSkipLevel.firstName} ${currentSkipLevel.lastName}` : null)
+        : null;
+      return {
+        ...r,
+        teamLeaderName,
+        groupLeaderName,
+        hrApprovedByName: r.hrApprovedBy ? leaderMap[r.hrApprovedBy] ?? null : null,
+        teamLeaderApprovedByName: r.teamLeaderApprovedBy ? leaderMap[r.teamLeaderApprovedBy] ?? null : null,
+        groupLeaderApprovedByName: r.groupLeaderApprovedBy ? leaderMap[r.groupLeaderApprovedBy] ?? null : null,
+      };
+    });
     return { requests: enriched, nextCursor };
   }),
 
@@ -285,7 +312,10 @@ export const timeoffRouter = router({
   approve: protectedProcedure.input(approveRejectSchema).mutation(async ({ ctx, input }) => {
     const request = await ctx.db.timeOffRequest.findUnique({
       where: { id: input.requestId },
-      include: { employee: true, policy: true },
+      include: {
+        employee: { include: { manager: { include: { manager: true } } } },
+        policy: true,
+      },
     });
     if (!request) throw new TRPCError({ code: 'NOT_FOUND', message: 'Request not found' });
     if (request.employee.companyId !== ctx.user.companyId) {
@@ -297,8 +327,11 @@ export const timeoffRouter = router({
 
     const actorEmployeeId = ctx.user.employeeId;
     const isHrRole = ['HR', 'ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role);
-    const isTeamLeader = !!actorEmployeeId && actorEmployeeId === request.teamLeaderId;
-    const isGroupLeader = !!actorEmployeeId && actorEmployeeId === request.groupLeaderId;
+    // Fall back to the employee's current manager chain for legacy requests with null snapshots
+    const effectiveTeamLeaderId = request.teamLeaderId ?? request.employee.managerId ?? null;
+    const effectiveGroupLeaderId = request.groupLeaderId ?? request.employee.manager?.managerId ?? null;
+    const isTeamLeader = !!actorEmployeeId && actorEmployeeId === effectiveTeamLeaderId;
+    const isGroupLeader = !!actorEmployeeId && actorEmployeeId === effectiveGroupLeaderId;
 
     if (!isHrRole && !isTeamLeader && !isGroupLeader) {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'You are not authorized to approve this request' });
@@ -315,11 +348,13 @@ export const timeoffRouter = router({
       data.teamLeaderStatus = 'APPROVED';
       data.teamLeaderApprovedBy = actorEmployeeId;
       data.teamLeaderApprovedAt = now;
+      if (!request.teamLeaderId && effectiveTeamLeaderId) data.teamLeaderId = effectiveTeamLeaderId;
     }
     if (isGroupLeader && request.groupLeaderStatus === 'PENDING') {
       data.groupLeaderStatus = 'APPROVED';
       data.groupLeaderApprovedBy = actorEmployeeId;
       data.groupLeaderApprovedAt = now;
+      if (!request.groupLeaderId && effectiveGroupLeaderId) data.groupLeaderId = effectiveGroupLeaderId;
     }
     if (Object.keys(data).length === 0) {
       throw new TRPCError({ code: 'BAD_REQUEST', message: 'No pending slots for you to approve' });
@@ -361,7 +396,10 @@ export const timeoffRouter = router({
   reject: protectedProcedure.input(approveRejectSchema).mutation(async ({ ctx, input }) => {
     const request = await ctx.db.timeOffRequest.findUnique({
       where: { id: input.requestId },
-      include: { employee: true, policy: true },
+      include: {
+        employee: { include: { manager: { include: { manager: true } } } },
+        policy: true,
+      },
     });
     if (!request) throw new TRPCError({ code: 'NOT_FOUND', message: 'Request not found' });
     if (request.employee.companyId !== ctx.user.companyId) {
@@ -373,8 +411,10 @@ export const timeoffRouter = router({
 
     const actorEmployeeId = ctx.user.employeeId;
     const isHrRole = ['HR', 'ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role);
-    const isTeamLeader = !!actorEmployeeId && actorEmployeeId === request.teamLeaderId;
-    const isGroupLeader = !!actorEmployeeId && actorEmployeeId === request.groupLeaderId;
+    const effectiveTeamLeaderId = request.teamLeaderId ?? request.employee.managerId ?? null;
+    const effectiveGroupLeaderId = request.groupLeaderId ?? request.employee.manager?.managerId ?? null;
+    const isTeamLeader = !!actorEmployeeId && actorEmployeeId === effectiveTeamLeaderId;
+    const isGroupLeader = !!actorEmployeeId && actorEmployeeId === effectiveGroupLeaderId;
 
     if (!isHrRole && !isTeamLeader && !isGroupLeader) {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'You are not authorized to reject this request' });
@@ -395,11 +435,13 @@ export const timeoffRouter = router({
       data.teamLeaderStatus = 'REJECTED';
       data.teamLeaderApprovedBy = actorEmployeeId;
       data.teamLeaderApprovedAt = now;
+      if (!request.teamLeaderId && effectiveTeamLeaderId) data.teamLeaderId = effectiveTeamLeaderId;
     }
     if (isGroupLeader && request.groupLeaderStatus === 'PENDING') {
       data.groupLeaderStatus = 'REJECTED';
       data.groupLeaderApprovedBy = actorEmployeeId;
       data.groupLeaderApprovedAt = now;
+      if (!request.groupLeaderId && effectiveGroupLeaderId) data.groupLeaderId = effectiveGroupLeaderId;
     }
 
     const updated = await ctx.db.timeOffRequest.update({
@@ -422,7 +464,8 @@ export const timeoffRouter = router({
     return updated;
   }),
 
-  // Returns pending requests the current user can act on (HR, direct manager, or skip-level manager)
+  // Returns pending requests the current user can act on (HR, direct manager, or skip-level manager).
+  // Uses snapshotted leader IDs when present, otherwise falls back to the employee's current manager chain.
   listMyApprovals: protectedProcedure.query(async ({ ctx }) => {
     const actorEmployeeId = ctx.user.employeeId;
     const isHrRole = ['HR', 'ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role);
@@ -430,8 +473,12 @@ export const timeoffRouter = router({
     const orConditions: any[] = [];
     if (isHrRole) orConditions.push({ hrStatus: 'PENDING' });
     if (actorEmployeeId) {
+      // Snapshotted leader match
       orConditions.push({ teamLeaderId: actorEmployeeId, teamLeaderStatus: 'PENDING' });
       orConditions.push({ groupLeaderId: actorEmployeeId, groupLeaderStatus: 'PENDING' });
+      // Fallback: requester has no snapshot but their current manager chain includes the actor
+      orConditions.push({ teamLeaderId: null, teamLeaderStatus: 'PENDING', employee: { managerId: actorEmployeeId } });
+      orConditions.push({ groupLeaderId: null, groupLeaderStatus: 'PENDING', employee: { manager: { managerId: actorEmployeeId } } });
     }
     if (orConditions.length === 0) return [];
 
@@ -442,13 +489,25 @@ export const timeoffRouter = router({
         OR: orConditions,
       },
       include: {
-        employee: { select: { id: true, firstName: true, lastName: true, department: { select: { name: true } } } },
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            department: { select: { name: true } },
+            manager: {
+              select: {
+                id: true, firstName: true, lastName: true,
+                manager: { select: { id: true, firstName: true, lastName: true } },
+              },
+            },
+          },
+        },
         policy: { select: { id: true, name: true, type: true, color: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    // Attach approver name snapshots
     const leaderIds = new Set<string>();
     for (const r of requests) {
       if (r.teamLeaderId) leaderIds.add(r.teamLeaderId);
@@ -465,17 +524,29 @@ export const timeoffRouter = router({
       : [];
     const leaderMap = Object.fromEntries(leaders.map(l => [l.id, `${l.firstName} ${l.lastName}`]));
 
-    return requests.map(r => ({
-      ...r,
-      teamLeaderName: r.teamLeaderId ? leaderMap[r.teamLeaderId] ?? null : null,
-      groupLeaderName: r.groupLeaderId ? leaderMap[r.groupLeaderId] ?? null : null,
-      hrApprovedByName: r.hrApprovedBy ? leaderMap[r.hrApprovedBy] ?? null : null,
-      teamLeaderApprovedByName: r.teamLeaderApprovedBy ? leaderMap[r.teamLeaderApprovedBy] ?? null : null,
-      groupLeaderApprovedByName: r.groupLeaderApprovedBy ? leaderMap[r.groupLeaderApprovedBy] ?? null : null,
-      canActAsHr: isHrRole && r.hrStatus === 'PENDING',
-      canActAsTeamLeader: !!actorEmployeeId && r.teamLeaderId === actorEmployeeId && r.teamLeaderStatus === 'PENDING',
-      canActAsGroupLeader: !!actorEmployeeId && r.groupLeaderId === actorEmployeeId && r.groupLeaderStatus === 'PENDING',
-    }));
+    return requests.map(r => {
+      const currentManager = r.employee.manager;
+      const currentSkipLevel = r.employee.manager?.manager;
+      const effectiveTeamLeaderId = r.teamLeaderId ?? currentManager?.id ?? null;
+      const effectiveGroupLeaderId = r.groupLeaderId ?? currentSkipLevel?.id ?? null;
+      const teamLeaderName = effectiveTeamLeaderId
+        ? leaderMap[effectiveTeamLeaderId] ?? (currentManager ? `${currentManager.firstName} ${currentManager.lastName}` : null)
+        : null;
+      const groupLeaderName = effectiveGroupLeaderId
+        ? leaderMap[effectiveGroupLeaderId] ?? (currentSkipLevel ? `${currentSkipLevel.firstName} ${currentSkipLevel.lastName}` : null)
+        : null;
+      return {
+        ...r,
+        teamLeaderName,
+        groupLeaderName,
+        hrApprovedByName: r.hrApprovedBy ? leaderMap[r.hrApprovedBy] ?? null : null,
+        teamLeaderApprovedByName: r.teamLeaderApprovedBy ? leaderMap[r.teamLeaderApprovedBy] ?? null : null,
+        groupLeaderApprovedByName: r.groupLeaderApprovedBy ? leaderMap[r.groupLeaderApprovedBy] ?? null : null,
+        canActAsHr: isHrRole && r.hrStatus === 'PENDING',
+        canActAsTeamLeader: !!actorEmployeeId && effectiveTeamLeaderId === actorEmployeeId && r.teamLeaderStatus === 'PENDING',
+        canActAsGroupLeader: !!actorEmployeeId && effectiveGroupLeaderId === actorEmployeeId && r.groupLeaderStatus === 'PENDING',
+      };
+    });
   }),
 
   // Cancel a pending request (employee can cancel their own)
