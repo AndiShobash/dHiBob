@@ -1,85 +1,176 @@
 "use client";
-import React, { useState, useMemo, useCallback } from "react";
-import ReactFlow, { Background, Controls, MiniMap, useReactFlow, ReactFlowProvider } from "reactflow";
-import "reactflow/dist/style.css";
+import React, { useEffect, useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { transformToOrgChart } from "@/lib/org-chart-utils";
-import { EmployeeNode, DEPT_COLORS, DEFAULT_COLORS } from "@/components/org-chart/employee-node";
 import { Input } from "@/components/ui/input";
-import { Search, X } from "lucide-react";
+import { Search, X, Maximize2, Target } from "lucide-react";
+import { TreeView, OrgEmployee, DEPT_COLORS, DEFAULT_COLORS } from "@/components/org-chart/tree-view";
 
-const nodeTypes = { employeeNode: EmployeeNode };
+function parseJobTitle(workInfo: any): string {
+  if (!workInfo) return "";
+  try {
+    const parsed = typeof workInfo === "string" ? JSON.parse(workInfo) : workInfo;
+    return parsed?.jobTitle || "";
+  } catch {
+    return "";
+  }
+}
 
-function OrgChartInner() {
-  const { data: employees, isLoading } = trpc.employee.getOrgChartData.useQuery();
+export default function OrgChartPage() {
+  const { data, isLoading } = trpc.employee.getOrgChartData.useQuery();
   const [search, setSearch] = useState("");
-  const [deptFilter, setDeptFilter] = useState("");
-  const { setCenter } = useReactFlow();
+  const [deptFilter, setDeptFilter] = useState<string>("");
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
-  const { nodes: allNodes, edges: allEdges } = useMemo(() => {
-    if (!employees) return { nodes: [], edges: [] };
-    return transformToOrgChart(employees);
+  const employees: OrgEmployee[] = useMemo(() => {
+    if (!data) return [];
+    return (data as any[]).map(e => ({
+      id: e.id,
+      firstName: e.firstName,
+      lastName: e.lastName,
+      avatar: e.avatar,
+      managerId: e.managerId,
+      jobTitle: parseJobTitle(e.workInfo),
+      department: e.department,
+      directReportsCount: e._count?.directReports ?? 0,
+    }));
+  }, [data]);
+
+  const byId = useMemo(() => {
+    const m = new Map<string, OrgEmployee>();
+    employees.forEach(e => m.set(e.id, e));
+    return m;
   }, [employees]);
+
+  // Resolve root: prefer focused person's top-of-chain, else the person with no manager (CEO)
+  const rootId = useMemo(() => {
+    if (!employees.length) return "";
+    if (focusedId) {
+      // Walk up from focus to the top
+      let cur = byId.get(focusedId);
+      while (cur?.managerId && byId.has(cur.managerId)) {
+        cur = byId.get(cur.managerId);
+      }
+      if (cur) return cur.id;
+    }
+    const ceo = employees.find(e => !e.managerId || !byId.has(e.managerId as string));
+    return ceo?.id ?? employees[0].id;
+  }, [employees, byId, focusedId]);
+
+  // Default expansion: open root + immediate level; when focusing on someone, open the full chain to them.
+  useEffect(() => {
+    if (!employees.length || !rootId) return;
+    const next = new Set<string>();
+    next.add(rootId);
+    if (focusedId) {
+      let cur = byId.get(focusedId);
+      while (cur) {
+        next.add(cur.id);
+        if (!cur.managerId) break;
+        cur = byId.get(cur.managerId);
+      }
+    } else {
+      // Expand only the root's direct children are visible; don't auto-open further
+    }
+    setExpandedIds(next);
+    if (!focusedId) return;
+    setHighlightedId(focusedId);
+    const t = setTimeout(() => setHighlightedId(null), 2500);
+    return () => clearTimeout(t);
+  }, [rootId, focusedId, byId, employees.length]);
 
   const departments = useMemo(() => {
-    if (!employees) return [];
-    const depts = new Set<string>();
-    (employees as any[]).forEach(e => { if (e.department?.name) depts.add(e.department.name); });
-    return Array.from(depts).sort();
+    const s = new Set<string>();
+    employees.forEach(e => { if (e.department?.name) s.add(e.department.name); });
+    return Array.from(s).sort();
   }, [employees]);
 
-  const { nodes, edges } = useMemo(() => {
-    if (!deptFilter) return { nodes: allNodes, edges: allEdges };
-    const visibleIds = new Set(allNodes.filter(n => (n.data as any).department?.name === deptFilter).map(n => n.id));
-    const empMap = new Map((employees as any[] || []).map((e: any) => [e.id, e]));
-    for (const id of [...visibleIds]) {
-      let current = empMap.get(id);
-      while (current?.managerId && !visibleIds.has(current.managerId)) {
-        visibleIds.add(current.managerId);
-        current = empMap.get(current.managerId);
+  // When dept filter is active, restrict the employees passed to tree to that dept + their ancestors
+  const visibleEmployees = useMemo(() => {
+    if (!deptFilter) return employees;
+    const keep = new Set<string>();
+    employees.forEach(e => {
+      if (e.department?.name === deptFilter) {
+        keep.add(e.id);
+        let cur = byId.get(e.id);
+        while (cur?.managerId && byId.has(cur.managerId)) {
+          keep.add(cur.managerId);
+          cur = byId.get(cur.managerId);
+        }
       }
-    }
-    return {
-      nodes: allNodes.filter(n => visibleIds.has(n.id)),
-      edges: allEdges.filter(e => visibleIds.has(e.source) && visibleIds.has(e.target)),
-    };
-  }, [allNodes, allEdges, deptFilter, employees]);
+    });
+    return employees.filter(e => keep.has(e.id)).map(e => {
+      // Recompute directReportsCount among the visible subset
+      const count = employees.filter(x => x.managerId === e.id && keep.has(x.id)).length;
+      return { ...e, directReportsCount: count };
+    });
+  }, [employees, deptFilter, byId]);
 
   const searchMatches = useMemo(() => {
-    if (!search.trim() || !employees) return [];
+    if (!search.trim()) return [];
     const q = search.toLowerCase();
-    return (employees as any[]).filter(e =>
-      `${e.firstName} ${e.lastName}`.toLowerCase().includes(q)
-    ).slice(0, 8);
+    return employees
+      .filter(e => `${e.firstName} ${e.lastName}`.toLowerCase().includes(q))
+      .slice(0, 8);
   }, [search, employees]);
 
-  const zoomToPerson = useCallback((empId: string) => {
-    const node = nodes.find(n => n.id === empId);
-    if (node) {
-      setCenter(node.position.x + 110, node.position.y + 30, { zoom: 1.5, duration: 800 });
-    }
-    setSearch("");
-  }, [nodes, setCenter]);
+  const handleToggleExpand = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleExpandAll = () => {
+    setExpandedIds(new Set(employees.map(e => e.id)));
+  };
+  const handleCollapseAll = () => {
+    setExpandedIds(new Set(rootId ? [rootId] : []));
+  };
+  const handleClearFocus = () => setFocusedId(null);
 
   if (isLoading) {
     return (
       <div className="h-[calc(100vh-160px)] flex items-center justify-center">
-        <div className="animate-pulse text-gray-400">Loading Org Chart...</div>
+        <div className="animate-pulse text-gray-400">Loading org chart…</div>
       </div>
     );
   }
 
+  const focusedEmp = focusedId ? byId.get(focusedId) : null;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h1 className="text-2xl font-bold">Org Chart</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Org Chart</h1>
+          {focusedEmp && (
+            <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+              <Target size={12} /> Focused on {focusedEmp.firstName} {focusedEmp.lastName}
+              <button onClick={handleClearFocus} className="ml-1 text-primary-500 hover:underline">
+                (clear)
+              </button>
+            </p>
+          )}
+        </div>
+
         <div className="flex items-center gap-3 flex-wrap">
           {/* Search */}
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search employee..." className="pl-9 w-56" />
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search employee…"
+              className="pl-9 w-56"
+            />
             {search && (
-              <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
                 <X size={14} />
               </button>
             )}
@@ -87,16 +178,21 @@ function OrgChartInner() {
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setSearch("")} />
                 <div className="absolute left-0 top-full mt-1 z-20 bg-white dark:bg-charcoal-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 w-full max-h-[240px] overflow-y-auto">
-                  {searchMatches.map((emp: any) => {
-                    const deptName = emp.department?.name || '';
-                    const colors = DEPT_COLORS[deptName] || DEFAULT_COLORS;
+                  {searchMatches.map(emp => {
+                    const colors = DEPT_COLORS[emp.department?.name || ""] || DEFAULT_COLORS;
                     return (
-                      <button key={emp.id} onClick={() => { zoomToPerson(emp.id); setDeptFilter(""); }}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2">
+                      <button
+                        key={emp.id}
+                        onClick={() => {
+                          setFocusedId(emp.id);
+                          setSearch("");
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2"
+                      >
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: colors.dot }} />
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium truncate">{emp.firstName} {emp.lastName}</p>
-                          {deptName && <p className="text-[10px] text-gray-400">{deptName}</p>}
+                          {emp.department?.name && <p className="text-[10px] text-gray-400">{emp.department.name}</p>}
                         </div>
                       </button>
                     );
@@ -106,47 +202,69 @@ function OrgChartInner() {
             )}
           </div>
 
-          {/* Department filter pills */}
+          {/* Dept filter pills */}
           <div className="flex gap-1.5 flex-wrap">
-            <button onClick={() => setDeptFilter("")}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${!deptFilter ? 'bg-gray-800 text-white dark:bg-white dark:text-gray-900' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
+            <button
+              onClick={() => setDeptFilter("")}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                !deptFilter
+                  ? "bg-gray-800 text-white dark:bg-white dark:text-gray-900"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200"
+              }`}
+            >
               All
             </button>
             {departments.map(dept => {
               const colors = DEPT_COLORS[dept] || DEFAULT_COLORS;
               return (
-                <button key={dept} onClick={() => setDeptFilter(deptFilter === dept ? "" : dept)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5 ${deptFilter === dept ? 'bg-gray-800 text-white dark:bg-white dark:text-gray-900' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
+                <button
+                  key={dept}
+                  onClick={() => setDeptFilter(deptFilter === dept ? "" : dept)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                    deptFilter === dept
+                      ? "bg-gray-800 text-white dark:bg-white dark:text-gray-900"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200"
+                  }`}
+                >
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.dot }} />
                   {dept}
                 </button>
               );
             })}
           </div>
+
+          <div className="flex gap-1.5">
+            <button
+              onClick={handleExpandAll}
+              className="px-3 py-1.5 text-xs rounded-md border border-gray-200 dark:border-charcoal-700 hover:bg-gray-50 dark:hover:bg-charcoal-800 flex items-center gap-1.5"
+              title="Expand all"
+            >
+              <Maximize2 size={12} /> Expand all
+            </button>
+            <button
+              onClick={handleCollapseAll}
+              className="px-3 py-1.5 text-xs rounded-md border border-gray-200 dark:border-charcoal-700 hover:bg-gray-50 dark:hover:bg-charcoal-800"
+              title="Collapse all"
+            >
+              Collapse all
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="h-[calc(100vh-220px)] border rounded-xl bg-gray-50 dark:bg-charcoal-900 border-gray-200 dark:border-charcoal-700 overflow-hidden">
-        <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView minZoom={0.1} maxZoom={2}>
-          <Background />
-          <Controls />
-          <MiniMap
-            nodeColor={(node) => {
-              const dept = (node.data as any)?.department?.name;
-              return (DEPT_COLORS[dept] || DEFAULT_COLORS).dot;
-            }}
-            maskColor="rgba(0,0,0,0.1)"
-          />
-        </ReactFlow>
+      <div className="h-[calc(100vh-220px)] border rounded-xl bg-gradient-to-br from-gray-50 to-white dark:from-charcoal-950 dark:to-charcoal-900 border-gray-200 dark:border-charcoal-700 overflow-hidden">
+        <TreeView
+          rootId={rootId}
+          employees={visibleEmployees}
+          expandedIds={expandedIds}
+          onToggleExpand={handleToggleExpand}
+          highlightedId={highlightedId}
+        />
+      </div>
+
+      <div className="text-xs text-gray-400 flex items-center gap-4 flex-wrap">
+        <span>💡 Click a card to open profile · Click ⌄ to expand/collapse · Search to focus on a person · Scroll to zoom · Drag to pan</span>
       </div>
     </div>
-  );
-}
-
-export default function OrgChartPage() {
-  return (
-    <ReactFlowProvider>
-      <OrgChartInner />
-    </ReactFlowProvider>
   );
 }

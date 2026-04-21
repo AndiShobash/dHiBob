@@ -41,6 +41,7 @@
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
+    "d3-hierarchy": "^3.1.2",
     "dagre": "^0.8.5",
     "date-fns": "^2.30.0",
     "ioredis": "^5.10.1",
