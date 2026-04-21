@@ -43,19 +43,24 @@ function ApprovalRow({
   status,
   approverName,
   approvedAt,
+  pendingPlaceholder,
 }: {
   label: string;
   status: string;
   approverName: string | null;
   approvedAt: Date | string | null;
+  pendingPlaceholder?: string;
 }) {
+  const displayName =
+    approverName ||
+    (status === "PENDING" && pendingPlaceholder ? pendingPlaceholder : null);
   return (
     <div className="flex items-center justify-between py-1.5 text-sm">
       <div className="flex items-center gap-3 min-w-0">
         <span className="font-medium text-gray-700 dark:text-gray-300 w-28 shrink-0">{label}</span>
-        {approverName && (
+        {displayName && (
           <span className="text-xs text-gray-500 truncate">
-            {approverName}
+            {displayName}
             {approvedAt && status !== "PENDING" && status !== "SKIPPED" && (
               <span className="ml-1 text-gray-400">· {format(new Date(approvedAt), "MMM d, HH:mm")}</span>
             )}
@@ -146,6 +151,7 @@ export default function ApprovalQueue({ onMutationSuccess }: ApprovalQueueProps)
                 status={req.hrStatus}
                 approverName={req.hrApprovedByName}
                 approvedAt={req.hrApprovedAt}
+                pendingPlaceholder="Any HR team member"
               />
               <ApprovalRow
                 label="Team Leader"

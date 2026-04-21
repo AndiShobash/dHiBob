@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Calendar, Plus, ChevronLeft, ChevronRight, X, Pencil } from "lucide-react";
+import { Calendar, Plus, ChevronLeft, ChevronRight, X, Pencil, Check, Clock, Minus } from "lucide-react";
 import { format, addMonths, subMonths, isSameMonth, isWithinInterval, eachDayOfInterval, startOfMonth, endOfMonth, getDay } from "date-fns";
 import RequestFormModal from "@/components/time-off/request-form-modal";
 import ApprovalQueue from "@/components/time-off/approval-queue";
@@ -25,6 +25,59 @@ const DEFAULT_COLOR = '#6b7280';
 function policyColor(req: any, policies: any[]): string {
   const policy = policies?.find((p: any) => p.id === req.policy?.id || p.name === req.policy?.name);
   return policy?.color || req.policy?.color || DEFAULT_COLOR;
+}
+
+// Per-slot approval progress row shown inside My Requests cards
+function ApprovalProgress({ req }: { req: any }) {
+  const slots: Array<{ label: string; status: string; name: string | null; at: Date | string | null }> = [
+    {
+      label: "HR",
+      status: req.hrStatus,
+      name: req.hrApprovedByName ?? (req.hrStatus === "PENDING" ? "Any HR team member" : null),
+      at: req.hrApprovedAt,
+    },
+    {
+      label: "Team Leader",
+      status: req.teamLeaderStatus,
+      name: req.teamLeaderApprovedByName ?? req.teamLeaderName,
+      at: req.teamLeaderApprovedAt,
+    },
+    {
+      label: "Group Leader",
+      status: req.groupLeaderStatus,
+      name: req.groupLeaderApprovedByName ?? req.groupLeaderName,
+      at: req.groupLeaderApprovedAt,
+    },
+  ];
+  // If the record predates the multi-approver feature (all slots undefined), hide
+  if (slots.every(s => !s.status)) return null;
+  return (
+    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-charcoal-700 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      {slots.map(slot => {
+        const icon = slot.status === "APPROVED" ? <Check size={12} className="text-emerald-500" />
+          : slot.status === "REJECTED" ? <X size={12} className="text-red-500" />
+          : slot.status === "SKIPPED" ? <Minus size={12} className="text-gray-400" />
+          : <Clock size={12} className="text-amber-500" />;
+        const statusText = slot.status === "APPROVED" ? "approved"
+          : slot.status === "REJECTED" ? "rejected"
+          : slot.status === "SKIPPED" ? "n/a"
+          : "pending";
+        return (
+          <span key={slot.label} className="inline-flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+            {icon}
+            <span className="font-medium text-gray-700 dark:text-gray-300">{slot.label}:</span>
+            {slot.name ? <span>{slot.name}</span> : <span className="text-gray-400">—</span>}
+            <span className="text-gray-400">
+              · {statusText}
+              {slot.at && (slot.status === "APPROVED" || slot.status === "REJECTED") && (
+                <> ({format(new Date(slot.at), "MMM d")})</>
+              )}
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
 }
 
 // ─── Team Calendar Grid ───
@@ -323,42 +376,45 @@ export default function TimeOffPage() {
             <div className="space-y-3">
               {myRequests.map(req => (
                 <Card key={req.id} className="group">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-1.5 h-12 rounded-full" style={{ backgroundColor: policyColor(req, policiesData || []) }} />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold">{req.policy.name}</p>
-                          <Badge variant={STATUS_VARIANT[req.status] || "default"}>{req.status}</Badge>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-1.5 h-12 rounded-full" style={{ backgroundColor: policyColor(req, policiesData || []) }} />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold">{req.policy.name}</p>
+                            <Badge variant={STATUS_VARIANT[req.status] || "default"}>{req.status}</Badge>
+                          </div>
+                          <p className="text-sm text-gray-500">
+                            {format(new Date(req.startDate), "MMM d")} — {format(new Date(req.endDate), "MMM d, yyyy")} · {req.days} day{req.days !== 1 ? 's' : ''}
+                          </p>
+                          {req.reason && <p className="text-xs text-gray-400 mt-0.5">{req.reason}</p>}
                         </div>
-                        <p className="text-sm text-gray-500">
-                          {format(new Date(req.startDate), "MMM d")} — {format(new Date(req.endDate), "MMM d, yyyy")} · {req.days} day{req.days !== 1 ? 's' : ''}
-                        </p>
-                        {req.reason && <p className="text-xs text-gray-400 mt-0.5">{req.reason}</p>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {(req.status === 'PENDING' || req.status === 'APPROVED') && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1"
+                              onClick={() => setEditingRequest(req)}
+                            >
+                              <Pencil size={14} /> Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 gap-1"
+                              onClick={() => { if (confirm('Cancel this request?')) cancelMutation.mutate({ requestId: req.id }); }}
+                            >
+                              <X size={14} /> Cancel
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {(req.status === 'PENDING' || req.status === 'APPROVED') && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1"
-                            onClick={() => setEditingRequest(req)}
-                          >
-                            <Pencil size={14} /> Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 gap-1"
-                            onClick={() => { if (confirm('Cancel this request?')) cancelMutation.mutate({ requestId: req.id }); }}
-                          >
-                            <X size={14} /> Cancel
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                    <ApprovalProgress req={req} />
                   </CardContent>
                 </Card>
               ))}
