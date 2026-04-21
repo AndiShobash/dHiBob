@@ -3,6 +3,7 @@ import { differenceInCalendarDays, startOfYear, endOfYear } from 'date-fns';
 import { router, protectedProcedure } from '@/server/trpc';
 import { TRPCError } from '@trpc/server';
 import { calculateBalance } from '@/lib/accrual-engine';
+import { sendExternal, ExternalRecipient } from '@/lib/notification-dispatcher';
 
 // Find the employeeIds of all HR/ADMIN/SUPER_ADMIN users in a company.
 // Used for deciding who fulfils the HR approval slot on a time-off request.
@@ -19,6 +20,16 @@ async function findHrApproverIds(db: any, companyId: string): Promise<string[]> 
 
 function formatDateRange(start: Date, end: Date): string {
   return `${start.toISOString().slice(0, 10)} to ${end.toISOString().slice(0, 10)}`;
+}
+
+// Resolve external-channel recipients for a set of employeeIds.
+async function loadExternalRecipients(db: any, ids: string[]): Promise<ExternalRecipient[]> {
+  if (!ids.length) return [];
+  const employees = await db.employee.findMany({
+    where: { id: { in: Array.from(new Set(ids)) } },
+    select: { id: true, email: true, firstName: true, lastName: true, personalInfo: true },
+  });
+  return employees as ExternalRecipient[];
 }
 
 // Input schemas aligned to actual Prisma schema
@@ -310,15 +321,24 @@ export const timeoffRouter = router({
       recipients.delete(employeeId); // don't notify the requester themselves
 
       if (recipients.size > 0) {
+        const title = `${employee.firstName} ${employee.lastName} requested time off`;
+        const message = `${policy.name} · ${days} day(s) · ${formatDateRange(startDate, endDate)}`;
         await ctx.db.notification.createMany({
           data: Array.from(recipients).map(recipientId => ({
             companyId: ctx.user.companyId,
             employeeId: recipientId,
             type: 'TIMEOFF_REQUEST',
-            title: `${employee.firstName} ${employee.lastName} requested time off`,
-            message: `${policy.name} · ${days} day(s) · ${startDate.toISOString().slice(0, 10)} to ${endDate.toISOString().slice(0, 10)}`,
+            title,
+            message,
             linkUrl: '/time-off',
           })),
+        });
+        // Big event — fan out to email + Slack
+        const externalRecipients = await loadExternalRecipients(ctx.db, Array.from(recipients));
+        await sendExternal(externalRecipients, {
+          subject: title,
+          body: `${message}\n${reason ? `Reason: ${reason}` : ""}`.trim(),
+          linkPath: "/time-off",
         });
       }
     }
@@ -410,7 +430,14 @@ export const timeoffRouter = router({
           linkUrl: '/time-off',
         },
       });
-      // Inform every approver that the request is fully resolved — no further action needed
+      // Big event — fan requester approval out to email + Slack
+      const requesterRecipient = await loadExternalRecipients(ctx.db, [request.employeeId]);
+      await sendExternal(requesterRecipient, {
+        subject: "Your time off request was approved",
+        body: `${request.policy.name} · ${dateRange}`,
+        linkPath: "/time-off",
+      });
+      // Inform every approver in-app that the request is fully resolved — no further action needed
       const finalRecipients = new Set<string>();
       hrIds.forEach(id => finalRecipients.add(id));
       if (effectiveTeamLeaderId) finalRecipients.add(effectiveTeamLeaderId);
@@ -525,8 +552,15 @@ export const timeoffRouter = router({
         linkUrl: '/time-off',
       },
     });
+    // Big event — fan requester rejection out to email + Slack
+    const requesterRecipient = await loadExternalRecipients(ctx.db, [request.employeeId]);
+    await sendExternal(requesterRecipient, {
+      subject: "Your time off request was rejected",
+      body: `${request.policy.name} · ${dateRange}`,
+      linkPath: "/time-off",
+    });
 
-    // Inform every other approver that the request is resolved — no further action needed
+    // Inform every other approver in-app that the request is resolved — no further action needed
     const hrIds = await findHrApproverIds(ctx.db, ctx.user.companyId);
     const finalRecipients = new Set<string>();
     hrIds.forEach(id => finalRecipients.add(id));
