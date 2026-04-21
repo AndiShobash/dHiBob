@@ -464,21 +464,22 @@ export const timeoffRouter = router({
     return updated;
   }),
 
-  // Returns pending requests the current user can act on (HR, direct manager, or skip-level manager).
-  // Uses snapshotted leader IDs when present, otherwise falls back to the employee's current manager chain.
+  // Returns requests pending overall approval where the current user is one of the approvers
+  // (HR, direct manager, or skip-level manager). The request stays visible while at least one
+  // slot is still pending so approvers can see who else needs to act — it disappears only once
+  // every slot is resolved (status transitions to APPROVED or REJECTED).
   listMyApprovals: protectedProcedure.query(async ({ ctx }) => {
     const actorEmployeeId = ctx.user.employeeId;
     const isHrRole = ['HR', 'ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role);
 
     const orConditions: any[] = [];
-    if (isHrRole) orConditions.push({ hrStatus: 'PENDING' });
+    if (isHrRole) orConditions.push({}); // HR sees every pending request in the company
     if (actorEmployeeId) {
-      // Snapshotted leader match
-      orConditions.push({ teamLeaderId: actorEmployeeId, teamLeaderStatus: 'PENDING' });
-      orConditions.push({ groupLeaderId: actorEmployeeId, groupLeaderStatus: 'PENDING' });
-      // Fallback: requester has no snapshot but their current manager chain includes the actor
-      orConditions.push({ teamLeaderId: null, teamLeaderStatus: 'PENDING', employee: { managerId: actorEmployeeId } });
-      orConditions.push({ groupLeaderId: null, groupLeaderStatus: 'PENDING', employee: { manager: { managerId: actorEmployeeId } } });
+      orConditions.push({ teamLeaderId: actorEmployeeId });
+      orConditions.push({ groupLeaderId: actorEmployeeId });
+      // Fallback for legacy requests with null snapshots: match by the employee's current manager chain
+      orConditions.push({ teamLeaderId: null, employee: { managerId: actorEmployeeId } });
+      orConditions.push({ groupLeaderId: null, employee: { manager: { managerId: actorEmployeeId } } });
     }
     if (orConditions.length === 0) return [];
 
