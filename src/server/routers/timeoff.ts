@@ -4,6 +4,23 @@ import { router, protectedProcedure } from '@/server/trpc';
 import { TRPCError } from '@trpc/server';
 import { calculateBalance } from '@/lib/accrual-engine';
 
+// Find the employeeIds of all HR/ADMIN/SUPER_ADMIN users in a company.
+// Used for deciding who fulfils the HR approval slot on a time-off request.
+async function findHrApproverIds(db: any, companyId: string): Promise<string[]> {
+  const hrUsers = await db.user.findMany({
+    where: {
+      role: { in: ['HR', 'ADMIN', 'SUPER_ADMIN'] },
+      employee: { companyId },
+    },
+    select: { employeeId: true },
+  });
+  return hrUsers.map((u: any) => u.employeeId).filter((id: string | null): id is string => !!id);
+}
+
+function formatDateRange(start: Date, end: Date): string {
+  return `${start.toISOString().slice(0, 10)} to ${end.toISOString().slice(0, 10)}`;
+}
+
 // Input schemas aligned to actual Prisma schema
 const submitRequestSchema = z.object({
   employeeId: z.string(),
@@ -377,17 +394,61 @@ export const timeoffRouter = router({
       include: { employee: true, policy: true },
     });
 
+    const employeeName = `${request.employee.firstName} ${request.employee.lastName}`;
+    const dateRange = formatDateRange(request.startDate, request.endDate);
+    const hrIds = await findHrApproverIds(ctx.db, ctx.user.companyId);
+
     if (allResolved) {
+      // Notify the requester
       await ctx.db.notification.create({
         data: {
           companyId: ctx.user.companyId,
           employeeId: request.employeeId,
           type: 'TIMEOFF_APPROVED',
           title: `Your time off request was approved`,
-          message: `${request.policy.name} · ${request.startDate.toISOString().slice(0, 10)} to ${request.endDate.toISOString().slice(0, 10)}`,
+          message: `${request.policy.name} · ${dateRange}`,
           linkUrl: '/time-off',
         },
       });
+      // Inform every approver that the request is fully resolved — no further action needed
+      const finalRecipients = new Set<string>();
+      hrIds.forEach(id => finalRecipients.add(id));
+      if (effectiveTeamLeaderId) finalRecipients.add(effectiveTeamLeaderId);
+      if (effectiveGroupLeaderId) finalRecipients.add(effectiveGroupLeaderId);
+      finalRecipients.delete(request.employeeId); // requester already got their own
+      if (actorEmployeeId) finalRecipients.delete(actorEmployeeId); // actor just clicked approve
+      if (finalRecipients.size > 0) {
+        await ctx.db.notification.createMany({
+          data: Array.from(finalRecipients).map(rid => ({
+            companyId: ctx.user.companyId,
+            employeeId: rid,
+            type: 'TIMEOFF_APPROVED',
+            title: `${employeeName}'s time off is fully approved`,
+            message: `${request.policy.name} · ${dateRange} · no further action needed`,
+            linkUrl: '/time-off',
+          })),
+        });
+      }
+    } else {
+      // Nudge approvers whose slot is still PENDING so they know the request is moving
+      const nudgeRecipients = new Set<string>();
+      if (hr === 'PENDING') hrIds.forEach(id => nudgeRecipients.add(id));
+      if (tl === 'PENDING' && effectiveTeamLeaderId) nudgeRecipients.add(effectiveTeamLeaderId);
+      if (gl === 'PENDING' && effectiveGroupLeaderId) nudgeRecipients.add(effectiveGroupLeaderId);
+      nudgeRecipients.delete(request.employeeId);
+      if (actorEmployeeId) nudgeRecipients.delete(actorEmployeeId);
+      if (nudgeRecipients.size > 0) {
+        await ctx.db.notification.createMany({
+          data: Array.from(nudgeRecipients).map(rid => ({
+            companyId: ctx.user.companyId,
+            employeeId: rid,
+            type: 'TIMEOFF_REQUEST',
+            title: `Your approval is still needed for ${employeeName}`,
+            message: `${request.policy.name} · ${dateRange}`,
+            linkUrl: '/time-off',
+          })),
+        });
+      }
     }
 
     return updated;
@@ -450,16 +511,41 @@ export const timeoffRouter = router({
       include: { employee: true, policy: true },
     });
 
+    const employeeName = `${request.employee.firstName} ${request.employee.lastName}`;
+    const dateRange = formatDateRange(request.startDate, request.endDate);
+
+    // Notify the requester
     await ctx.db.notification.create({
       data: {
         companyId: ctx.user.companyId,
         employeeId: request.employeeId,
         type: 'TIMEOFF_REJECTED',
         title: `Your time off request was rejected`,
-        message: `${request.policy.name} · ${request.startDate.toISOString().slice(0, 10)} to ${request.endDate.toISOString().slice(0, 10)}`,
+        message: `${request.policy.name} · ${dateRange}`,
         linkUrl: '/time-off',
       },
     });
+
+    // Inform every other approver that the request is resolved — no further action needed
+    const hrIds = await findHrApproverIds(ctx.db, ctx.user.companyId);
+    const finalRecipients = new Set<string>();
+    hrIds.forEach(id => finalRecipients.add(id));
+    if (effectiveTeamLeaderId) finalRecipients.add(effectiveTeamLeaderId);
+    if (effectiveGroupLeaderId) finalRecipients.add(effectiveGroupLeaderId);
+    finalRecipients.delete(request.employeeId);
+    if (actorEmployeeId) finalRecipients.delete(actorEmployeeId);
+    if (finalRecipients.size > 0) {
+      await ctx.db.notification.createMany({
+        data: Array.from(finalRecipients).map(rid => ({
+          companyId: ctx.user.companyId,
+          employeeId: rid,
+          type: 'TIMEOFF_REJECTED',
+          title: `${employeeName}'s time off was rejected`,
+          message: `${request.policy.name} · ${dateRange} · no further action needed`,
+          linkUrl: '/time-off',
+        })),
+      });
+    }
 
     return updated;
   }),
@@ -635,7 +721,8 @@ export const timeoffRouter = router({
       return ctx.db.timeOffRequest.delete({ where: { id: input.requestId } });
     }),
 
-  // Edit a pending request
+  // Edit a pending request. Any existing approvals are thrown away — the dates
+  // changed, so every approver must decide again on the new request.
   editRequest: protectedProcedure
     .input(z.object({
       requestId: z.string(),
@@ -646,7 +733,10 @@ export const timeoffRouter = router({
     .mutation(async ({ ctx, input }) => {
       const request = await ctx.db.timeOffRequest.findUnique({
         where: { id: input.requestId },
-        include: { employee: true },
+        include: {
+          employee: { include: { manager: { include: { manager: true } } } },
+          policy: true,
+        },
       });
       if (!request) throw new TRPCError({ code: 'NOT_FOUND' });
       if (request.employeeId !== ctx.user.employeeId) {
@@ -655,7 +745,22 @@ export const timeoffRouter = router({
       if (request.status === 'REJECTED') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Rejected requests cannot be edited' });
       }
-      const data: any = { status: 'PENDING', reviewedBy: null, reviewedAt: null };
+
+      // Reset every non-SKIPPED slot back to PENDING so approvers re-decide on the new dates
+      const data: any = {
+        status: 'PENDING',
+        reviewedBy: null,
+        reviewedAt: null,
+        hrStatus: request.hrStatus === 'SKIPPED' ? 'SKIPPED' : 'PENDING',
+        hrApprovedBy: null,
+        hrApprovedAt: null,
+        teamLeaderStatus: request.teamLeaderStatus === 'SKIPPED' ? 'SKIPPED' : 'PENDING',
+        teamLeaderApprovedBy: null,
+        teamLeaderApprovedAt: null,
+        groupLeaderStatus: request.groupLeaderStatus === 'SKIPPED' ? 'SKIPPED' : 'PENDING',
+        groupLeaderApprovedBy: null,
+        groupLeaderApprovedAt: null,
+      };
       if (input.startDate) data.startDate = input.startDate;
       if (input.endDate) data.endDate = input.endDate;
       if (input.reason !== undefined) data.reason = input.reason;
@@ -663,11 +768,39 @@ export const timeoffRouter = router({
         const diffMs = input.endDate.getTime() - input.startDate.getTime();
         data.days = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1;
       }
-      return ctx.db.timeOffRequest.update({
+
+      const updated = await ctx.db.timeOffRequest.update({
         where: { id: input.requestId },
         data,
         include: { employee: true, policy: true },
       });
+
+      // Re-notify approvers that the request has changed and needs fresh approval
+      const effectiveTeamLeaderId = request.teamLeaderId ?? request.employee.managerId ?? null;
+      const effectiveGroupLeaderId = request.groupLeaderId ?? request.employee.manager?.managerId ?? null;
+      const hrIds = await findHrApproverIds(ctx.db, ctx.user.companyId);
+      const recipients = new Set<string>();
+      if (data.hrStatus === 'PENDING') hrIds.forEach(id => recipients.add(id));
+      if (data.teamLeaderStatus === 'PENDING' && effectiveTeamLeaderId) recipients.add(effectiveTeamLeaderId);
+      if (data.groupLeaderStatus === 'PENDING' && effectiveGroupLeaderId) recipients.add(effectiveGroupLeaderId);
+      recipients.delete(request.employeeId);
+
+      const employeeName = `${request.employee.firstName} ${request.employee.lastName}`;
+      const dateRange = formatDateRange(updated.startDate, updated.endDate);
+      if (recipients.size > 0) {
+        await ctx.db.notification.createMany({
+          data: Array.from(recipients).map(rid => ({
+            companyId: ctx.user.companyId,
+            employeeId: rid,
+            type: 'TIMEOFF_REQUEST',
+            title: `${employeeName} updated their time off request`,
+            message: `${request.policy.name} · ${dateRange} · needs your approval again`,
+            linkUrl: '/time-off',
+          })),
+        });
+      }
+
+      return updated;
     }),
 
   // Team calendar — all requests for the company in a date range
