@@ -330,29 +330,49 @@ function DocumentField({
   onSave?: (val: string) => unknown;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
+  // Supported JSON shapes:
+  //   { name, key }              — new, storage-backed (preferred)
+  //   { name, url: "data:..." }  — legacy base64 blob; still renders via the data URL
   let filename = '';
-  let fileUrl = '';
+  let href = '';
   if (value) {
     try {
       const parsed = JSON.parse(value);
       filename = parsed.name || '';
-      fileUrl = parsed.url || '';
+      if (parsed.key) {
+        href = `/api/files/redirect?key=${encodeURIComponent(parsed.key)}`;
+      } else if (parsed.url) {
+        href = parsed.url;
+      }
     } catch {
       filename = value;
     }
   }
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !onSave) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      onSave(JSON.stringify({ name: file.name, url: reader.result as string }));
-    };
-    reader.readAsDataURL(file);
-    // reset input so same file can be re-selected
-    e.target.value = '';
+    e.target.value = ''; // reset so the same file can be re-selected
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('folder', 'profile_docs');
+      const res = await fetch('/api/files/upload', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(err.error || 'Upload failed');
+      }
+      const { key, name } = await res.json();
+      await onSave(JSON.stringify({ name, key }));
+    } catch (err) {
+      console.error('[DocumentField] upload error:', err);
+      alert(`Upload failed: ${(err as Error).message}`);
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -361,7 +381,9 @@ function DocumentField({
       <div className="flex items-center gap-2">
         {filename ? (
           <a
-            href={fileUrl}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
             download={filename}
             className="flex items-center gap-1.5 text-sm text-primary-600 dark:text-primary-400 hover:underline max-w-[140px] truncate"
             title={filename}
@@ -372,14 +394,15 @@ function DocumentField({
         ) : (
           <span className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-gray-500">
             <FileText size={14} />
-            <span>No file</span>
+            <span>{uploading ? 'Uploading…' : 'No file'}</span>
           </span>
         )}
         {onSave && (
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="flex items-center justify-center w-5 h-5 rounded-full bg-primary-500 hover:bg-primary-600 text-white transition-colors shrink-0"
+            disabled={uploading}
+            className="flex items-center justify-center w-5 h-5 rounded-full bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white transition-colors shrink-0"
             title="Upload document"
           >
             <Plus size={11} strokeWidth={2.5} />
@@ -650,15 +673,26 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
   const updateWorkInfo = trpc.employee.updateWorkInfo.useMutation({ onSuccess: invalidate });
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const handleAvatarFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      updateEmployee.mutateAsync({ id: params.id, avatar: reader.result as string } as any);
-    };
-    reader.readAsDataURL(file);
     e.target.value = '';
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('folder', 'avatars');
+      const res = await fetch('/api/files/upload', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(err.error || 'Upload failed');
+      }
+      const { key } = await res.json();
+      // Store the redirect URL so any <img src> resolves to a fresh presigned URL per fetch.
+      await updateEmployee.mutateAsync({ id: params.id, avatar: `/api/files/redirect?key=${encodeURIComponent(key)}` } as any);
+    } catch (err) {
+      console.error('[avatar] upload error:', err);
+      alert(`Avatar upload failed: ${(err as Error).message}`);
+    }
   };
 
   if (isLoading) {

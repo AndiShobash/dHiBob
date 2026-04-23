@@ -82,10 +82,103 @@ async function migrateHrPortal() {
   console.log(`[hr-portal] migrated=${migrated} skipped=${skipped}`);
 }
 
+/**
+ * Walk an arbitrary JSON value. For any object shaped like
+ * { name, url: "data:<mime>;base64,..." }, decode the base64, upload to
+ * storage, and rewrite the object to { name, key }. Returns true if
+ * anything was rewritten so the caller knows to save the outer record.
+ */
+async function rewriteDocFields(node: any, folder: string): Promise<boolean> {
+  if (!node || typeof node !== 'object') return false;
+  let mutated = false;
+
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      if (await rewriteDocFields(item, folder)) mutated = true;
+    }
+    return mutated;
+  }
+
+  for (const k of Object.keys(node)) {
+    const v = node[k];
+    if (v && typeof v === 'string' && v.startsWith('{')) {
+      // Some profile fields nest document JSON as a *string* value.
+      try {
+        const inner = JSON.parse(v);
+        if (inner && typeof inner === 'object' && inner.name && typeof inner.url === 'string' && isDataUrl(inner.url)) {
+          const key = await uploadBase64(inner.url, inner.name ?? 'file', folder);
+          if (key) {
+            node[k] = JSON.stringify({ name: inner.name, key });
+            mutated = true;
+          }
+          continue;
+        }
+      } catch { /* not JSON, fall through */ }
+    }
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      if (v.name && typeof v.url === 'string' && isDataUrl(v.url)) {
+        const key = await uploadBase64(v.url, v.name ?? 'file', folder);
+        if (key) {
+          node[k] = { name: v.name, key };
+          mutated = true;
+        }
+        continue;
+      }
+      if (await rewriteDocFields(v, folder)) mutated = true;
+    } else if (Array.isArray(v)) {
+      if (await rewriteDocFields(v, folder)) mutated = true;
+    }
+  }
+  return mutated;
+}
+
+async function migrateEmployeeProfiles() {
+  const employees = await prisma.employee.findMany({
+    select: { id: true, avatar: true, personalInfo: true, workInfo: true },
+  });
+  console.log(`[employees] ${employees.length} rows to scan`);
+
+  let migrated = 0;
+  for (const emp of employees) {
+    const updates: { avatar?: string; personalInfo?: string; workInfo?: string } = {};
+
+    // Avatar — stored as a plain string (data URL or redirect URL).
+    if (emp.avatar && isDataUrl(emp.avatar)) {
+      try {
+        const key = await uploadBase64(emp.avatar, 'avatar', 'avatars');
+        if (key) updates.avatar = `/api/files/redirect?key=${encodeURIComponent(key)}`;
+      } catch (err) {
+        console.error(`[employees] ${emp.id} avatar:`, err);
+      }
+    }
+
+    // personalInfo (JSON string) — scan for {name, url:data:} shapes
+    for (const [field, folder] of [['personalInfo', 'profile_docs'], ['workInfo', 'profile_docs']] as const) {
+      const raw = (emp as any)[field];
+      if (!raw) continue;
+      try {
+        const obj = JSON.parse(raw);
+        if (await rewriteDocFields(obj, folder)) {
+          updates[field] = JSON.stringify(obj);
+        }
+      } catch (err) {
+        console.error(`[employees] ${emp.id} ${field} parse:`, err);
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await prisma.employee.update({ where: { id: emp.id }, data: updates });
+      migrated++;
+    }
+  }
+  console.log(`[employees] migrated=${migrated}`);
+}
+
 async function main() {
   console.log(`Using storage driver: ${process.env.STORAGE_DRIVER ?? 'local'}`);
   await migrateExpenses();
   await migrateHrPortal();
+  await migrateEmployeeProfiles();
 }
 
 main()
