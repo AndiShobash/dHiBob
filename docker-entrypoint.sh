@@ -22,5 +22,13 @@ if [ "$RUN_SEED" = "true" ]; then
   npx tsx prisma/seed.ts
 fi
 
+# If the caller passed a command (docker compose run ... app <cmd>), run that
+# instead of the server. Lets one-off jobs like migration scripts share the
+# same Postgres-wait + migrate-deploy bootstrap.
+if [ "$#" -gt 0 ]; then
+  echo "Running custom command: $@"
+  exec "$@"
+fi
+
 echo "Starting server..."
 exec npm run start
