@@ -1,6 +1,16 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
+import { uploadDataUrl, resolveDownloadUrl, isDataUrl } from '@/lib/storage';
+
+type ExpenseRow = { invoiceFile: string | null; invoiceFileKey: string | null };
+
+async function enrichWithFileUrl<T extends ExpenseRow>(claim: T): Promise<T & { invoiceFileUrl: string | null }> {
+  return {
+    ...claim,
+    invoiceFileUrl: await resolveDownloadUrl(claim.invoiceFileKey, claim.invoiceFile),
+  };
+}
 
 export const expensesRouter = router({
   // List expenses — employees see their own, admins see all
@@ -28,16 +38,19 @@ export const expensesRouter = router({
         if (input?.endDate) where.expenseDate.lte = input.endDate;
       }
 
-      return ctx.db.expenseClaim.findMany({
+      const claims = await ctx.db.expenseClaim.findMany({
         where,
         include: {
           employee: { select: { id: true, firstName: true, lastName: true, avatar: true, department: { select: { name: true } } } },
         },
         orderBy: { createdAt: 'desc' },
       });
+
+      return Promise.all(claims.map(enrichWithFileUrl));
     }),
 
-  // Submit expense claim
+  // Submit expense claim. Accepts a base64 data URL in invoiceFile; the
+  // bytes are uploaded to the storage provider and only the key is persisted.
   submit: protectedProcedure
     .input(z.object({
       expenseType: z.string().min(1),
@@ -51,11 +64,21 @@ export const expensesRouter = router({
       notes: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      const { invoiceFile, invoiceFileName, ...rest } = input;
+      let invoiceFileKey: string | null = null;
+
+      if (isDataUrl(invoiceFile)) {
+        invoiceFileKey = await uploadDataUrl(invoiceFile!, invoiceFileName ?? 'invoice', 'expense_invoices');
+      }
+
       return ctx.db.expenseClaim.create({
         data: {
           companyId: ctx.user.companyId,
           employeeId: ctx.user.employeeId!,
-          ...input,
+          ...rest,
+          invoiceFileName: invoiceFileName ?? null,
+          invoiceFileKey,
+          // invoiceFile left null — legacy column only holds pre-migration base64
         },
       });
     }),

@@ -591,7 +591,8 @@ model HrPortalItem {
   content     String?                         // Description or announcement body
   url         String?                         // For LINK type
   fileName    String?                         // For FILE type — original file name
-  fileData    String?                         // For FILE type — base64 data or URL
+  fileData    String?                         // Legacy — base64; superseded by fileKey. Kept for backfill fallback.
+  fileKey     String?                         // For FILE type — storage key (S3 or local). Read via storage.getDownloadUrl().
   pinned      Boolean  @default(false)
   sortOrder   Int      @default(0)
   authorId    String
@@ -678,7 +679,8 @@ model ExpenseClaim {
   currency        String    @default("USD")
   expenseDate     DateTime
   payrollMonth    String?                         // e.g. "2026-04"
-  invoiceFile     String?                         // base64 or URL
+  invoiceFile     String?                         // Legacy — base64; superseded by invoiceFileKey. Kept for backfill fallback.
+  invoiceFileKey  String?                         // Storage key (S3 or local). Read via storage.getDownloadUrl().
   invoiceFileName String?
   notes           String?
   status          String    @default("PENDING")   // PENDING | APPROVED | REJECTED

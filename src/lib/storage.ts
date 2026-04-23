@@ -46,7 +46,7 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async getDownloadUrl(filePath: string): Promise<string> {
-    return `/api/documents/download?path=${encodeURIComponent(filePath)}`;
+    return `/api/files/download?path=${encodeURIComponent(filePath)}`;
   }
 
   async deleteFile(filePath: string): Promise<void> {
@@ -135,3 +135,42 @@ function guessContentType(fileName: string): string {
 
 export const storage: StorageProvider =
   process.env.STORAGE_DRIVER === 's3' ? new S3StorageProvider() : new LocalStorageProvider();
+
+// Data URL helpers — callers accept base64 data URLs from the browser
+// and persist the bytes to the storage provider, returning the new key.
+
+export function isDataUrl(value: string | null | undefined): boolean {
+  return typeof value === 'string' && value.startsWith('data:');
+}
+
+/**
+ * Decode a `data:<mime>;base64,<payload>` URL and upload the bytes via the
+ * active storage provider. Returns the storage key. If the input isn't a
+ * data URL, returns null — callers can treat that as a no-op.
+ */
+export async function uploadDataUrl(
+  dataUrl: string,
+  fileName: string,
+  folder: string,
+): Promise<string | null> {
+  if (!isDataUrl(dataUrl)) return null;
+  const comma = dataUrl.indexOf(',');
+  if (comma < 0) return null;
+  const payload = dataUrl.slice(comma + 1);
+  const buffer = Buffer.from(payload, 'base64');
+  return storage.uploadFile(buffer, fileName || 'file', folder);
+}
+
+/**
+ * Resolve a downloadable URL for a stored file. Prefers the storage key (S3
+ * presigned URL or local proxy). Falls back to the legacy base64 data URL
+ * when the row hasn't been backfilled yet. Returns null if neither exists.
+ */
+export async function resolveDownloadUrl(
+  storageKey: string | null | undefined,
+  legacyBase64: string | null | undefined,
+): Promise<string | null> {
+  if (storageKey) return storage.getDownloadUrl(storageKey);
+  if (legacyBase64) return legacyBase64; // already a data: URL; browser renders it directly
+  return null;
+}

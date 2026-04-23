@@ -69,7 +69,7 @@ describe('LocalStorageProvider', () => {
     it('returns a correct download URL', async () => {
       const filePath = 'user-1/123-test.pdf';
       const result = await provider.getDownloadUrl(filePath);
-      expect(result).toBe(`/api/documents/download?path=${encodeURIComponent(filePath)}`);
+      expect(result).toBe(`/api/files/download?path=${encodeURIComponent(filePath)}`);
     });
   });
 

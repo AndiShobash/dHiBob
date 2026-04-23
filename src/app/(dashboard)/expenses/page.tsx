@@ -144,8 +144,8 @@ export default function ExpensesPage() {
                 <td className="p-3 text-gray-500">{fmtDate(expense.expenseDate)}</td>
                 <td className="p-3 text-gray-500">{expense.payrollMonth || '—'}</td>
                 <td className="p-3">
-                  {expense.invoiceFile ? (
-                    <a href={expense.invoiceFile} download={expense.invoiceFileName} className="text-primary-500 hover:text-primary-600 flex items-center gap-1">
+                  {expense.invoiceFileUrl ? (
+                    <a href={expense.invoiceFileUrl} target="_blank" rel="noopener noreferrer" download={expense.invoiceFileName ?? undefined} className="text-primary-500 hover:text-primary-600 flex items-center gap-1">
                       <FileText size={14} /> {expense.invoiceFileName || 'Download'}
                     </a>
                   ) : '—'}

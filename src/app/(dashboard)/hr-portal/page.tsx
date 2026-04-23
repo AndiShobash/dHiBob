@@ -171,9 +171,11 @@ export default function HrPortalPage() {
                     {item.content && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{item.content}</p>
                     )}
-                    {item.type === 'FILE' && item.fileData && (
+                    {item.type === 'FILE' && item.fileUrl && (
                       <a
-                        href={item.fileData}
+                        href={item.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         download={item.fileName || 'file'}
                         className="inline-flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600"
                       >
