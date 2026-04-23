@@ -23,27 +23,13 @@ provider "aws" {
 }
 
 # ---------------------------------------------------------------------------
-# Default VPC + first public subnet. A new VPC isn't worth the sandbox
-# complexity for a single EC2.
+# VPC — we create our own instead of relying on the default VPC, which may
+# be absent in a fresh sandbox. One /16 VPC + one /24 public subnet + IGW.
 # ---------------------------------------------------------------------------
 
-data "aws_vpc" "default" {
-  default = true
-}
-
-data "aws_subnets" "default_public" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-  filter {
-    name   = "default-for-az"
-    values = ["true"]
-  }
-}
-
-locals {
-  public_subnet_id = data.aws_subnets.default_public.ids[0]
+module "network" {
+  source = "./modules/network"
+  name   = var.project
 }
 
 # ---------------------------------------------------------------------------
@@ -115,8 +101,8 @@ locals {
 module "ec2_app" {
   source            = "./modules/ec2_app"
   name              = "${var.project}-app"
-  vpc_id            = data.aws_vpc.default.id
-  subnet_id         = local.public_subnet_id
+  vpc_id            = module.network.vpc_id
+  subnet_id         = module.network.public_subnet_id
   admin_cidr        = var.admin_cidr
   key_pair_name     = var.key_pair_name
   instance_type     = var.instance_type
