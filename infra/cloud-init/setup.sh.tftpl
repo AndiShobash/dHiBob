@@ -26,12 +26,18 @@ systemctl enable --now docker
 systemctl enable --now crond
 usermod -aG docker ec2-user
 
-# docker compose v2 plugin (cli-plugins path)
+# docker compose v2 + buildx plugins (cli-plugins path). Amazon Linux 2023
+# ships Docker without a recent-enough buildx, which `docker compose build`
+# requires (compose calls buildx 0.17+ for build orchestration).
 mkdir -p /usr/libexec/docker/cli-plugins
 curl -sSL \
   https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
   -o /usr/libexec/docker/cli-plugins/docker-compose
 chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+curl -sSL \
+  https://github.com/docker/buildx/releases/latest/download/buildx-v0.19.2.linux-amd64 \
+  -o /usr/libexec/docker/cli-plugins/docker-buildx
+chmod +x /usr/libexec/docker/cli-plugins/docker-buildx
 
 # --- Application checkout --------------------------------------------
 sudo -u ec2-user bash -c "git clone --branch ${repo_branch} ${repo_url} $APP_DIR"
