@@ -14,11 +14,13 @@ if [ -n "$DATABASE_URL" ]; then
   echo "Postgres is up."
 fi
 
-echo "Setting up database..."
-npx prisma db push --skip-generate --accept-data-loss
+echo "Applying migrations..."
+npx prisma migrate deploy
 
-echo "Seeding database..."
-npx tsx prisma/seed.ts
+if [ "$RUN_SEED" = "true" ]; then
+  echo "RUN_SEED=true — seeding database (DESTRUCTIVE, wipes all tables)"
+  npx tsx prisma/seed.ts
+fi
 
 echo "Starting server..."
 exec npm run start

@@ -1,0 +1,21 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+
+admin_cidr    = "X.X.X.X/32"            # your current public IP for SSH
+key_pair_name = "dhibob-deploy"         # must exist in the region already
+
+# Plan A — Route 53 registered domain
+use_route53 = true
+domain_name = "your-domain.com"
+subdomain   = "app"
+
+# Plan B — sandbox blocks Route 53 registration → set use_route53 = false
+# and uncomment the nip.io override below (replace with your actual EIP,
+# with dots turned into dashes):
+# use_route53          = false
+# site_domain_override = "52-200-1-23.nip.io"
+
+# Image built locally and pushed to GHCR (or Docker Hub). Include tag.
+app_image   = "ghcr.io/andishobash/dhibob:latest"
+
+repo_url    = "https://github.com/AndiShobash/dHiBob.git"
+repo_branch = "main"
