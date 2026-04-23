@@ -50,20 +50,11 @@ curl -s https://checkip.amazonaws.com
 
 This goes into `admin_cidr` as `<ip>/32`.
 
-### 4. Build + push the app image to GHCR
+### 4. Image build
 
-The EC2's `docker-compose.prod.yml` pulls from `ghcr.io/andishobash/dhibob:latest`. Build once:
+No pre-built image needed — the EC2 clones the repo on first boot and builds via `docker compose up -d --build`. First boot takes ~5–8 min for `npm ci` + `next build`; subsequent boots reuse the cached image.
 
-```bash
-# In the repo root, not infra/
-export CR_PAT=<GitHub PAT with write:packages>
-echo "$CR_PAT" | docker login ghcr.io -u andishobash --password-stdin
-
-docker build -t ghcr.io/andishobash/dhibob:latest .
-docker push ghcr.io/andishobash/dhibob:latest
-```
-
-(Alternative: push to Docker Hub and set `app_image` accordingly in tfvars.)
+Cloud-init adds a 2 GB swapfile to the EC2 so `next build` has breathing room on a 1 GB t3.micro.
 
 ---
 

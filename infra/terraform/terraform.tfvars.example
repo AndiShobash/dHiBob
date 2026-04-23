@@ -36,8 +36,9 @@ site_domain_override = ""   # leave blank to auto-derive from the EIP
 # subdomain   = "app"      # results in app.your-develeap-domain.com
 
 # ---------------------------------------------------------------------
-# APP IMAGE + REPO
+# REPO
 # ---------------------------------------------------------------------
-app_image   = "ghcr.io/andishobash/dhibob:latest"
+# EC2 clones this repo and builds the image in place via `docker compose
+# up -d --build` — no registry needed.
 repo_url    = "https://github.com/AndiShobash/dHiBob.git"
 repo_branch = "main"

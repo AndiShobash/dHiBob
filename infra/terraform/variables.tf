@@ -56,12 +56,6 @@ variable "site_domain_override" {
   default     = ""
 }
 
-variable "app_image" {
-  description = "Docker image for the Next.js app, including tag. GHCR recommended for free private hosting."
-  type        = string
-  default     = "ghcr.io/andishobash/dhibob:latest"
-}
-
 variable "repo_url" {
   description = "Git URL cloned on the EC2 to get docker-compose.prod.yml, Caddyfile, prisma/, etc."
   type        = string

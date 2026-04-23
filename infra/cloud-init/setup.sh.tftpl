@@ -7,6 +7,18 @@ set -euxo pipefail
 APP_DIR=/home/ec2-user/dhibob
 SITE_DOMAIN="${site_domain}"
 
+# --- 2 GB swap ------------------------------------------------------
+# t3.micro only has 1 GB RAM. `next build` can OOM without swap. Swap
+# file lives on the root EBS volume — free, just disk, and idle when
+# RAM is plentiful.
+if [ ! -f /swapfile ]; then
+  fallocate -l 2G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
 # --- System packages -------------------------------------------------
 dnf update -y
 dnf install -y docker git awscli cronie
@@ -46,8 +58,6 @@ S3_BUCKET=${s3_bucket}
 AWS_REGION=${aws_region}
 S3_ACCESS_KEY_ID=${s3_access_key_id}
 S3_SECRET_ACCESS_KEY=${s3_secret_access_key}
-
-APP_IMAGE=${app_image}
 
 # External notifications — fill later when ready
 RESEND_API_KEY=
@@ -104,9 +114,11 @@ if [ -n "$EXPECTED_PUBLIC_IP" ]; then
 fi
 
 # --- Boot the stack --------------------------------------------------
-# Pull the image first so Caddy doesn't race ahead of the app.
-sudo -u ec2-user bash -c "cd $APP_DIR && docker compose -f docker-compose.prod.yml pull"
-sudo -u ec2-user bash -c "cd $APP_DIR && docker compose -f docker-compose.prod.yml up -d"
+# Build the app image from the cloned repo (no registry), then start.
+# `up -d --build` builds, then starts everything. First build takes
+# ~5–8 min (npm ci + next build); subsequent boots reuse the cached
+# image so only app restarts are quick.
+sudo -u ec2-user bash -c "cd $APP_DIR && docker compose -f docker-compose.prod.yml up -d --build"
 
 echo "DHiBob stack is starting. Follow logs with:"
 echo "  cd $APP_DIR && docker compose -f docker-compose.prod.yml logs -f"

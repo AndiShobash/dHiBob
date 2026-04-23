@@ -84,7 +84,6 @@ locals {
   cloud_init = templatefile("${path.module}/../cloud-init/setup.sh.tftpl", {
     repo_url             = var.repo_url
     repo_branch          = var.repo_branch
-    app_image            = var.app_image
     site_domain          = local.site_domain
     expected_public_ip   = aws_eip.app.public_ip
     s3_bucket            = module.s3.bucket_name
