@@ -83,32 +83,21 @@ If the plan looks right, apply:
 terraform apply
 ```
 
-### First-apply two-step (only needed when using nip.io)
+### What happens during apply (nip.io path)
 
-The app needs its final hostname baked into the cloud-init (for Caddy's cert). With nip.io you don't know the IP until after the EC2 exists. So:
+1. Terraform allocates the Elastic IP first (e.g. `52.200.1.23`).
+2. It computes the nip.io hostname: `52-200-1-23.nip.io`.
+3. It bakes that hostname into cloud-init and creates the EC2.
+4. The instance boots. Cloud-init polls IMDS until the EIP is actually attached (up to ~2 min), then starts the Docker Compose stack.
+5. Caddy requests a Let's Encrypt cert for `52-200-1-23.nip.io` — LE's DNS lookup returns the EIP, hits our Caddy on :80, challenge passes.
+6. HTTPS is live.
 
-1. First apply leaves Caddy failing (`site_domain` resolves to an empty string).
-2. Grab the IP:
-   ```bash
-   terraform output public_ip
-   # e.g. 52.200.1.23
-   ```
-3. Edit `terraform.tfvars`:
-   ```
-   site_domain_override = "52-200-1-23.nip.io"
-   ```
-4. Re-apply — user_data is `ignore_changes` on the existing instance, so Terraform won't recreate. SSH in and restart the stack so Caddy picks up the hostname:
-   ```bash
-   ssh -i ~/.ssh/dhibob-deploy.pem ec2-user@<eip>
-   cd dhibob
-   # Manually patch the SITE_DOMAIN in .env
-   sed -i 's|^SITE_DOMAIN=.*|SITE_DOMAIN=52-200-1-23.nip.io|' .env
-   sed -i 's|^NEXTAUTH_URL=.*|NEXTAUTH_URL=https://52-200-1-23.nip.io|' .env
-   sed -i 's|^NEXT_PUBLIC_APP_URL=.*|NEXT_PUBLIC_APP_URL=https://52-200-1-23.nip.io|' .env
-   docker compose -f docker-compose.prod.yml up -d
-   ```
+No second apply, no SSH-and-edit. Just:
 
-Or the cleaner path: `terraform destroy`, set `site_domain_override` first, then `terraform apply` once — you get a new IP (sandboxes allocate sequentially, not your old one) but user_data runs fresh.
+```bash
+terraform output site_domain    # e.g. "52-200-1-23.nip.io"
+curl https://$(terraform output -raw site_domain)/api/health
+```
 
 ### Real-domain path
 

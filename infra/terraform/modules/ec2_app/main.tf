@@ -62,14 +62,16 @@ resource "aws_instance" "this" {
 
   lifecycle {
     ignore_changes = [
-      ami,       # Avoid reprovisions on AMI updates; rebuild manually when wanted
-      user_data, # Don't recreate the box on cloud-init tweaks — SSH in and apply instead
+      ami,       # Don't reprovision on AMI updates; rebuild manually when wanted
+      user_data, # Don't recreate on cloud-init tweaks — SSH in and apply instead
     ]
   }
 }
 
-resource "aws_eip" "this" {
-  domain   = "vpc"
-  instance = aws_instance.this.id
-  tags     = merge(var.tags, { Name = var.name })
+# EIP is allocated by the caller (root) so it can feed its public_ip into
+# the rendered user_data before the instance is created. The module only
+# handles the association.
+resource "aws_eip_association" "this" {
+  instance_id   = aws_instance.this.id
+  allocation_id = var.eip_allocation_id
 }

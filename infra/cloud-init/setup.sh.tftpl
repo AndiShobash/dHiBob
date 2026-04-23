@@ -81,6 +81,28 @@ chown ec2-user:ec2-user /home/ec2-user/backup.sh
 (sudo -u ec2-user crontab -l 2>/dev/null; echo "15 3 * * * /home/ec2-user/backup.sh >> /home/ec2-user/backup.log 2>&1") \
   | sudo -u ec2-user crontab -
 
+# --- Wait for the Elastic IP to attach -------------------------------
+# Caddy asks Let's Encrypt for a cert on first boot. LE resolves DNS for
+# $SITE_DOMAIN → EIP, then hits the ACME HTTP-01 challenge on :80. That
+# only works once the EIP is routed to this instance, which happens a
+# few seconds after the instance enters "running" state. Poll IMDS until
+# our public IP matches the expected EIP before booting the stack.
+EXPECTED_PUBLIC_IP="${expected_public_ip}"
+if [ -n "$EXPECTED_PUBLIC_IP" ]; then
+  echo "Waiting for Elastic IP $EXPECTED_PUBLIC_IP to attach..."
+  for i in $(seq 1 60); do
+    IMDS_TOKEN=$(curl -sS -X PUT "http://169.254.169.254/latest/api/token" \
+      -H "X-aws-ec2-metadata-token-ttl-seconds: 300" || true)
+    CURRENT_IP=$(curl -sS -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
+      http://169.254.169.254/latest/meta-data/public-ipv4 || true)
+    if [ "$CURRENT_IP" = "$EXPECTED_PUBLIC_IP" ]; then
+      echo "Elastic IP attached after $((i * 2))s — public IP is $CURRENT_IP"
+      break
+    fi
+    sleep 2
+  done
+fi
+
 # --- Boot the stack --------------------------------------------------
 # Pull the image first so Caddy doesn't race ahead of the app.
 sudo -u ec2-user bash -c "cd $APP_DIR && docker compose -f docker-compose.prod.yml pull"

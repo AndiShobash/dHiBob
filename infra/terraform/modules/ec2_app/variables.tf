@@ -40,8 +40,13 @@ variable "user_data" {
   type        = string
 }
 
+variable "eip_allocation_id" {
+  description = "Allocation ID of a pre-allocated Elastic IP. The module associates it with the instance."
+  type        = string
+}
+
 variable "tags" {
-  description = "Tags applied to the SG, instance, and EIP."
+  description = "Tags applied to the SG and instance."
   type        = map(string)
   default     = {}
 }

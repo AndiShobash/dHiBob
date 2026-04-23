@@ -1,6 +1,6 @@
 output "public_ip" {
   description = "Elastic IP of the EC2 — point DNS here."
-  value       = module.ec2_app.public_ip
+  value       = aws_eip.app.public_ip
 }
 
 output "site_domain" {

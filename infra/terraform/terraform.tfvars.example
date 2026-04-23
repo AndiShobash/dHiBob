@@ -17,24 +17,16 @@ admin_cidr = "X.X.X.X/32"
 key_pair_name = "dhibob-deploy"
 
 # ---------------------------------------------------------------------
-# DOMAIN (sandbox path — use nip.io, leave use_route53 = false)
+# DOMAIN (sandbox / HR-testing path — nip.io, zero extra steps)
 # ---------------------------------------------------------------------
 #
-# The sandbox usually blocks Route 53 domain registration (billing restriction).
-# Workflow:
-#   1. Run terraform apply WITHOUT filling in site_domain_override. Caddy will
-#      fail to start — that's expected, we need the Elastic IP first.
-#   2. terraform output public_ip → say it prints 52.200.1.23
-#   3. Set site_domain_override = "52-200-1-23.nip.io" (dots → dashes)
-#   4. terraform apply again (no resources recreated; user_data isn't re-triggered
-#      on a running instance — ssh in and restart the stack manually, OR destroy
-#      & recreate; see infra/README.md).
-#
-# So for the first apply it's simplest to guess a hostname you'll reuse, or just
-# leave it blank and do the two-step.
+# Terraform allocates the Elastic IP before creating the EC2, so it knows
+# the public IP at plan time. It bakes "<ip-with-dashes>.nip.io" into
+# cloud-init, the instance waits for the EIP to attach, and Caddy gets a
+# real Let's Encrypt cert for that hostname on first boot. One apply, done.
 
 use_route53          = false
-site_domain_override = ""   # fill in "<eip-with-dashes>.nip.io" after first apply
+site_domain_override = ""   # leave blank to auto-derive from the EIP
 
 # ---------------------------------------------------------------------
 # DOMAIN (production path — when you have a real domain in Route 53)
