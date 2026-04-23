@@ -15,7 +15,10 @@ COPY . .
 # Generate Prisma client
 RUN npx prisma generate
 
-# Build Next.js
+# Build Next.js. Bump Node's heap ceiling so the build completes on
+# memory-tight hosts (t3.micro w/ swap). Default is ~500 MB which OOMs
+# during type-checking on this codebase.
+ENV NODE_OPTIONS=--max-old-space-size=2048
 RUN npm run build
 
 # Expose port
