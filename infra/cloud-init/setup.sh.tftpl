@@ -87,8 +87,9 @@ BACKUP
 chmod +x /home/ec2-user/backup.sh
 chown ec2-user:ec2-user /home/ec2-user/backup.sh
 
-# Nightly backup at 03:15 UTC
-(sudo -u ec2-user crontab -l 2>/dev/null; echo "15 3 * * * /home/ec2-user/backup.sh >> /home/ec2-user/backup.log 2>&1") \
+# Nightly backup at 03:15 UTC. `crontab -l` exits non-zero when no crontab
+# exists yet — swallow that so `set -e` doesn't abort the rest of boot.
+(sudo -u ec2-user crontab -l 2>/dev/null || true; echo "15 3 * * * /home/ec2-user/backup.sh >> /home/ec2-user/backup.log 2>&1") \
   | sudo -u ec2-user crontab -
 
 # --- Wait for the Elastic IP to attach -------------------------------
