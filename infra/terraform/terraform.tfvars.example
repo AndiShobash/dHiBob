@@ -1,21 +1,51 @@
 # Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+# The example below assumes the Develeap sandbox account 695296766764.
 
-admin_cidr    = "X.X.X.X/32"            # your current public IP for SSH
-key_pair_name = "dhibob-deploy"         # must exist in the region already
+# ---------------------------------------------------------------------
+# REQUIRED
+# ---------------------------------------------------------------------
 
-# Plan A — Route 53 registered domain
-use_route53 = true
-domain_name = "your-domain.com"
-subdomain   = "app"
+# Your current public IP, in CIDR form. Only this IP can SSH to the EC2.
+# Get it with: curl -s https://checkip.amazonaws.com
+admin_cidr = "X.X.X.X/32"
 
-# Plan B — sandbox blocks Route 53 registration → set use_route53 = false
-# and uncomment the nip.io override below (replace with your actual EIP,
-# with dots turned into dashes):
-# use_route53          = false
-# site_domain_override = "52-200-1-23.nip.io"
+# EC2 key pair name (must already exist in us-east-1).
+# Create one with:
+#   aws ec2 create-key-pair --key-name dhibob-deploy \
+#     --query KeyMaterial --output text > ~/.ssh/dhibob-deploy.pem
+#   chmod 400 ~/.ssh/dhibob-deploy.pem
+key_pair_name = "dhibob-deploy"
 
-# Image built locally and pushed to GHCR (or Docker Hub). Include tag.
+# ---------------------------------------------------------------------
+# DOMAIN (sandbox path — use nip.io, leave use_route53 = false)
+# ---------------------------------------------------------------------
+#
+# The sandbox usually blocks Route 53 domain registration (billing restriction).
+# Workflow:
+#   1. Run terraform apply WITHOUT filling in site_domain_override. Caddy will
+#      fail to start — that's expected, we need the Elastic IP first.
+#   2. terraform output public_ip → say it prints 52.200.1.23
+#   3. Set site_domain_override = "52-200-1-23.nip.io" (dots → dashes)
+#   4. terraform apply again (no resources recreated; user_data isn't re-triggered
+#      on a running instance — ssh in and restart the stack manually, OR destroy
+#      & recreate; see infra/README.md).
+#
+# So for the first apply it's simplest to guess a hostname you'll reuse, or just
+# leave it blank and do the two-step.
+
+use_route53          = false
+site_domain_override = ""   # fill in "<eip-with-dashes>.nip.io" after first apply
+
+# ---------------------------------------------------------------------
+# DOMAIN (production path — when you have a real domain in Route 53)
+# ---------------------------------------------------------------------
+# use_route53 = true
+# domain_name = "your-develeap-domain.com"
+# subdomain   = "app"      # results in app.your-develeap-domain.com
+
+# ---------------------------------------------------------------------
+# APP IMAGE + REPO
+# ---------------------------------------------------------------------
 app_image   = "ghcr.io/andishobash/dhibob:latest"
-
 repo_url    = "https://github.com/AndiShobash/dHiBob.git"
 repo_branch = "main"

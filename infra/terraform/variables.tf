@@ -33,9 +33,9 @@ variable "ebs_size_gb" {
 }
 
 variable "use_route53" {
-  description = "If true, create a Route 53 hosted zone + A record. Needs the domain registered already (in this account or delegated)."
+  description = "If true, create a Route 53 hosted zone + A record. Needs the domain registered already (in this account or delegated). Default is false — sandboxes often block domain registration; nip.io works out of the box."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "domain_name" {
