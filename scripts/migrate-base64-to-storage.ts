@@ -83,40 +83,54 @@ async function migrateHrPortal() {
 }
 
 /**
- * Walk an arbitrary JSON value. For any object shaped like
- * { name, url: "data:<mime>;base64,..." }, decode the base64, upload to
- * storage, and rewrite the object to { name, key }. Returns true if
- * anything was rewritten so the caller knows to save the outer record.
+ * Try to parse a string as JSON without ever swallowing non-JSON exceptions
+ * past the parse itself.
  */
-async function rewriteDocFields(node: any, folder: string): Promise<boolean> {
+function tryParseJson(s: string): any | undefined {
+  if (typeof s !== 'string' || !s.startsWith('{')) return undefined;
+  try { return JSON.parse(s); } catch { return undefined; }
+}
+
+/**
+ * Walk an arbitrary JSON value. For any object shaped like
+ * { name, url: "data:<mime>;base64,..." } (whether nested as an object or
+ * as a stringified-JSON value), decode the base64, upload to storage, and
+ * rewrite the slot to { name, key }. Returns true if anything was rewritten.
+ *
+ * Upload errors are NOT silently swallowed — they bubble up so the caller
+ * can log them and decide to skip vs abort.
+ */
+async function rewriteDocFields(node: any, folder: string, path: string = '$'): Promise<boolean> {
   if (!node || typeof node !== 'object') return false;
   let mutated = false;
 
   if (Array.isArray(node)) {
-    for (const item of node) {
-      if (await rewriteDocFields(item, folder)) mutated = true;
+    for (let i = 0; i < node.length; i++) {
+      if (await rewriteDocFields(node[i], folder, `${path}[${i}]`)) mutated = true;
     }
     return mutated;
   }
 
   for (const k of Object.keys(node)) {
     const v = node[k];
-    if (v && typeof v === 'string' && v.startsWith('{')) {
-      // Some profile fields nest document JSON as a *string* value.
-      try {
-        const inner = JSON.parse(v);
-        if (inner && typeof inner === 'object' && inner.name && typeof inner.url === 'string' && isDataUrl(inner.url)) {
-          const key = await uploadBase64(inner.url, inner.name ?? 'file', folder);
-          if (key) {
-            node[k] = JSON.stringify({ name: inner.name, key });
-            mutated = true;
-          }
-          continue;
-        }
-      } catch { /* not JSON, fall through */ }
+
+    // Case 1: value is a *stringified* doc JSON ({"name":..,"url":"data:.."})
+    const inner = tryParseJson(v);
+    if (inner && typeof inner === 'object' && !Array.isArray(inner)
+        && inner.name && typeof inner.url === 'string' && isDataUrl(inner.url)) {
+      console.log(`  upload ${path}.${k}: ${inner.name} (${inner.url.length} chars)`);
+      const key = await uploadBase64(inner.url, inner.name ?? 'file', folder);
+      if (key) {
+        node[k] = JSON.stringify({ name: inner.name, key });
+        mutated = true;
+      }
+      continue;
     }
+
+    // Case 2: value is a doc *object* directly
     if (v && typeof v === 'object' && !Array.isArray(v)) {
       if (v.name && typeof v.url === 'string' && isDataUrl(v.url)) {
+        console.log(`  upload ${path}.${k}: ${v.name} (${v.url.length} chars)`);
         const key = await uploadBase64(v.url, v.name ?? 'file', folder);
         if (key) {
           node[k] = { name: v.name, key };
@@ -124,9 +138,10 @@ async function rewriteDocFields(node: any, folder: string): Promise<boolean> {
         }
         continue;
       }
-      if (await rewriteDocFields(v, folder)) mutated = true;
+      // recurse into plain nested objects
+      if (await rewriteDocFields(v, folder, `${path}.${k}`)) mutated = true;
     } else if (Array.isArray(v)) {
-      if (await rewriteDocFields(v, folder)) mutated = true;
+      if (await rewriteDocFields(v, folder, `${path}.${k}`)) mutated = true;
     }
   }
   return mutated;
@@ -156,13 +171,19 @@ async function migrateEmployeeProfiles() {
     for (const [field, folder] of [['personalInfo', 'profile_docs'], ['workInfo', 'profile_docs']] as const) {
       const raw = (emp as any)[field];
       if (!raw) continue;
+      let obj: any;
       try {
-        const obj = JSON.parse(raw);
-        if (await rewriteDocFields(obj, folder)) {
+        obj = JSON.parse(raw);
+      } catch (err) {
+        console.error(`[employees] ${emp.id} ${field} JSON parse failed:`, err);
+        continue;
+      }
+      try {
+        if (await rewriteDocFields(obj, folder, `${field}`)) {
           updates[field] = JSON.stringify(obj);
         }
       } catch (err) {
-        console.error(`[employees] ${emp.id} ${field} parse:`, err);
+        console.error(`[employees] ${emp.id} ${field} upload failed:`, err);
       }
     }
 
