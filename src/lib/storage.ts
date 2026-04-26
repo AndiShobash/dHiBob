@@ -9,8 +9,20 @@ export interface StorageProvider {
   deleteFile(filePath: string): Promise<void>;
 }
 
+// Single path segment — no slashes allowed. Used for filenames.
 function sanitizeSegment(value: string): string {
   return value.replace(/[^a-zA-Z0-9.-]/g, '_');
+}
+
+// A multi-segment path — split on /, sanitize each segment, rejoin.
+// Used for folder values like "people/john-doe-abcd1234/profile_docs".
+// Throws on `..` segments to make path traversal explicit.
+function sanitizeFolderPath(value: string): string {
+  const parts = value.split('/').map(s => s.trim()).filter(s => s.length > 0);
+  if (parts.some(s => s === '..' || s === '.')) {
+    throw new Error('Path traversal attempt detected');
+  }
+  return parts.map(sanitizeSegment).join('/');
 }
 
 export class LocalStorageProvider implements StorageProvider {
@@ -24,7 +36,7 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async uploadFile(file: Buffer, fileName: string, folder: string): Promise<string> {
-    const sanitizedFolder = sanitizeSegment(folder);
+    const sanitizedFolder = sanitizeFolderPath(folder);
     const sanitizedFileName = sanitizeSegment(fileName);
 
     if (!sanitizedFileName || sanitizedFileName === '.' || sanitizedFileName === '..') {
@@ -89,7 +101,7 @@ export class S3StorageProvider implements StorageProvider {
   }
 
   async uploadFile(file: Buffer, fileName: string, folder: string): Promise<string> {
-    const sanitizedFolder = sanitizeSegment(folder);
+    const sanitizedFolder = sanitizeFolderPath(folder);
     const sanitizedFileName = sanitizeSegment(fileName);
     if (!sanitizedFileName || sanitizedFileName === '.' || sanitizedFileName === '..') {
       throw new Error('Invalid filename');
