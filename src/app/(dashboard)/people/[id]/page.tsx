@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
 import { useSession } from "next-auth/react";
+import { profileDocsFolder, avatarsFolder } from "@/lib/people-folder";
 
 function statusVariant(status: string): "success" | "warning" | "secondary" | "destructive" {
   if (status === 'ACTIVE') return 'success';
@@ -324,10 +325,12 @@ function DocumentField({
   label,
   value,
   onSave,
+  folder = 'profile_docs',
 }: {
   label: string;
   value?: string | null;
   onSave?: (val: string) => unknown;
+  folder?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -359,7 +362,7 @@ function DocumentField({
     try {
       const fd = new FormData();
       fd.append('file', file);
-      fd.append('folder', 'profile_docs');
+      fd.append('folder', folder);
       const res = await fetch('/api/files/upload', { method: 'POST', body: fd });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Upload failed' }));
@@ -680,7 +683,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
     try {
       const fd = new FormData();
       fd.append('file', file);
-      fd.append('folder', 'avatars');
+      fd.append('folder', avatarsFolder({ id: params.id, firstName: employee?.firstName, lastName: employee?.lastName }));
       const res = await fetch('/api/files/upload', { method: 'POST', body: fd });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Upload failed' }));
@@ -713,6 +716,9 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
 
   const personalInfo = JSON.parse(employee.personalInfo || '{}');
   const workInfo = JSON.parse(employee.workInfo || '{}');
+
+  // Per-person S3 folder for any uploads done from this profile
+  const docsFolder = profileDocsFolder({ id: employee.id, firstName: employee.firstName, lastName: employee.lastName });
 
   const jobTitle = workInfo.jobTitle || '';
   const fullName = `${employee.firstName} ${employee.lastName}`;
@@ -922,9 +928,9 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <F label="Shirt Size" value={shirtSize} onSave={pi('shirtSize')} />
             </div>
             <div className="grid grid-cols-3 gap-4">
-              {canSeeFiles && <DocumentField label="Documents" value={personalInfo.documents} onSave={isAdmin ? pi('documents') : undefined} />}
-              {canSeeFiles && <DocumentField label="CV" value={personalInfo.cv} onSave={isAdmin ? (val) => updatePersonalInfo.mutateAsync({ id: params.id, cv: val, cvOld: personalInfo.cv || undefined } as any) : undefined} />}
-              {canSeeFiles && <DocumentField label="CV Old" value={personalInfo.cvOld} onSave={isAdmin ? pi('cvOld') : undefined} />}
+              {canSeeFiles && <DocumentField label="Documents" value={personalInfo.documents} folder={docsFolder} onSave={isAdmin ? pi('documents') : undefined} />}
+              {canSeeFiles && <DocumentField label="CV" value={personalInfo.cv} folder={docsFolder} onSave={isAdmin ? (val) => updatePersonalInfo.mutateAsync({ id: params.id, cv: val, cvOld: personalInfo.cv || undefined } as any) : undefined} />}
+              {canSeeFiles && <DocumentField label="CV Old" value={personalInfo.cvOld} folder={docsFolder} onSave={isAdmin ? pi('cvOld') : undefined} />}
             </div>
           </SectionCard>
 
@@ -1090,7 +1096,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                             </span>
                           </td>
                           <td className="py-3 pr-6 min-w-[160px]">
-                            <DocumentField label="" value={entry.contractDoc || null} onSave={isAdmin ? saveSalaryField(idx, 'contractDoc') : undefined} />
+                            <DocumentField label="" value={entry.contractDoc || null} folder={docsFolder} onSave={isAdmin ? saveSalaryField(idx, 'contractDoc') : undefined} />
                           </td>
                           <td className="py-3 pr-6 min-w-[120px]">
                             <DropdownBadgeField label="" value={entry.salaryCurrency || ''} options={CURRENCY_OPTIONS} onSave={isAdmin ? saveSalaryField(idx, 'salaryCurrency') : undefined} />
@@ -1167,6 +1173,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <DocumentField
                 label="Bank Management Approval"
                 value={personalInfo.bankApprovalDoc}
+                folder={docsFolder}
                 onSave={isAdmin ? pi('bankApprovalDoc') : undefined}
               />
             </div>
@@ -1190,6 +1197,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <DocumentField
                 label="Pension Document"
                 value={workInfo.pensionDoc}
+                folder={docsFolder}
                 onSave={isAdmin ? wi('pensionDoc') : undefined}
               />
             </div>
@@ -1210,6 +1218,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <DocumentField
                 label="Training Fund Document"
                 value={workInfo.trainingFundDoc}
+                folder={docsFolder}
                 onSave={isAdmin ? wi('trainingFundDoc') : undefined}
               />
             </div>

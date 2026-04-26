@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 import { uploadDataUrl, resolveDownloadUrl, isDataUrl } from '@/lib/storage';
+import { expensesFolder } from '@/lib/people-folder';
 
 type ExpenseRow = { invoiceFile: string | null; invoiceFileKey: string | null };
 
@@ -68,7 +69,12 @@ export const expensesRouter = router({
       let invoiceFileKey: string | null = null;
 
       if (isDataUrl(invoiceFile)) {
-        invoiceFileKey = await uploadDataUrl(invoiceFile!, invoiceFileName ?? 'invoice', 'expense_invoices');
+        const employee = await ctx.db.employee.findUnique({
+          where: { id: ctx.user.employeeId! },
+          select: { id: true, firstName: true, lastName: true },
+        });
+        const folder = employee ? expensesFolder(employee) : 'expenses';
+        invoiceFileKey = await uploadDataUrl(invoiceFile!, invoiceFileName ?? 'invoice', folder);
       }
 
       return ctx.db.expenseClaim.create({

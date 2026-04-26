@@ -15,6 +15,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import { storage, isDataUrl } from '../src/lib/storage';
+import { profileDocsFolder, avatarsFolder, expensesFolder } from '../src/lib/people-folder';
 
 const prisma = new PrismaClient();
 
@@ -35,7 +36,12 @@ async function uploadBase64(value: string, fileName: string, folder: string): Pr
 async function migrateExpenses() {
   const rows = await prisma.expenseClaim.findMany({
     where: { invoiceFile: { not: null }, invoiceFileKey: null },
-    select: { id: true, invoiceFile: true, invoiceFileName: true },
+    select: {
+      id: true,
+      invoiceFile: true,
+      invoiceFileName: true,
+      employee: { select: { id: true, firstName: true, lastName: true } },
+    },
   });
   console.log(`[expenses] ${rows.length} rows to migrate`);
 
@@ -43,7 +49,8 @@ async function migrateExpenses() {
   let skipped = 0;
   for (const row of rows) {
     try {
-      const key = await uploadBase64(row.invoiceFile!, row.invoiceFileName ?? 'invoice', 'expense_invoices');
+      const folder = row.employee ? expensesFolder(row.employee) : 'expenses';
+      const key = await uploadBase64(row.invoiceFile!, row.invoiceFileName ?? 'invoice', folder);
       if (!key) { skipped++; continue; }
       await prisma.expenseClaim.update({
         where: { id: row.id },
@@ -149,7 +156,7 @@ async function rewriteDocFields(node: any, folder: string, path: string = '$'): 
 
 async function migrateEmployeeProfiles() {
   const employees = await prisma.employee.findMany({
-    select: { id: true, avatar: true, personalInfo: true, workInfo: true },
+    select: { id: true, firstName: true, lastName: true, avatar: true, personalInfo: true, workInfo: true },
   });
   console.log(`[employees] ${employees.length} rows to scan`);
 
@@ -160,7 +167,7 @@ async function migrateEmployeeProfiles() {
     // Avatar — stored as a plain string (data URL or redirect URL).
     if (emp.avatar && isDataUrl(emp.avatar)) {
       try {
-        const key = await uploadBase64(emp.avatar, 'avatar', 'avatars');
+        const key = await uploadBase64(emp.avatar, 'avatar', avatarsFolder(emp));
         if (key) updates.avatar = `/api/files/redirect?key=${encodeURIComponent(key)}`;
       } catch (err) {
         console.error(`[employees] ${emp.id} avatar:`, err);
@@ -168,7 +175,8 @@ async function migrateEmployeeProfiles() {
     }
 
     // personalInfo (JSON string) — scan for {name, url:data:} shapes
-    for (const [field, folder] of [['personalInfo', 'profile_docs'], ['workInfo', 'profile_docs']] as const) {
+    const docsFolder = profileDocsFolder(emp);
+    for (const [field, folder] of [['personalInfo', docsFolder], ['workInfo', docsFolder]] as const) {
       const raw = (emp as any)[field];
       if (!raw) continue;
       let obj: any;
