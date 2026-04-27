@@ -977,7 +977,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                   cvOld: mergedOld.length > 0 ? JSON.stringify(mergedOld) : undefined,
                 } as any);
               } : undefined} />}
-              {canSeeFiles && <DocumentField label="CV Old" value={personalInfo.cvOld} folder={docsFolder} />}
+              {canSeeFiles && <DocumentField label="CV Old" value={personalInfo.cvOld} folder={docsFolder} onSave={isAdmin ? pi('cvOld') : undefined} />}
             </div>
           </SectionCard>
 
