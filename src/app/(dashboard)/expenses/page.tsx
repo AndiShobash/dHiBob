@@ -327,7 +327,7 @@ export default function ExpensesPage() {
                     className="w-24 border border-gray-200 dark:border-charcoal-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white"
                   >
                     <option value="">Year…</option>
-                    {Array.from({ length: 41 }, (_, i) => new Date().getFullYear() - 20 + i).map(y => (
+                    {Array.from({ length: 41 }, (_, i) => new Date().getFullYear() + 20 - i).map(y => (
                       <option key={y} value={y}>{y}</option>
                     ))}
                   </select>
