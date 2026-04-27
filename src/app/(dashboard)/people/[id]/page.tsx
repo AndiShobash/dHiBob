@@ -353,11 +353,14 @@ function DocumentField({
   value,
   onSave,
   folder = 'profile_docs',
+  mode = 'multi',
 }: {
   label: string;
   value?: string | null;
   onSave?: (val: string) => unknown;
   folder?: string;
+  /** "multi" = unlimited uploads, appends to list. "single" = one file, upload replaces. */
+  mode?: 'single' | 'multi';
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -379,7 +382,9 @@ function DocumentField({
         throw new Error(err.error || 'Upload failed');
       }
       const { key, name } = await res.json();
-      const updated = [...entries, { name, key }];
+      const updated = mode === 'single'
+        ? [{ name, key }]               // replace — caller handles archiving
+        : [...entries, { name, key }];   // append
       await onSave(JSON.stringify(updated));
     } catch (err) {
       console.error('[DocumentField] upload error:', err);
@@ -961,8 +966,18 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             </div>
             <div className="grid grid-cols-3 gap-4">
               {canSeeFiles && <DocumentField label="Documents" value={personalInfo.documents} folder={docsFolder} onSave={isAdmin ? pi('documents') : undefined} />}
-              {canSeeFiles && <DocumentField label="CV" value={personalInfo.cv} folder={docsFolder} onSave={isAdmin ? pi('cv') : undefined} />}
-              {canSeeFiles && <DocumentField label="CV Old" value={personalInfo.cvOld} folder={docsFolder} onSave={isAdmin ? pi('cvOld') : undefined} />}
+              {canSeeFiles && <DocumentField label="CV" value={personalInfo.cv} folder={docsFolder} mode="single" onSave={isAdmin ? async (val) => {
+                // Auto-archive: push the current CV into the cvOld array before replacing
+                const currentCvEntries = parseDocEntries(personalInfo.cv);
+                const oldEntries = parseDocEntries(personalInfo.cvOld);
+                const mergedOld = [...oldEntries, ...currentCvEntries];
+                await updatePersonalInfo.mutateAsync({
+                  id: params.id,
+                  cv: val,
+                  cvOld: mergedOld.length > 0 ? JSON.stringify(mergedOld) : undefined,
+                } as any);
+              } : undefined} />}
+              {canSeeFiles && <DocumentField label="CV Old" value={personalInfo.cvOld} folder={docsFolder} />}
             </div>
           </SectionCard>
 
