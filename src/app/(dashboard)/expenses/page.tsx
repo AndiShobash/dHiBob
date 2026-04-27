@@ -304,7 +304,34 @@ export default function ExpensesPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Payroll Month</label>
-                <Input type="month" value={form.payrollMonth} onChange={e => setForm(f => ({ ...f, payrollMonth: e.target.value }))} />
+                <div className="flex gap-2">
+                  <select
+                    value={form.payrollMonth.split('-')[1] || ''}
+                    onChange={e => {
+                      const yr = form.payrollMonth.split('-')[0] || String(new Date().getFullYear());
+                      setForm(f => ({ ...f, payrollMonth: e.target.value ? `${yr}-${e.target.value}` : '' }));
+                    }}
+                    className="flex-1 border border-gray-200 dark:border-charcoal-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Month…</option>
+                    {['January','February','March','April','May','June','July','August','September','October','November','December'].map((name, i) => (
+                      <option key={i} value={String(i + 1).padStart(2, '0')}>{name}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={form.payrollMonth.split('-')[0] || ''}
+                    onChange={e => {
+                      const mo = form.payrollMonth.split('-')[1] || '01';
+                      setForm(f => ({ ...f, payrollMonth: e.target.value ? `${e.target.value}-${mo}` : '' }));
+                    }}
+                    className="w-24 border border-gray-200 dark:border-charcoal-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Year…</option>
+                    {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
             <div>
