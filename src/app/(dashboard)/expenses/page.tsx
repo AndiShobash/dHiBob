@@ -282,23 +282,6 @@ export default function ExpensesPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Amount</label>
-                <Input type="number" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required placeholder="0.00" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Currency</label>
-                <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800">
-                  {['USD','EUR','GBP','ILS','CAD','AUD'].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Supplier Name</label>
-              <Input value={form.supplierName} onChange={e => setForm(f => ({ ...f, supplierName: e.target.value }))} placeholder="Optional" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
                 <label className="block text-sm font-medium mb-1">Expense Date</label>
                 <Input type="date" value={form.expenseDate} onChange={e => setForm(f => ({ ...f, expenseDate: e.target.value }))} required />
               </div>
@@ -333,6 +316,23 @@ export default function ExpensesPage() {
                   </select>
                 </div>
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Amount</label>
+                <Input type="number" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required placeholder="0.00" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Currency</label>
+                <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800">
+                  {['USD','EUR','GBP','ILS','CAD','AUD'].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Supplier Name</label>
+              <Input value={form.supplierName} onChange={e => setForm(f => ({ ...f, supplierName: e.target.value }))} placeholder="Optional" />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Invoice File</label>
