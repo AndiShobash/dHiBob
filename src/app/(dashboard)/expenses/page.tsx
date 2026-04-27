@@ -242,7 +242,7 @@ export default function ExpensesPage() {
 
         <TabsContent value="history" className="mt-4">
           <Card><CardContent className="p-0">
-            {isLoading ? <div className="p-6 space-y-3">{[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />)}</div> : renderTable(historyExpenses, false)}
+            {isLoading ? <div className="p-6 space-y-3">{[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />)}</div> : renderTable(historyExpenses, true)}
           </CardContent></Card>
         </TabsContent>
 
