@@ -13,7 +13,7 @@ import * as XLSX from "xlsx";
 // ---------------------------------------------------------------------------
 
 type SortDir = "asc" | "desc" | null;
-type TabKey = "termination" | "active" | "compensation" | "custom";
+type TabKey = "termination" | "active" | "compensation" | "expenses" | "custom";
 
 /** Format any date-like value to YYYY-MM-DD */
 function fmtDate(val: unknown): string {
@@ -279,10 +279,25 @@ const ALL_CUSTOM_COLUMNS: Column[] = [
   { key: "terminationReason", label: "Termination Reason", visible: false },
 ];
 
+const EXPENSE_COLS: Column[] = [
+  { key: "name",          label: "Employee",      visible: true },
+  { key: "nationalId",    label: "National ID",    visible: false },
+  { key: "department",    label: "Department",     visible: true },
+  { key: "expenseType",   label: "Type",           visible: true },
+  { key: "supplierName",  label: "Supplier",       visible: true },
+  { key: "amount",        label: "Amount",         visible: true, format: (v) => typeof v === 'number' ? v.toLocaleString(undefined, { minimumFractionDigits: 2 }) : String(v ?? '') },
+  { key: "currency",      label: "Currency",       visible: true },
+  { key: "expenseDate",   label: "Expense Date",   visible: true, format: (v) => fmtDate(v) },
+  { key: "payrollMonth",  label: "Payroll Month",  visible: true },
+  { key: "status",        label: "Status",         visible: true },
+  { key: "notes",         label: "Notes",          visible: false },
+];
+
 const TABS: { key: TabKey; label: string }[] = [
   { key: "termination",  label: "Termination Report" },
   { key: "active",       label: "Active Employees" },
   { key: "compensation", label: "Compensation & Increases" },
+  { key: "expenses",     label: "Expenses" },
   { key: "custom",       label: "Custom Report" },
 ];
 
@@ -299,6 +314,7 @@ export default function ReportsPage() {
   const [activeCols, setActiveCols] = useState<Column[]>(ACTIVE_COLS);
   const [compensationCols, setCompensationCols] = useState<Column[]>(COMPENSATION_COLS);
   const [customCols, setCustomCols] = useState<Column[]>(ALL_CUSTOM_COLUMNS);
+  const [expenseCols, setExpenseCols] = useState<Column[]>(EXPENSE_COLS);
 
   // Sort state (shared, resets when tab changes)
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -329,6 +345,9 @@ export default function ReportsPage() {
     department: departmentFilter || undefined,
   });
   const customQ = trpc.reports.getCustomReportData.useQuery();
+  const expenseQ = trpc.reports.getExpenseReport.useQuery({
+    department: departmentFilter || undefined,
+  });
   const salaryQ = trpc.reports.getSalaryReport.useQuery({
     department: departmentFilter || undefined,
   });
@@ -392,10 +411,12 @@ export default function ReportsPage() {
         return { rows: filterRows(activeQ.data?.rows ?? [], 'startDate'), cols: activeCols, setCols: setActiveCols, isLoading: activeQ.isLoading };
       case "compensation":
         return { rows: filterRows(compensationRows, 'effectiveDate'), cols: compensationCols, setCols: setCompensationCols, isLoading: salaryQ.isLoading };
+      case "expenses":
+        return { rows: filterRows(expenseQ.data?.rows ?? [], 'expenseDate'), cols: expenseCols, setCols: setExpenseCols, isLoading: expenseQ.isLoading };
       case "custom":
         return { rows: filterRows(customQ.data ?? [], 'startDate'), cols: customCols, setCols: setCustomCols, isLoading: customQ.isLoading };
     }
-  }, [activeTab, terminationQ, activeQ, salaryQ, terminationCols, activeCols, compensationCols, compensationRows, monthFilter, idFilter]);
+  }, [activeTab, terminationQ, activeQ, salaryQ, expenseQ, terminationCols, activeCols, compensationCols, expenseCols, compensationRows, monthFilter, idFilter]);
 
   // Sorted rows (same logic used by both table display and export)
   const sortedRows = useMemo(() => {
@@ -419,6 +440,7 @@ export default function ReportsPage() {
       termination:  "termination-report.xlsx",
       active:       "active-employees-report.xlsx",
       compensation: "compensation-report.xlsx",
+      expenses:     "expense-reimbursement-report.xlsx",
       custom:       "custom-report.xlsx",
     };
     downloadExcel(filenames[activeTab], visibleCols, sortedRows);

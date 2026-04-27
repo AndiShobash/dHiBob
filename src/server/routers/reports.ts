@@ -361,4 +361,56 @@ export const reportsRouter = router({
       };
     });
   }),
+
+  // ------------------------------------------------------------------
+  // Expense Reimbursement Report
+  // ------------------------------------------------------------------
+  getExpenseReport: protectedProcedure
+    .input(z.object({
+      department: z.string().optional(),
+      status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
+      payrollMonth: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const where: any = { companyId: ctx.user.companyId };
+      if (input.status) where.status = input.status;
+      if (input.payrollMonth) where.payrollMonth = input.payrollMonth;
+      if (input.department) {
+        where.employee = { department: deptFilter(input.department) };
+      }
+
+      const claims = await ctx.db.expenseClaim.findMany({
+        where,
+        include: {
+          employee: {
+            select: {
+              firstName: true,
+              lastName: true,
+              department: { select: { name: true } },
+              personalInfo: true,
+            },
+          },
+        },
+        orderBy: { expenseDate: 'desc' },
+      });
+
+      const rows = claims.map((c: any) => {
+        const pi = JSON.parse(c.employee?.personalInfo || '{}');
+        return {
+          name: `${c.employee?.firstName ?? ''} ${c.employee?.lastName ?? ''}`.trim(),
+          nationalId: pi.nationalId ?? '',
+          department: c.employee?.department?.name ?? '',
+          expenseType: c.expenseType,
+          supplierName: c.supplierName ?? '',
+          amount: c.amount,
+          currency: c.currency,
+          expenseDate: c.expenseDate,
+          payrollMonth: c.payrollMonth ?? '',
+          status: c.status,
+          notes: c.notes ?? '',
+        };
+      });
+
+      return { rows };
+    }),
 });
