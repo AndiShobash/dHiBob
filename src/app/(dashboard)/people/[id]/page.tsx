@@ -560,6 +560,8 @@ function StatusDropdown({
                   className="w-full border border-gray-300 dark:border-charcoal-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-400"
                 >
                   <option value="">Select a reason…</option>
+                  <option value="Company Decision">Company Decision</option>
+                  <option value="Employee Decision">Employee Decision</option>
                   <option value="Resignation">Resignation</option>
                   <option value="Layoff">Layoff</option>
                   <option value="Performance">Performance</option>
@@ -1052,7 +1054,26 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
           >
             <div className="grid grid-cols-2 gap-4">
               <DateField label="Termination Date" value={terminationDate} onSave={wi('terminationDate')} />
-              <F label="Termination Reason" value={terminationReason} onSave={wi('terminationReason')} />
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Termination Reason</p>
+                <select
+                  value={terminationReason}
+                  onChange={e => wi('terminationReason')?.(e.target.value)}
+                  disabled={!isAdmin}
+                  className="w-full border border-gray-200 dark:border-charcoal-600 rounded-md px-3 py-1.5 text-sm bg-white dark:bg-charcoal-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400"
+                >
+                  <option value="">Select a reason…</option>
+                  <option value="Company Decision">Company Decision</option>
+                  <option value="Employee Decision">Employee Decision</option>
+                  <option value="Resignation">Resignation</option>
+                  <option value="Layoff">Layoff</option>
+                  <option value="Performance">Performance</option>
+                  <option value="Contract End">Contract End</option>
+                  <option value="Mutual Agreement">Mutual Agreement</option>
+                  <option value="Retirement">Retirement</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
             </div>
           </SectionCard>
 
