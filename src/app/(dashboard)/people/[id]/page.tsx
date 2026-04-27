@@ -396,6 +396,15 @@ function DocumentField({
 
   const handleRemove = async (index: number) => {
     if (!onSave) return;
+    const removed = entries[index];
+    // Delete the actual file from storage (S3 or local disk)
+    if (removed?.key) {
+      try {
+        await fetch(`/api/files/delete?key=${encodeURIComponent(removed.key)}`, { method: 'DELETE' });
+      } catch (err) {
+        console.error('[DocumentField] delete error:', err);
+      }
+    }
     const updated = entries.filter((_, i) => i !== index);
     await onSave(updated.length > 0 ? JSON.stringify(updated) : '');
   };
