@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mail, MapPin, FileText, Plus, Camera, Trash2 } from "lucide-react";
+import { Mail, MapPin, FileText, Plus, Camera, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
@@ -321,6 +321,33 @@ function EditableBadgeField({
   );
 }
 
+interface DocEntry {
+  name: string;
+  key?: string;
+  url?: string;
+}
+
+/** Parse the stored JSON value into a normalized array of file entries.
+ *  Backward-compat: single-object values are wrapped into a one-element array. */
+function parseDocEntries(value?: string | null): DocEntry[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.filter((e: any) => e && (e.key || e.url || e.name));
+    if (parsed && typeof parsed === 'object' && (parsed.key || parsed.url || parsed.name)) return [parsed];
+    return [];
+  } catch {
+    // Legacy plain-text value — treat as a single entry with just a name
+    return value.trim() ? [{ name: value }] : [];
+  }
+}
+
+function docEntryHref(entry: DocEntry): string {
+  if (entry.key) return `/api/files/redirect?key=${encodeURIComponent(entry.key)}`;
+  if (entry.url) return entry.url;
+  return '#';
+}
+
 function DocumentField({
   label,
   value,
@@ -335,29 +362,12 @@ function DocumentField({
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
-  // Supported JSON shapes:
-  //   { name, key }              — new, storage-backed (preferred)
-  //   { name, url: "data:..." }  — legacy base64 blob; still renders via the data URL
-  let filename = '';
-  let href = '';
-  if (value) {
-    try {
-      const parsed = JSON.parse(value);
-      filename = parsed.name || '';
-      if (parsed.key) {
-        href = `/api/files/redirect?key=${encodeURIComponent(parsed.key)}`;
-      } else if (parsed.url) {
-        href = parsed.url;
-      }
-    } catch {
-      filename = value;
-    }
-  }
+  const entries = parseDocEntries(value);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !onSave) return;
-    e.target.value = ''; // reset so the same file can be re-selected
+    e.target.value = '';
     setUploading(true);
     try {
       const fd = new FormData();
@@ -369,7 +379,8 @@ function DocumentField({
         throw new Error(err.error || 'Upload failed');
       }
       const { key, name } = await res.json();
-      await onSave(JSON.stringify({ name, key }));
+      const updated = [...entries, { name, key }];
+      await onSave(JSON.stringify(updated));
     } catch (err) {
       console.error('[DocumentField] upload error:', err);
       alert(`Upload failed: ${(err as Error).message}`);
@@ -378,26 +389,46 @@ function DocumentField({
     }
   };
 
+  const handleRemove = async (index: number) => {
+    if (!onSave) return;
+    const updated = entries.filter((_, i) => i !== index);
+    await onSave(updated.length > 0 ? JSON.stringify(updated) : '');
+  };
+
   return (
     <div>
       {label && <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</p>}
-      <div className="flex items-center gap-2">
-        {filename ? (
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            download={filename}
-            className="flex items-center gap-1.5 text-sm text-primary-600 dark:text-primary-400 hover:underline max-w-[140px] truncate"
-            title={filename}
-          >
-            <FileText size={14} className="shrink-0" />
-            <span className="truncate">{filename}</span>
-          </a>
+      <div className="space-y-1">
+        {entries.length > 0 ? (
+          entries.map((entry, i) => (
+            <div key={`${entry.key ?? entry.name}-${i}`} className="flex items-center gap-1.5 group">
+              <a
+                href={docEntryHref(entry)}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={entry.name}
+                className="flex items-center gap-1.5 text-sm text-primary-600 dark:text-primary-400 hover:underline max-w-[160px] truncate"
+                title={entry.name}
+              >
+                <FileText size={14} className="shrink-0" />
+                <span className="truncate">{entry.name}</span>
+              </a>
+              {onSave && (
+                <button
+                  type="button"
+                  onClick={() => handleRemove(i)}
+                  className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity shrink-0"
+                  title="Remove file"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          ))
         ) : (
           <span className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-gray-500">
             <FileText size={14} />
-            <span>{uploading ? 'Uploading…' : 'No file'}</span>
+            <span>{uploading ? 'Uploading…' : 'No files'}</span>
           </span>
         )}
         {onSave && (
@@ -405,10 +436,11 @@ function DocumentField({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
-            className="flex items-center justify-center w-5 h-5 rounded-full bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white transition-colors shrink-0"
-            title="Upload document"
+            className="flex items-center gap-1.5 text-xs text-primary-500 hover:text-primary-600 disabled:opacity-50 mt-1"
+            title="Add another file"
           >
-            <Plus size={11} strokeWidth={2.5} />
+            <Plus size={12} strokeWidth={2.5} />
+            <span>{uploading ? 'Uploading…' : 'Add file'}</span>
           </button>
         )}
         <input ref={inputRef} type="file" className="hidden" onChange={handleFile} />
@@ -929,7 +961,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             </div>
             <div className="grid grid-cols-3 gap-4">
               {canSeeFiles && <DocumentField label="Documents" value={personalInfo.documents} folder={docsFolder} onSave={isAdmin ? pi('documents') : undefined} />}
-              {canSeeFiles && <DocumentField label="CV" value={personalInfo.cv} folder={docsFolder} onSave={isAdmin ? (val) => updatePersonalInfo.mutateAsync({ id: params.id, cv: val, cvOld: personalInfo.cv || undefined } as any) : undefined} />}
+              {canSeeFiles && <DocumentField label="CV" value={personalInfo.cv} folder={docsFolder} onSave={isAdmin ? pi('cv') : undefined} />}
               {canSeeFiles && <DocumentField label="CV Old" value={personalInfo.cvOld} folder={docsFolder} onSave={isAdmin ? pi('cvOld') : undefined} />}
             </div>
           </SectionCard>
