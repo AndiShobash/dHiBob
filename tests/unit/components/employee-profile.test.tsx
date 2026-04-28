@@ -134,6 +134,7 @@ describe('Employee profile page', () => {
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
     await userEvent.click(screen.getByRole('tab', { name: 'Work' }))
     expect(screen.getAllByText(/Bob Manager/).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('Team Leader (TL)')).toBeInTheDocument()
   })
 
   it('shows department name', () => {
@@ -216,6 +217,8 @@ describe('Employee profile page', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Work' }))
     expect(screen.getByText('Role')).toBeInTheDocument()
     expect(screen.getAllByText(/Bob Manager/).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('Team Leader (TL)')).toBeInTheDocument()
+    expect(screen.queryByText('Reports To')).not.toBeInTheDocument()
   })
 
   // T-05: Profile tab shows Identification section (merged from Personal)
@@ -284,5 +287,111 @@ describe('Employee profile page', () => {
     expect(screen.queryByRole('tab', { name: 'Personal' })).toBeNull()
     expect(screen.queryByRole('tab', { name: 'Client' })).toBeNull()
     expect(screen.queryByRole('tab', { name: 'HR talks' })).toBeNull()
+  })
+
+  // T-10: Header subtitle shows TL: instead of Reports to
+  it('header subtitle shows TL: prefix instead of Reports to', () => {
+    vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
+      data: mockEmployee,
+      isLoading: false,
+      error: null,
+    } as any)
+    render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
+    expect(screen.getByText(/TL:/)).toBeInTheDocument()
+    expect(screen.queryByText(/Reports to/)).not.toBeInTheDocument()
+  })
+
+  // T-11: Team field is removed from Role section
+  it('Team field is removed from Role section', async () => {
+    const mockEmployeeWithTeam = {
+      ...mockEmployee,
+      workInfo: JSON.stringify({ team: 'Alpha Squad' }),
+    }
+    vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
+      data: mockEmployeeWithTeam,
+      isLoading: false,
+      error: null,
+    } as any)
+    render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Work' }))
+    expect(screen.getByText('Role')).toBeInTheDocument()
+    expect(screen.queryByText('Alpha Squad')).not.toBeInTheDocument()
+  })
+
+  // T-12: GL shows skip-level manager name when TL has a manager
+  it('Role section shows Group Leader (GL) derived from TL manager', async () => {
+    const mockEmployeeWithGL = {
+      ...mockEmployee,
+      manager: {
+        ...mockEmployee.manager,
+        manager: { id: 'gl-1', firstName: 'Grace', lastName: 'Leader' },
+      },
+    }
+    vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
+      data: mockEmployeeWithGL,
+      isLoading: false,
+      error: null,
+    } as any)
+    render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Work' }))
+    expect(screen.getByText('Group Leader (GL)')).toBeInTheDocument()
+    expect(screen.getByText('Grace Leader')).toBeInTheDocument()
+  })
+
+  // T-13: GL shows dash when TL has no manager
+  it('Role section shows dash for GL when TL has no manager', async () => {
+    const mockEmployeeWithNoGL = {
+      ...mockEmployee,
+      manager: {
+        ...mockEmployee.manager,
+        manager: null,
+      },
+    }
+    vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
+      data: mockEmployeeWithNoGL,
+      isLoading: false,
+      error: null,
+    } as any)
+    render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Work' }))
+    expect(screen.getByText('Group Leader (GL)')).toBeInTheDocument()
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1)
+  })
+
+  // T-14: GL shows dash when employee has no TL
+  it('Role section shows dash for GL when employee has no TL', async () => {
+    const mockEmployeeNoManager = {
+      ...mockEmployee,
+      manager: null,
+      managerId: null,
+    }
+    vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
+      data: mockEmployeeNoManager,
+      isLoading: false,
+      error: null,
+    } as any)
+    render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Work' }))
+    expect(screen.getByText('Group Leader (GL)')).toBeInTheDocument()
+  })
+
+  // T-15: ILS appears in currency options on profile page
+  it('ILS appears in currency options on profile page', async () => {
+    const mockEmployeeWithSalary = {
+      ...mockEmployee,
+      workInfo: JSON.stringify({
+        salaryHistory: [
+          { effectiveDate: '2023-01-01', salaryAmount: '5000', salaryCurrency: 'ILS' },
+        ],
+      }),
+    }
+    vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
+      data: mockEmployeeWithSalary,
+      isLoading: false,
+      error: null,
+    } as any)
+    render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Work' }))
+    expect(screen.getByText('ILS')).toBeInTheDocument()
   })
 })

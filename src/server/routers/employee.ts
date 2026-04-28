@@ -77,7 +77,11 @@ export const employeeRouter = router({
       where: { id: input.id },
       include: {
         company: true,
-        manager: true,
+        manager: {
+          include: {
+            manager: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
         department: { select: { id: true, name: true } },
         site: { select: { id: true, name: true } },
         directReports: { select: { id: true, firstName: true, lastName: true } },
@@ -211,8 +215,8 @@ export const employeeRouter = router({
             employeeId: id,
             type: 'MANAGER_CHANGE',
             effectiveDate: new Date(),
-            title: 'Reporting Change',
-            description: `Now reports to ${updated.manager?.firstName} ${updated.manager?.lastName}`,
+            title: 'TL Change',
+            description: `TL changed to ${updated.manager?.firstName} ${updated.manager?.lastName}`,
             metadata: JSON.stringify({ from: current.managerId, to: manager }),
           }
         });

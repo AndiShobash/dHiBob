@@ -614,7 +614,7 @@ function F({ label, value, onSave }: { label: string; value: string; onSave?: (v
     : <FieldCell label={label} value={value || null} />;
 }
 
-/** Manager picker — dropdown to select who this employee reports to */
+/** Manager picker — dropdown to select this employee's Team Leader (TL) */
 function ManagerPicker({ label, currentManagerId, currentManagerName, onSave }: {
   label: string;
   currentManagerId?: string | null;
@@ -810,7 +810,6 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
   const familyRows = Array.from({ length: FAMILY_ROWS }, (_, i) => familyDetails[i] ?? {});
 
   // workInfo fields
-  const team = workInfo.team || '';
   const hrContact = workInfo.hrContact || '';
   const bootcampNo = workInfo.bootcampNo || '';
   const mindspaceCardNo = workInfo.mindspaceCardNo || '';
@@ -929,7 +928,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               </div>
               <p className="text-gray-500 dark:text-gray-400 font-medium">
                 {jobTitle || '—'} • {departmentName}
-                {managerDisplay && <span className="text-gray-400"> • Reports to <a href={employee.manager ? `/people/${employee.manager.id}` : '#'} className="text-primary-500 hover:underline">{managerDisplay}</a></span>}
+                {managerDisplay && <span className="text-gray-400"> • TL: <a href={employee.manager ? `/people/${employee.manager.id}` : '#'} className="text-primary-500 hover:underline">{managerDisplay}</a></span>}
               </p>
               <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
                 <span className="flex items-center gap-1 font-medium"><Mail size={14} className="text-gray-400" />{employee.email}</span>
@@ -1100,12 +1099,19 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             <div className="grid grid-cols-6 gap-4">
               <F label="Job" value={jobTitle} onSave={wi('jobTitle')} />
               <ManagerPicker
-                label="Reports To"
+                label="Team Leader (TL)"
                 currentManagerId={employee.manager?.id}
                 currentManagerName={managerDisplay}
                 onSave={isAdmin ? (managerId) => updateEmployee.mutateAsync({ id: params.id, manager: managerId || undefined } as any) : undefined}
               />
-              <F label="Team" value={team} onSave={wi('team')} />
+              <FieldCell
+                label="Group Leader (GL)"
+                value={
+                  (employee.manager as any)?.manager
+                    ? `${(employee.manager as any).manager.firstName} ${(employee.manager as any).manager.lastName}`
+                    : null
+                }
+              />
               <F label="Office" value={officeDisplay} onSave={wi('office')} />
               <F label="HR" value={hrContact} onSave={wi('hrContact')} />
               <DropdownBadgeField label="Worker Type" value={workInfo.workerType || ''} options={['In-house', 'Freelance']} onSave={isAdmin ? (val) => { const fn = wi('workerType'); if (fn) fn(val); } : undefined} />
