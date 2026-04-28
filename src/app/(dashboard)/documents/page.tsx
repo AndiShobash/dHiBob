@@ -4,15 +4,31 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Upload, FileText, File, Image, Download, Loader2, AlertCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Search, Upload, FileText, File, Image, Download, Loader2, AlertCircle, PenTool } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { UploadModal } from "@/components/documents/upload-modal";
 import { format } from "date-fns";
 
+const SIG_BADGE: Record<string, { variant: "success" | "warning" | "default" | "destructive"; label: string }> = {
+  SIGNED:             { variant: "success",     label: "Signed" },
+  PENDING_SIGNATURE:  { variant: "warning",     label: "Pending Signature" },
+  DECLINED:           { variant: "destructive", label: "Declined" },
+  VIEW_ONLY:          { variant: "default",     label: "View Only" },
+  PENDING:            { variant: "warning",     label: "Pending" },
+};
+
 export default function DocumentsPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [search, setSearch] = useState("");
+  const [signDoc, setSignDoc] = useState<{ id: string; name: string } | null>(null);
+  const [signerEmail, setSignerEmail] = useState("");
+  const [signerName, setSignerName] = useState("");
   const { data: documents, isLoading, error, refetch } = trpc.document.list.useQuery({});
+  const { data: docuSignStatus } = trpc.employee.isDocuSignConfigured.useQuery();
+  const sendMutation = trpc.employee.sendForSignature.useMutation({
+    onSuccess: () => { refetch(); setSignDoc(null); setSignerEmail(""); setSignerName(""); },
+  });
 
   const formatSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -91,7 +107,22 @@ export default function DocumentsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {d.signatureStatus && SIG_BADGE[d.signatureStatus] && (
+                      <Badge variant={SIG_BADGE[d.signatureStatus].variant}>
+                        {SIG_BADGE[d.signatureStatus].label}
+                      </Badge>
+                    )}
                     <Badge variant="outline" className="capitalize">{d.folder}</Badge>
+                    {d.type === 'CONTRACT' && d.signatureStatus !== 'SIGNED' && d.signatureStatus !== 'PENDING_SIGNATURE' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1 text-xs"
+                        onClick={() => setSignDoc({ id: d.id, name: d.name })}
+                      >
+                        <PenTool size={12} /> Send for Signature
+                      </Button>
+                    )}
                     <Button variant="ghost" size="icon" aria-label={`Download ${d.name}`}>
                       <Download size={16} aria-hidden="true" />
                     </Button>
@@ -103,11 +134,52 @@ export default function DocumentsPage() {
         )}
       </div>
 
-      <UploadModal 
-        open={showUpload} 
-        onOpenChange={setShowUpload} 
+      <UploadModal
+        open={showUpload}
+        onOpenChange={setShowUpload}
         onSuccess={refetch}
       />
+
+      {/* Send for Signature dialog */}
+      <Dialog open={!!signDoc} onOpenChange={(open) => { if (!open) setSignDoc(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Send for Signature</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-500 mb-2">
+            Send <span className="font-medium text-gray-700 dark:text-gray-300">{signDoc?.name}</span> for e-signature via DocuSign.
+          </p>
+          {!docuSignStatus?.configured && (
+            <div className="text-xs bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-md p-3 mb-2 text-amber-800 dark:text-amber-300">
+              DocuSign is not configured yet. The signature request will be tracked in the system but won't actually send until an admin sets the DocuSign API keys in the server environment.
+            </div>
+          )}
+          <form onSubmit={e => {
+            e.preventDefault();
+            if (!signDoc) return;
+            sendMutation.mutate({ documentId: signDoc.id, signerEmail, signerName });
+          }} className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Signer Name</label>
+              <Input value={signerName} onChange={e => setSignerName(e.target.value)} required placeholder="e.g. Andi Shobash" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Signer Email</label>
+              <Input type="email" value={signerEmail} onChange={e => setSignerEmail(e.target.value)} required placeholder="e.g. andi@develeap.com" />
+            </div>
+            {sendMutation.error && (
+              <p className="text-sm text-red-500">{sendMutation.error.message}</p>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setSignDoc(null)}>Cancel</Button>
+              <Button type="submit" disabled={sendMutation.isPending} className="gap-1">
+                <PenTool size={14} />
+                {sendMutation.isPending ? 'Sending...' : 'Send'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

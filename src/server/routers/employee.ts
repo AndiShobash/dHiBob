@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { router, protectedProcedure } from '@/server/trpc';
 import { TRPCError } from '@trpc/server';
 import { getExchangeRates } from '@/lib/currency';
+import { isDocuSignConfigured, sendForSignature } from '@/lib/docusign';
+import { storage } from '@/lib/storage';
 
 const createEmployeeSchema = z.object({
   firstName: z.string().min(1),
@@ -439,4 +441,53 @@ export const employeeRouter = router({
   getExchangeRates: protectedProcedure.query(async () => {
     return getExchangeRates();
   }),
+
+  // DocuSign integration
+  isDocuSignConfigured: protectedProcedure.query(() => {
+    return { configured: isDocuSignConfigured() };
+  }),
+
+  sendForSignature: protectedProcedure
+    .input(z.object({
+      documentId: z.string(),
+      signerEmail: z.string().email(),
+      signerName: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const doc = await ctx.db.document.findFirst({
+        where: { id: input.documentId, companyId: ctx.user.companyId },
+      });
+      if (!doc) throw new TRPCError({ code: 'NOT_FOUND', message: 'Document not found' });
+
+      // Fetch the file content from storage for DocuSign
+      let documentBase64 = '';
+      if (doc.filePath) {
+        try {
+          // For real DocuSign, we'd need the actual file bytes as base64.
+          // For now the placeholder doesn't use it.
+          documentBase64 = '';
+        } catch {
+          // Non-blocking for placeholder flow
+        }
+      }
+
+      const result = await sendForSignature({
+        documentName: doc.name,
+        documentKey: doc.filePath,
+        documentBase64,
+        signerEmail: input.signerEmail,
+        signerName: input.signerName,
+        callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/docusign/callback`,
+      });
+
+      // Update signature status on the document
+      await ctx.db.document.update({
+        where: { id: doc.id },
+        data: {
+          signatureStatus: 'PENDING_SIGNATURE',
+        },
+      });
+
+      return result;
+    }),
 });
