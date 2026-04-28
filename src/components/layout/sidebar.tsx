@@ -3,12 +3,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { Menu, X, Home, Users, UserCheck, UserMinus, Calendar, TrendingUp, Briefcase, BookOpen, BarChart3, FileText, Settings, Network, ClipboardList, LayoutDashboard, Ticket } from "lucide-react";
+import { Menu, X, Home, Users, UserCheck, UserMinus, Calendar, TrendingUp, Briefcase, BookOpen, BarChart3, FileText, Settings, Network, ClipboardList, LayoutDashboard, Ticket, Monitor, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const HR_ONLY_HREFS = new Set(['/hiring', '/analytics', '/reports']);
 const IT_ALLOWED_HREFS = new Set(['/onboarding', '/offboarding']);
-const IT_SECTION_HREFS = new Set(['/it-tickets']);
+const IT_SECTION_HREFS = new Set(['/it-assets', '/it-licenses']);
 
 const navigationItems = [
   { label: "Home", href: "/home", icon: Home },
@@ -27,6 +27,8 @@ const navigationItems = [
   { label: "HR Portal", href: "/hr-portal", icon: LayoutDashboard },
   { label: "Documents", href: "/documents", icon: FileText },
   { label: "IT Tickets", href: "/it-tickets", icon: Ticket },
+  { label: "IT Assets", href: "/it-assets", icon: Monitor },
+  { label: "IT Licenses", href: "/it-licenses", icon: Key },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -42,6 +44,7 @@ export default function Sidebar() {
   const visibleItems = navigationItems.filter(item => {
     if (HR_ONLY_HREFS.has(item.href)) return isHrOrAdmin;
     if (IT_ALLOWED_HREFS.has(item.href)) return isHrOrAdmin || isIT;
+    if (IT_SECTION_HREFS.has(item.href)) return isIT || role === 'SUPER_ADMIN';
     return true;
   });
 

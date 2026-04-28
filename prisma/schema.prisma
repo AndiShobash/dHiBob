@@ -108,6 +108,8 @@ model Employee {
   ticketsCreated         Ticket[]        @relation("TicketCreator")
   ticketsAssigned        Ticket[]        @relation("TicketAssignee")
   ticketComments         TicketComment[] @relation("TicketCommenter")
+  assignedAssets         ITAsset[]       @relation("AssetAssignee")
+  licenseAssignments     ITLicenseAssignment[] @relation("LicenseAssignments")
   @@index([companyId])
   @@index([email])
   @@index([status])
@@ -764,4 +766,66 @@ model TicketComment {
   author    Employee @relation("TicketCommenter", fields: [authorId], references: [id], onDelete: Cascade)
   @@index([ticketId])
   @@index([authorId])
+}
+
+model ITAsset {
+  id              String    @id @default(cuid())
+  companyId       String
+  item            String                            // Brand: Lenovo, Dell, etc.
+  serialNumber    String?
+  model           String?
+  type            String    @default("Laptop")       // Laptop, Monitor, Phone, Keyboard, Mouse, Headset, Other
+  assigneeId      String?
+  factoryOS       String?                            // Windows, macOS, Ubuntu, etc.
+  status          String    @default("Available")    // Available, In Use, Repair, Retired
+  warrantyStatus  String?                            // Under warranty, Out of warranty
+  warrantyEndDate DateTime?
+  cpu             String?
+  ram             String?
+  storage         String?
+  gpu             String?
+  notes           String?
+  purchaseDate    DateTime?
+  purchaseCost    Float?
+  currency        String    @default("ILS")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  assignee        Employee? @relation("AssetAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  @@index([companyId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([type])
+}
+
+model ITLicense {
+  id            String    @id @default(cuid())
+  companyId     String
+  item          String                              // Google Workspace, Slack, Cursor AI, etc.
+  publisher     String?                             // Google, Slack, Cursor, Antropic, etc.
+  planName      String?                             // Business Starter, Pro, Teams, etc.
+  category      String    @default("General")       // Identity, Communication, AI, Development, Security, Other
+  licenseType   String    @default("Monthly")        // Monthly, Yearly, Perpetual
+  renewalDate   DateTime?
+  status        String    @default("Active")         // Active, Inactive, Expired
+  totalSeats    Int       @default(0)
+  pricePerSeat  Float     @default(0)
+  currency      String    @default("USD")
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  assignments   ITLicenseAssignment[]
+  @@index([companyId])
+  @@index([status])
+}
+
+model ITLicenseAssignment {
+  id          String   @id @default(cuid())
+  licenseId   String
+  employeeId  String
+  assignedAt  DateTime @default(now())
+  license     ITLicense @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  employee    Employee  @relation("LicenseAssignments", fields: [employeeId], references: [id], onDelete: Cascade)
+  @@unique([licenseId, employeeId])
+  @@index([licenseId])
+  @@index([employeeId])
 }
