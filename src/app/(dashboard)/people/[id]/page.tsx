@@ -1099,7 +1099,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             </div>
             <div className="grid grid-cols-7 gap-4">
               <F label="Job" value={jobTitle} onSave={wi('jobTitle')} />
-              <F label="Job %" value={workInfo.jobPercentage || ''} onSave={wi('jobPercentage')} />
+              <DropdownBadgeField label="Job %" value={workInfo.jobPercentage || ''} options={['100%', '90%', '80%', '75%', '70%', '60%', '50%', '40%', '30%', '25%', '20%', '10%']} onSave={isAdmin ? (val) => { const fn = wi('jobPercentage'); if (fn) fn(val); } : undefined} />
               <ManagerPicker
                 label="Team Leader (TL)"
                 currentManagerId={employee.manager?.id}
