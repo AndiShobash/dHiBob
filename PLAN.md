@@ -70,6 +70,21 @@ Line 932: Change `Reports to` text to `TL:` for consistency with the new label.
 <span className="text-gray-400"> • TL: <a ...>{managerDisplay}</a></span>
 ```
 
+### 1e. Update milestone text in backend
+
+**File:** `src/server/routers/employee.ts`
+
+When a manager change is saved, the backend creates a job-record milestone. Update the text to match TL terminology:
+
+- Line 214: Change `title: 'Reporting Change'` → `title: 'TL Change'`
+- Line 215: Change `` description: `Now reports to ${...}` `` → `` description: `TL changed to ${...}` ``
+
+### 1f. Update ManagerPicker comment (cosmetic)
+
+**File:** `src/app/(dashboard)/people/[id]/page.tsx`
+
+- Line 617: Change comment `/** Manager picker — dropdown to select who this employee reports to */` → `/** Manager picker — dropdown to select this employee's Team Leader (TL) */`
+
 ---
 
 ## Task 2 — Add ILS to currency dropdowns
@@ -123,8 +138,8 @@ The workforce planning page has a currency field in state but no visible dropdow
 
 | File | Change |
 |---|---|
-| `src/server/routers/employee.ts` | Nest manager include to get skip-level manager |
-| `src/app/(dashboard)/people/[id]/page.tsx` | Relabel TL, remove Team, add GL FieldCell, update header text |
+| `src/server/routers/employee.ts` | Nest manager include to get skip-level manager; update milestone text for TL terminology |
+| `src/app/(dashboard)/people/[id]/page.tsx` | Relabel TL, remove Team, add GL FieldCell, update header text, update comment |
 | `tests/unit/components/employee-profile.test.tsx` | Update 2 existing tests, add ~5 new tests |
 
 Total: 3 files changed.
