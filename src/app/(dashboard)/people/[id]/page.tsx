@@ -1230,14 +1230,50 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
 
         {/* Assets tab */}
         {canSeeSensitive && <TabsContent value="assets" className="mt-6 space-y-4">
+          {/* Budget summary */}
+          {(() => {
+            const budgetAmount = parseFloat(workInfo.assetBudget || '0') || 0;
+            const budgetCcy = workInfo.assetBudgetCurrency || 'ILS';
+            const totalSpent = assets.reduce((sum: number, a: any) => sum + (parseFloat(a.assetsCost || '0') || 0), 0);
+            const remaining = budgetAmount - totalSpent;
+            const sym = currencySymbol(budgetCcy);
+            return (
+              <SectionCard title="Equipment Budget" subtitle="One-time budget for office and home equipment purchases">
+                <div className="grid grid-cols-4 gap-4 mb-4">
+                  <F label="Budget Amount" value={workInfo.assetBudget || ''} onSave={wi('assetBudget')} />
+                  <DropdownBadgeField label="Currency" value={budgetCcy} options={['ILS', 'USD', 'EUR', 'GBP']} onSave={isAdmin ? (val) => { const fn = wi('assetBudgetCurrency'); if (fn) fn(val); } : undefined} />
+                  <FieldCell label="Total Spent" value={totalSpent > 0 ? `${sym}${totalSpent.toLocaleString()}` : '—'} />
+                  <FieldCell
+                    label="Remaining"
+                    value={budgetAmount > 0 ? `${sym}${remaining.toLocaleString()}` : '—'}
+                  />
+                </div>
+                {budgetAmount > 0 && (
+                  <div className="mt-2">
+                    <div className="h-2 rounded-full bg-gray-200 dark:bg-charcoal-700 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${remaining <= 0 ? 'bg-red-500' : remaining < budgetAmount * 0.25 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                        style={{ width: `${Math.max(0, Math.min(100, (remaining / budgetAmount) * 100))}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {remaining <= 0 ? 'Budget fully used' : `${Math.round((remaining / budgetAmount) * 100)}% remaining`}
+                    </p>
+                  </div>
+                )}
+              </SectionCard>
+            );
+          })()}
+
+          {/* Individual assets */}
           {(assets.length > 0 ? assets : [{}]).map((asset: any, i) => (
-            <SectionCard key={i} title="Assets">
+            <SectionCard key={i} title={`Asset ${i + 1}`}>
               <div className="grid grid-cols-5 gap-4 mb-4">
                 <F label="Category" value={asset.category || ''} onSave={saveAssetField(i, 'category')} />
                 <F label="Description" value={asset.description || ''} onSave={saveAssetField(i, 'description')} />
                 <DateField label="Date Loaned" value={asset.dateLoaned || ''} onSave={saveAssetField(i, 'dateLoaned')} />
                 <DateField label="Date Returned" value={asset.dateReturned || ''} onSave={saveAssetField(i, 'dateReturned')} />
-                <F label="Assets Cost" value={asset.assetsCost || ''} onSave={saveAssetField(i, 'assetsCost')} />
+                <F label="Cost" value={asset.assetsCost || ''} onSave={saveAssetField(i, 'assetsCost')} />
               </div>
               <div>
                 <F label="Notes" value={asset.notes || ''} onSave={saveAssetField(i, 'notes')} />

@@ -274,6 +274,8 @@ export const employeeRouter = router({
     id: z.string(),
     jobTitle: z.string().optional(),
     jobPercentage: z.string().optional(),
+    assetBudget: z.string().optional(),
+    assetBudgetCurrency: z.string().optional(),
     reportsTo: z.string().optional(),
     office: z.string().optional(),
     team: z.string().optional(),
