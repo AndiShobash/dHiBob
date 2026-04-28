@@ -883,7 +883,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
     : undefined;
 
   const addAssetEntry = () => {
-    const updated = [...assets, { category: '', description: '', dateLoaned: '', dateReturned: '', assetsCost: '', notes: '' }];
+    const updated = [...assets, { category: '', description: '', dateLoaned: '', dateReturned: '', assetsCost: '', assetCurrency: workInfo.assetBudgetCurrency || 'ILS', notes: '' }];
     updateWorkInfo.mutateAsync({ id: params.id, assets: updated } as any);
   };
 
@@ -1234,7 +1234,12 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
           {(() => {
             const budgetAmount = parseFloat(workInfo.assetBudget || '0') || 0;
             const budgetCcy = workInfo.assetBudgetCurrency || 'ILS';
-            const totalSpent = assets.reduce((sum: number, a: any) => sum + (parseFloat(a.assetsCost || '0') || 0), 0);
+            // Only count assets in the same currency as the budget
+            const totalSpent = assets.reduce((sum: number, a: any) => {
+              const aCcy = a.assetCurrency || 'ILS';
+              if (aCcy !== budgetCcy) return sum;
+              return sum + (parseFloat(a.assetsCost || '0') || 0);
+            }, 0);
             const remaining = budgetAmount - totalSpent;
             const sym = currencySymbol(budgetCcy);
             return (
@@ -1268,12 +1273,13 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
           {/* Individual assets */}
           {(assets.length > 0 ? assets : [{}]).map((asset: any, i) => (
             <SectionCard key={i} title={`Asset ${i + 1}`}>
-              <div className="grid grid-cols-5 gap-4 mb-4">
+              <div className="grid grid-cols-6 gap-4 mb-4">
                 <F label="Category" value={asset.category || ''} onSave={saveAssetField(i, 'category')} />
                 <F label="Description" value={asset.description || ''} onSave={saveAssetField(i, 'description')} />
                 <DateField label="Date Loaned" value={asset.dateLoaned || ''} onSave={saveAssetField(i, 'dateLoaned')} />
                 <DateField label="Date Returned" value={asset.dateReturned || ''} onSave={saveAssetField(i, 'dateReturned')} />
                 <F label="Cost" value={asset.assetsCost || ''} onSave={saveAssetField(i, 'assetsCost')} />
+                <DropdownBadgeField label="Currency" value={asset.assetCurrency || 'ILS'} options={['ILS', 'USD', 'EUR', 'GBP']} onSave={isAdmin ? (val) => { const fn = saveAssetField(i, 'assetCurrency'); if (fn) fn(val); } : undefined} />
               </div>
               <div>
                 <F label="Notes" value={asset.notes || ''} onSave={saveAssetField(i, 'notes')} />
