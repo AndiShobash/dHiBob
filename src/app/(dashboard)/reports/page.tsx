@@ -208,6 +208,15 @@ function money(val: unknown, row?: Record<string, unknown>) {
   return formatCurrency(n, code);
 }
 
+/** Same as money() but reads row.newCurrency — used for future-increase
+ *  salary columns where the currency may differ from the current salary. */
+function newMoney(val: unknown, row?: Record<string, unknown>) {
+  const n = Number(val ?? 0);
+  if (n === 0) return '—';
+  const code = (row?.newCurrency ?? row?.currency ?? 'USD') as string;
+  return formatCurrency(n, code);
+}
+
 const TERMINATION_COLS: Column[] = [
   { key: "name",              label: "Name",               visible: true },
   { key: "nationalId",        label: "National ID",        visible: true },
@@ -238,7 +247,7 @@ const COMPENSATION_COLS: Column[] = [
   { key: "currentSalary", label: "Current Salary", format: money,  visible: true },
   { key: "currentBase",   label: "Base (80%)",     format: money,  visible: true },
   { key: "currentAdditional", label: "Additional (20%)", format: money, visible: true },
-  { key: "newSalary",     label: "New Salary",     format: money,  visible: true },
+  { key: "newSalary",     label: "New Salary",     format: newMoney,  visible: true },
   { key: "effectiveDate", label: "Effective Date", visible: true },
   { key: "type",          label: "Type",           visible: true },
   { key: "changeReason",  label: "Note",           visible: true },
@@ -365,13 +374,15 @@ export default function ReportsPage() {
           name: r.name, nationalId: r.nationalId, department: r.department, role: r.role,
           currentSalary: r.currentSalary, currentBase: r.currentBase, currentAdditional: r.currentAdditional,
           currency: r.currency,
+          newCurrency: r.currency,
           newSalary: null, newBase: null, newAdditional: null, effectiveDate: "", type: "", changeReason: "",
         }];
       }
       return increases.map((fi: any) => ({
         name: r.name, nationalId: r.nationalId, department: r.department, role: r.role,
         currentSalary: r.currentSalary, currentBase: r.currentBase, currentAdditional: r.currentAdditional,
-        currency: fi.currency || r.currency,
+        currency: r.currency,
+        newCurrency: fi.currency || r.currency,
         newSalary:     fi.salary,
         newBase:       fi.salary ? Math.round(fi.salary * 0.8) : null,
         newAdditional: fi.salary ? Math.round(fi.salary * 0.2) : null,
