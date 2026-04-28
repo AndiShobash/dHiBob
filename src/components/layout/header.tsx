@@ -46,7 +46,7 @@ export default function Header() {
                 <Settings size={16} className="mr-2" />Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600" onClick={() => signOut()}>
+              <DropdownMenuItem className="text-red-600" onClick={() => signOut({ callbackUrl: '/login' })}>
                 <LogOut size={16} className="mr-2" />Sign Out
               </DropdownMenuItem>
             </DropdownMenuContent>
