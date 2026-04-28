@@ -364,12 +364,14 @@ export default function ReportsPage() {
         return [{
           name: r.name, nationalId: r.nationalId, department: r.department, role: r.role,
           currentSalary: r.currentSalary, currentBase: r.currentBase, currentAdditional: r.currentAdditional,
+          currency: r.currency,
           newSalary: null, newBase: null, newAdditional: null, effectiveDate: "", type: "", changeReason: "",
         }];
       }
       return increases.map((fi: any) => ({
         name: r.name, nationalId: r.nationalId, department: r.department, role: r.role,
         currentSalary: r.currentSalary, currentBase: r.currentBase, currentAdditional: r.currentAdditional,
+        currency: fi.currency || r.currency,
         newSalary:     fi.salary,
         newBase:       fi.salary ? Math.round(fi.salary * 0.8) : null,
         newAdditional: fi.salary ? Math.round(fi.salary * 0.2) : null,
