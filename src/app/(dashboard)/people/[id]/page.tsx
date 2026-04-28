@@ -1097,8 +1097,9 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <DateField label="" value={startDateFormatted}
                 onSave={isAdmin ? (val) => updateEmployee.mutateAsync({ id: params.id, startDate: val } as any) : undefined} />
             </div>
-            <div className="grid grid-cols-6 gap-4">
+            <div className="grid grid-cols-7 gap-4">
               <F label="Job" value={jobTitle} onSave={wi('jobTitle')} />
+              <F label="Job %" value={workInfo.jobPercentage || ''} onSave={wi('jobPercentage')} />
               <ManagerPicker
                 label="Team Leader (TL)"
                 currentManagerId={employee.manager?.id}

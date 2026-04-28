@@ -273,6 +273,7 @@ export const employeeRouter = router({
   updateWorkInfo: protectedProcedure.input(z.object({
     id: z.string(),
     jobTitle: z.string().optional(),
+    jobPercentage: z.string().optional(),
     reportsTo: z.string().optional(),
     office: z.string().optional(),
     team: z.string().optional(),
