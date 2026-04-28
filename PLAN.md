@@ -7,14 +7,14 @@
 **File:** `src/app/(dashboard)/people/[id]/page.tsx`
 
 - Line 1103: Change `label="Reports To"` → `label="Team Leader (TL)"`
-- Line 933 (header subtitle): Change the text `Reports to` → `TL:` in the summary line under the employee name
+- Line 932 (header subtitle): Change the text `Reports to` → `TL:` in the summary line under the employee name
 
 ### 1b. Remove "Team" field from Role section
 
 **File:** `src/app/(dashboard)/people/[id]/page.tsx`
 
 - Line 1108: Delete `<F label="Team" value={team} onSave={wi('team')} />`
-- Line 812: The `team` variable declaration (`const team = workInfo.team || '';`) can stay — it's harmless and may be used elsewhere. But remove it if it's only referenced in the deleted field (it is only used on line 1108, so remove it too for cleanliness).
+- Line 813: The `team` variable declaration (`const team = workInfo.team || '';`) can stay — it's harmless and may be used elsewhere. But remove it if it's only referenced in the deleted field (it is only used on line 1108, so remove it too for cleanliness).
 
 ### 1c. Add GL field (skip-level manager, read-only)
 
@@ -60,7 +60,7 @@ Also update the header subtitle (line 933 area) — optionally show GL there too
 
 ### 1d. Header subtitle text
 
-Line ~933: Change `Reports to` text to `TL:` for consistency with the new label.
+Line 932: Change `Reports to` text to `TL:` for consistency with the new label.
 
 ```tsx
 // Before:
