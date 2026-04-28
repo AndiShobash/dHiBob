@@ -356,6 +356,86 @@ function parseDocEntries(value?: string | null): DocEntry[] {
   }
 }
 
+function EmployeeITSection({ employeeId }: { employeeId: string }) {
+  const { data: assets, isLoading: assetsLoading } = trpc.employee.getEmployeeAssets.useQuery({ employeeId });
+  const { data: licenseAssignments, isLoading: licensesLoading } = trpc.employee.getEmployeeLicenses.useQuery({ employeeId });
+
+  return (
+    <>
+      {/* Assigned Hardware */}
+      <SectionCard title="Assigned Hardware" subtitle="Equipment assigned to this employee via IT Assets">
+        {assetsLoading ? (
+          <div className="animate-pulse h-12 bg-gray-100 dark:bg-charcoal-800 rounded" />
+        ) : !assets?.length ? (
+          <p className="text-sm text-gray-400">No hardware assigned.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left">
+                  {['Item', 'Model', 'Serial Number', 'Type', 'OS', 'Status', 'Warranty'].map(h => (
+                    <th key={h} className="px-3 py-2 text-xs font-medium text-gray-500">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {assets.map((a: any) => (
+                  <tr key={a.id} className="border-b">
+                    <td className="px-3 py-2 font-medium">{a.item}</td>
+                    <td className="px-3 py-2 text-gray-600">{a.model || '—'}</td>
+                    <td className="px-3 py-2 text-gray-500 font-mono text-xs">{a.serialNumber || '—'}</td>
+                    <td className="px-3 py-2 text-gray-500">{a.type}</td>
+                    <td className="px-3 py-2 text-gray-500">{a.factoryOS || '—'}</td>
+                    <td className="px-3 py-2">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${a.status === 'In Use' ? 'bg-sky-200 text-sky-800 dark:bg-sky-500/30 dark:text-sky-200' : 'bg-gray-100 text-gray-600'}`}>{a.status}</span>
+                    </td>
+                    <td className="px-3 py-2">
+                      {a.warrantyStatus ? (
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${a.warrantyStatus === 'Under warranty' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{a.warrantyStatus}</span>
+                      ) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
+      {/* Assigned Licenses */}
+      <SectionCard title="Software Licenses" subtitle="Licenses assigned to this employee via IT Licenses">
+        {licensesLoading ? (
+          <div className="animate-pulse h-12 bg-gray-100 dark:bg-charcoal-800 rounded" />
+        ) : !licenseAssignments?.length ? (
+          <p className="text-sm text-gray-400">No licenses assigned.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {licenseAssignments.map((la: any) => {
+              const l = la.license;
+              const catColors: Record<string, string> = {
+                AI: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30',
+                Communication: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30',
+                Development: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30',
+                Identity: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30',
+                Security: 'bg-red-100 text-red-700 dark:bg-red-900/30',
+              };
+              return (
+                <div key={la.id} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-charcoal-900 border border-gray-200 dark:border-charcoal-700 rounded-lg">
+                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${catColors[l.category] || 'bg-gray-100 text-gray-600'}`}>{l.category}</span>
+                  <div>
+                    <p className="text-sm font-medium">{l.item}</p>
+                    {l.planName && <p className="text-[10px] text-gray-400">{l.planName}</p>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </SectionCard>
+    </>
+  );
+}
+
 function SendForSignatureInline({
   documentName, documentKey, signerName, signerEmail, onDone,
 }: {
@@ -1028,6 +1108,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
           <TabsTrigger value="profile" className={tabTriggerClass}>Profile</TabsTrigger>
           {canSeeSensitive && <TabsTrigger value="work" className={tabTriggerClass}>Work</TabsTrigger>}
           {canSeeSensitive && <TabsTrigger value="assets" className={tabTriggerClass}>Assets</TabsTrigger>}
+          {(canSeeSensitive || isSelf) && <TabsTrigger value="it-equipment" className={tabTriggerClass}>IT Equipment & Licenses</TabsTrigger>}
           {canSeeSensitive && <TabsTrigger value="bank" className={tabTriggerClass}>Bank Details</TabsTrigger>}
           {canSeeSensitive && <TabsTrigger value="pension" className={tabTriggerClass}>Pension</TabsTrigger>}
         </TabsList>
@@ -1366,7 +1447,11 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
           )}
         </TabsContent>}
 
-        {/* Salary tab */}
+        {/* IT Equipment & Licenses tab */}
+        {(canSeeSensitive || isSelf) && <TabsContent value="it-equipment" className="mt-6 space-y-4">
+          <EmployeeITSection employeeId={params.id} />
+        </TabsContent>}
+
         {/* Bank Details tab */}
         {canSeeSensitive && <TabsContent value="bank" className="mt-6 space-y-4">
           <SectionCard

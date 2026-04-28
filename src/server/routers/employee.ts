@@ -437,6 +437,33 @@ export const employeeRouter = router({
     return timeline.sort((a, b) => b.date.getTime() - a.date.getTime());
   }),
 
+  // Employee's assigned IT assets (visible to self + IT/Admin)
+  getEmployeeAssets: protectedProcedure
+    .input(z.object({ employeeId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const isSelfOrIt = input.employeeId === ctx.user.employeeId || ['SUPER_ADMIN', 'ADMIN', 'IT'].includes(ctx.user.role);
+      if (!isSelfOrIt) throw new TRPCError({ code: 'FORBIDDEN' });
+      return ctx.db.iTAsset.findMany({
+        where: { assigneeId: input.employeeId },
+        orderBy: { createdAt: 'desc' },
+      });
+    }),
+
+  // Employee's assigned licenses (visible to self + IT/Admin)
+  getEmployeeLicenses: protectedProcedure
+    .input(z.object({ employeeId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const isSelfOrIt = input.employeeId === ctx.user.employeeId || ['SUPER_ADMIN', 'ADMIN', 'IT'].includes(ctx.user.role);
+      if (!isSelfOrIt) throw new TRPCError({ code: 'FORBIDDEN' });
+      return ctx.db.iTLicenseAssignment.findMany({
+        where: { employeeId: input.employeeId },
+        include: {
+          license: true,
+        },
+        orderBy: { assignedAt: 'desc' },
+      });
+    }),
+
   // Live exchange rates (ECB via frankfurter.app, cached 24h server-side)
   getExchangeRates: protectedProcedure.query(async () => {
     return getExchangeRates();
