@@ -10,7 +10,7 @@ import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
 import { useSession } from "next-auth/react";
 import { profileDocsFolder, avatarsFolder } from "@/lib/people-folder";
-import { currencySymbol } from "@/lib/currency";
+import { currencySymbol, convertCurrency } from "@/lib/currency";
 
 function statusVariant(status: string): "success" | "warning" | "secondary" | "destructive" {
   if (status === 'ACTIVE') return 'success';
@@ -1234,13 +1234,15 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
           {(() => {
             const budgetAmount = parseFloat(workInfo.assetBudget || '0') || 0;
             const budgetCcy = workInfo.assetBudgetCurrency || 'ILS';
-            // Only count assets in the same currency as the budget
+            // Convert every asset's cost to the budget currency, then sum
             const totalSpent = assets.reduce((sum: number, a: any) => {
+              const cost = parseFloat(a.assetsCost || '0') || 0;
+              if (cost === 0) return sum;
               const aCcy = a.assetCurrency || 'ILS';
-              if (aCcy !== budgetCcy) return sum;
-              return sum + (parseFloat(a.assetsCost || '0') || 0);
+              return sum + convertCurrency(cost, aCcy, budgetCcy);
             }, 0);
             const remaining = budgetAmount - totalSpent;
+            const hasConversion = assets.some((a: any) => (a.assetCurrency || 'ILS') !== budgetCcy && parseFloat(a.assetsCost || '0') > 0);
             const sym = currencySymbol(budgetCcy);
             return (
               <SectionCard title="Equipment Budget" subtitle="One-time budget for office and home equipment purchases">
@@ -1263,6 +1265,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                     </div>
                     <p className="text-xs text-gray-400 mt-1">
                       {remaining <= 0 ? 'Budget fully used' : `${Math.round((remaining / budgetAmount) * 100)}% remaining`}
+                      {hasConversion && ' · includes approximate currency conversion'}
                     </p>
                   </div>
                 )}
