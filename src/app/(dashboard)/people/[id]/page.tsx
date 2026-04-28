@@ -10,6 +10,7 @@ import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
 import { useSession } from "next-auth/react";
 import { profileDocsFolder, avatarsFolder } from "@/lib/people-folder";
+import { currencySymbol } from "@/lib/currency";
 
 function statusVariant(status: string): "success" | "warning" | "secondary" | "destructive" {
   if (status === 'ACTIVE') return 'success';
@@ -1170,12 +1171,12 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                           </td>
                           <td className="py-3 pr-6 min-w-[110px]">
                             <span className="text-sm text-gray-600 dark:text-gray-400">
-                              {entry.salaryAmount ? `$${Math.round(parseFloat(entry.salaryAmount) * 0.8).toLocaleString()}` : '—'}
+                              {entry.salaryAmount ? `${currencySymbol(entry.salaryCurrency)}${Math.round(parseFloat(entry.salaryAmount) * 0.8).toLocaleString()}` : '—'}
                             </span>
                           </td>
                           <td className="py-3 pr-6 min-w-[110px]">
                             <span className="text-sm text-gray-600 dark:text-gray-400">
-                              {entry.salaryAmount ? `$${Math.round(parseFloat(entry.salaryAmount) * 0.2).toLocaleString()}` : '—'}
+                              {entry.salaryAmount ? `${currencySymbol(entry.salaryCurrency)}${Math.round(parseFloat(entry.salaryAmount) * 0.2).toLocaleString()}` : '—'}
                             </span>
                           </td>
                           <td className="py-3 pr-6 min-w-[160px]">

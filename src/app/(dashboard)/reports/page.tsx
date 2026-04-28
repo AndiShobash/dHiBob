@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Download, SlidersHorizontal } from "lucide-react";
 import * as XLSX from "xlsx";
+import { formatCurrency } from "@/lib/currency";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -52,7 +53,7 @@ function downloadExcel(filename: string, visibleColumns: Column[], rows: Record<
     ...rows.map((row) =>
       visibleColumns.map((col) => {
         const val = row[col.key];
-        if (col.format) return col.format(val);
+        if (col.format) return col.format(val, row);
         if (val instanceof Date) return val.toISOString().slice(0, 10);
         if (typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T/)) return val.slice(0, 10);
         return val ?? "";
@@ -72,7 +73,7 @@ function downloadExcel(filename: string, visibleColumns: Column[], rows: Record<
 interface Column {
   key: string;
   label: string;
-  format?: (val: unknown) => string;
+  format?: (val: unknown, row?: Record<string, unknown>) => string;
   visible: boolean;
 }
 
@@ -104,8 +105,8 @@ function SortableTable({
     return sortDir === "asc" ? " ↑" : sortDir === "desc" ? " ↓" : "";
   }
 
-  function formatCell(col: Column, val: unknown): string {
-    if (col.format) return col.format(val);
+  function formatCell(col: Column, val: unknown, row?: Record<string, unknown>): string {
+    if (col.format) return col.format(val, row);
     if (val instanceof Date) return val.toISOString().slice(0, 10);
     // Auto-detect date strings like "2020-05-12T00:00:00.000Z"
     if (typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T/)) return val.slice(0, 10);
@@ -182,7 +183,7 @@ function SortableTable({
               <tr key={i} className="border-b hover:bg-gray-50 dark:hover:bg-charcoal-700">
                 {visibleColumns.map((col) => (
                   <td key={col.key} className="px-3 py-2 text-gray-800 dark:text-gray-200 whitespace-nowrap">
-                    {formatCell(col, row[col.key])}
+                    {formatCell(col, row[col.key], row)}
                   </td>
                 ))}
               </tr>
@@ -198,9 +199,13 @@ function SortableTable({
 // Column definitions per tab
 // ---------------------------------------------------------------------------
 
-function usd(val: unknown) {
+/** Format a salary/amount value using the row's currency code.
+ *  Falls back to $ when no currency column is present in the row. */
+function money(val: unknown, row?: Record<string, unknown>) {
   const n = Number(val ?? 0);
-  return n === 0 ? "—" : `$${n.toLocaleString()}`;
+  if (n === 0) return '—';
+  const code = (row?.currency ?? row?.salaryCurrency ?? 'USD') as string;
+  return formatCurrency(n, code);
 }
 
 const TERMINATION_COLS: Column[] = [
@@ -219,9 +224,9 @@ const ACTIVE_COLS: Column[] = [
   { key: "department",     label: "Department",      visible: true },
   { key: "startDate",      label: "Start Date",      visible: true },
   { key: "seniorityYears", label: "Seniority (yrs)", visible: true },
-  { key: "salary",         label: "Salary",          format: usd, visible: true },
-  { key: "baseSalary",     label: "Base (80%)",      format: usd, visible: true },
-  { key: "additional",     label: "Additional (20%)", format: usd, visible: true },
+  { key: "salary",         label: "Salary",          format: money, visible: true },
+  { key: "baseSalary",     label: "Base (80%)",      format: money, visible: true },
+  { key: "additional",     label: "Additional (20%)", format: money, visible: true },
   { key: "role",           label: "Role",            visible: true },
 ];
 
@@ -230,10 +235,10 @@ const COMPENSATION_COLS: Column[] = [
   { key: "nationalId",    label: "National ID",    visible: true },
   { key: "department",    label: "Department",     visible: true },
   { key: "role",          label: "Role",           visible: true },
-  { key: "currentSalary", label: "Current Salary", format: usd,  visible: true },
-  { key: "currentBase",   label: "Base (80%)",     format: usd,  visible: true },
-  { key: "currentAdditional", label: "Additional (20%)", format: usd, visible: true },
-  { key: "newSalary",     label: "New Salary",     format: usd,  visible: true },
+  { key: "currentSalary", label: "Current Salary", format: money,  visible: true },
+  { key: "currentBase",   label: "Base (80%)",     format: money,  visible: true },
+  { key: "currentAdditional", label: "Additional (20%)", format: money, visible: true },
+  { key: "newSalary",     label: "New Salary",     format: money,  visible: true },
   { key: "effectiveDate", label: "Effective Date", visible: true },
   { key: "type",          label: "Type",           visible: true },
   { key: "changeReason",  label: "Note",           visible: true },
@@ -270,9 +275,9 @@ const ALL_CUSTOM_COLUMNS: Column[] = [
   { key: "emergencyContactPhone", label: "Emergency Phone",        visible: false },
   { key: "bankName",       label: "Bank Name",        visible: false },
   { key: "bankAccount",    label: "Bank Account",     visible: false },
-  { key: "currentSalary",  label: "Current Salary",   format: usd, visible: true },
-  { key: "baseSalary",     label: "Base (80%)",       format: usd, visible: false },
-  { key: "additional",     label: "Additional (20%)", format: usd, visible: false },
+  { key: "currentSalary",  label: "Current Salary",   format: money, visible: true },
+  { key: "baseSalary",     label: "Base (80%)",       format: money, visible: false },
+  { key: "additional",     label: "Additional (20%)", format: money, visible: false },
   { key: "salaryCurrency", label: "Currency",         visible: false },
   { key: "contractType",   label: "Contract Type",    visible: false },
   { key: "salaryType",     label: "Salary Type",      visible: false },
