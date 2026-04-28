@@ -10,7 +10,7 @@ import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
 import { useSession } from "next-auth/react";
 import { profileDocsFolder, avatarsFolder } from "@/lib/people-folder";
-import { currencySymbol, convertCurrency } from "@/lib/currency";
+import { currencySymbol, convertCurrency, type ExchangeRates } from "@/lib/currency";
 
 function statusVariant(status: string): "success" | "warning" | "secondary" | "destructive" {
   if (status === 'ACTIVE') return 'success';
@@ -727,6 +727,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
     { id: params.id },
     { retry: false }
   );
+  const { data: exchangeRates } = trpc.employee.getExchangeRates.useQuery();
 
   const utils = trpc.useContext();
   const invalidate = () => utils.employee.getById.invalidate({ id: params.id });
@@ -1239,7 +1240,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               const cost = parseFloat(a.assetsCost || '0') || 0;
               if (cost === 0) return sum;
               const aCcy = a.assetCurrency || 'ILS';
-              return sum + convertCurrency(cost, aCcy, budgetCcy);
+              return sum + convertCurrency(cost, aCcy, budgetCcy, exchangeRates as ExchangeRates | undefined);
             }, 0);
             const remaining = budgetAmount - totalSpent;
             const hasConversion = assets.some((a: any) => (a.assetCurrency || 'ILS') !== budgetCcy && parseFloat(a.assetsCost || '0') > 0);

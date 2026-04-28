@@ -27,10 +27,10 @@ export function formatCurrency(amount: number, code?: string | null): string {
 }
 
 /**
- * Approximate exchange rates to USD (pivot currency).
- * Good enough for budget estimates; not for payroll or accounting.
+ * Hardcoded fallback rates to USD. Used when the live API is
+ * unreachable or on first request before the cache is warm.
  */
-const RATES_TO_USD: Record<string, number> = {
+const FALLBACK_RATES_TO_USD: Record<string, number> = {
   USD: 1,
   EUR: 1.08,
   GBP: 1.27,
@@ -43,13 +43,60 @@ const RATES_TO_USD: Record<string, number> = {
   BRL: 0.19,
 };
 
+export type ExchangeRates = Record<string, number>;
+
 /**
- * Convert an amount from one currency to another using approximate rates.
- * Returns the converted amount rounded to the nearest integer.
+ * Convert an amount from one currency to another.
+ * Accepts an optional live-rates object; falls back to hardcoded rates.
  */
-export function convertCurrency(amount: number, from: string, to: string): number {
+export function convertCurrency(
+  amount: number,
+  from: string,
+  to: string,
+  rates?: ExchangeRates | null,
+): number {
   if (from === to || amount === 0) return amount;
-  const fromRate = RATES_TO_USD[from.toUpperCase()] ?? 1;
-  const toRate = RATES_TO_USD[to.toUpperCase()] ?? 1;
+  const table = rates && Object.keys(rates).length > 0 ? rates : FALLBACK_RATES_TO_USD;
+  const fromRate = table[from.toUpperCase()] ?? 1;
+  const toRate = table[to.toUpperCase()] ?? 1;
   return Math.round((amount * fromRate) / toRate);
+}
+
+// ---------------------------------------------------------------------------
+// Server-side live-rate fetcher with 24h in-memory cache.
+// Only runs in Node.js (tRPC procedures). The client receives the
+// cached rates via a tRPC query and passes them to convertCurrency().
+// ---------------------------------------------------------------------------
+
+let cachedRates: ExchangeRates | null = null;
+let cacheTimestamp = 0;
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Fetch today's exchange rates from the ECB via frankfurter.app (free,
+ * no API key). Returns rates relative to USD. Caches for 24h.
+ * Falls back to hardcoded rates on failure.
+ */
+export async function getExchangeRates(): Promise<ExchangeRates> {
+  if (cachedRates && Date.now() - cacheTimestamp < CACHE_TTL_MS) {
+    return cachedRates;
+  }
+  try {
+    const res = await fetch('https://api.frankfurter.app/latest?from=USD');
+    if (!res.ok) throw new Error(`frankfurter ${res.status}`);
+    const data = await res.json();
+    // data.rates is { EUR: 0.92, GBP: 0.79, ILS: 3.6, ... } (how many X per 1 USD)
+    // We want rates TO USD: EUR→USD = 1/0.92 ≈ 1.087
+    const ratesToUsd: ExchangeRates = { USD: 1 };
+    for (const [code, perUsd] of Object.entries(data.rates as Record<string, number>)) {
+      ratesToUsd[code] = 1 / perUsd;
+    }
+    cachedRates = ratesToUsd;
+    cacheTimestamp = Date.now();
+    console.log(`[exchange-rates] refreshed ${Object.keys(ratesToUsd).length} rates from ECB`);
+    return cachedRates;
+  } catch (err) {
+    console.error('[exchange-rates] fetch failed, using fallback:', (err as Error).message);
+    return FALLBACK_RATES_TO_USD;
+  }
 }

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '@/server/trpc';
 import { TRPCError } from '@trpc/server';
+import { getExchangeRates } from '@/lib/currency';
 
 const createEmployeeSchema = z.object({
   firstName: z.string().min(1),
@@ -432,5 +433,10 @@ export const employeeRouter = router({
     ];
 
     return timeline.sort((a, b) => b.date.getTime() - a.date.getTime());
+  }),
+
+  // Live exchange rates (ECB via frankfurter.app, cached 24h server-side)
+  getExchangeRates: protectedProcedure.query(async () => {
+    return getExchangeRates();
   }),
 });
