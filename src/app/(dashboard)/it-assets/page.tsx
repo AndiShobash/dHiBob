@@ -16,7 +16,7 @@ const OS_OPTIONS = ['Windows', 'macOS', 'Ubuntu', 'Linux', 'ChromeOS', 'Other'];
 
 const STATUS_COLORS: Record<string, string> = {
   'Available': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30',
-  'In Use': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30',
+  'In Use': 'bg-sky-200 text-sky-800 dark:bg-sky-500/30 dark:text-sky-200',
   'Repair': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30',
   'Retired': 'bg-gray-100 text-gray-500 dark:bg-gray-800',
 };
@@ -86,7 +86,10 @@ export default function ITAssetsPage() {
             <label className="block text-sm font-medium mb-1">Assigned To</label>
             <select name="assigneeId" defaultValue={defaults?.assigneeId || ''} className="w-full border rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 dark:border-charcoal-600">
               <option value="">Unassigned</option>
-              {(employees as any)?.employees?.map((e: any) => (
+              {(employees as any)?.employees
+                ?.slice()
+                .sort((a: any, b: any) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
+                .map((e: any) => (
                 <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
               ))}
             </select>

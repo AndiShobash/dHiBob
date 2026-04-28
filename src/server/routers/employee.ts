@@ -34,7 +34,7 @@ const terminateEmployeeSchema = z.object({
 });
 
 const listEmployeesSchema = z.object({
-  limit: z.number().min(1).max(100).default(10),
+  limit: z.number().min(1).max(1000).default(10),
   cursor: z.string().optional(),
   search: z.string().optional(),
   department: z.string().optional(),
