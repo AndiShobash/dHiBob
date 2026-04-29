@@ -184,6 +184,11 @@ const BADGE_COLORS: Record<string, string> = {
   '25%':        'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-300',
   '20%':        'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
   '10%':        'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+  // Gender
+  'male':       'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  'female':     'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
+  'non-binary': 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
+  'prefer not to say': 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
   // Worker Type
   'in-house':   'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
   // Currency
@@ -1131,7 +1136,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             </div>
             <div className="grid grid-cols-5 gap-4 mb-4">
               <DateField label="Date of Birth" value={dateOfBirth} onSave={pi('dateOfBirth')} />
-              <F label="Gender" value={gender} onSave={pi('gender')} />
+              <DropdownBadgeField label="Gender" value={gender} options={['Male', 'Female', 'Non-binary', 'Prefer not to say']} onSave={isAdmin ? (val) => { const fn = pi('gender'); if (fn) fn(val); } : undefined} />
               <F label="Personal Email" value={personalEmail} onSave={pi('personalEmail')} />
               <F label="Allergies/food preference" value={allergies} onSave={pi('allergies')} />
               <F label="Shirt Size" value={shirtSize} onSave={pi('shirtSize')} />
