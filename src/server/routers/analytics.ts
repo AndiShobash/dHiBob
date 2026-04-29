@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '@/server/trpc';
+import { getExchangeRates, convertCurrency } from '@/lib/currency';
 
 const headcountQuerySchema = z.object({
   groupBy: z.enum(['department', 'site', 'employmentType']).default('department'),
@@ -231,6 +232,9 @@ export const analyticsRouter = router({
       select: { workInfo: true, department: { select: { name: true } } },
     });
 
+    // Fetch live exchange rates so mixed-currency salaries are comparable
+    const rates = await getExchangeRates();
+
     const deptSalaries: Record<string, { total: number; count: number }> = {};
     const positionSalaries: Record<string, { total: number; count: number }> = {};
 
@@ -242,8 +246,12 @@ export const analyticsRouter = router({
       const past = history
         .filter((e: any) => e.effectiveDate && new Date(e.effectiveDate) <= now)
         .sort((a: any, b: any) => new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime());
-      const salary = parseFloat(past[0]?.salaryAmount || '0') || 0;
-      if (salary === 0) continue;
+      const rawSalary = parseFloat(past[0]?.salaryAmount || '0') || 0;
+      if (rawSalary === 0) continue;
+
+      // Convert to USD for consistent averaging across currencies
+      const currency = past[0]?.salaryCurrency || 'USD';
+      const salary = convertCurrency(rawSalary, currency, 'USD', rates);
 
       const dept = (emp as any).department?.name ?? 'Unassigned';
       if (!deptSalaries[dept]) deptSalaries[dept] = { total: 0, count: 0 };
@@ -263,6 +271,7 @@ export const analyticsRouter = router({
       byPosition: Object.entries(positionSalaries)
         .map(([key, v]) => ({ key, avgSalary: Math.round(v.total / v.count), count: v.count }))
         .sort((a, b) => b.avgSalary - a.avgSalary),
+      baseCurrency: 'USD',
     };
   }),
 
@@ -273,6 +282,7 @@ export const analyticsRouter = router({
       select: { workInfo: true, department: { select: { name: true } } },
     });
 
+    const rates = await getExchangeRates();
     const now = new Date();
     const monthMap: Record<string, { currentCost: number; futureCost: number }> = {};
 
@@ -297,7 +307,10 @@ export const analyticsRouter = router({
         const [yr, mo] = label.split('-').map(Number);
         const monthEnd = new Date(yr, mo, 0);
         const applicable = sorted.filter((e: any) => new Date(e.effectiveDate) <= monthEnd);
-        const sal = applicable.length > 0 ? (parseFloat(applicable[applicable.length - 1].salaryAmount || '0') || 0) : 0;
+        if (applicable.length === 0) continue;
+        const entry = applicable[applicable.length - 1];
+        const rawSal = parseFloat(entry.salaryAmount || '0') || 0;
+        const sal = convertCurrency(rawSal, entry.salaryCurrency || 'USD', 'USD', rates);
         monthMap[label].futureCost += sal;
       }
     }
