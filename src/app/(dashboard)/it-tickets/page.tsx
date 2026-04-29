@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, MessageSquare, Send, ArrowLeft, Ticket } from "lucide-react";
+import { Plus, MessageSquare, Send, ArrowLeft, Ticket, Search } from "lucide-react";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -38,6 +38,7 @@ export default function ITTicketsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [search, setSearch] = useState("");
   const [newComment, setNewComment] = useState("");
 
   const { data: tickets, isLoading } = trpc.tickets.list.useQuery({
@@ -201,6 +202,15 @@ export default function ITTicketsPage() {
 
       {/* Filters */}
       <div className="flex gap-3 flex-wrap">
+        <div className="relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search tickets..."
+            className="pl-9 w-56"
+          />
+        </div>
         <select
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
@@ -220,17 +230,27 @@ export default function ITTicketsPage() {
       </div>
 
       {/* Ticket list */}
-      {isLoading ? (
+      {(() => {
+        const q = search.toLowerCase().trim();
+        const filtered = q
+          ? (tickets ?? []).filter((t: any) =>
+              t.title.toLowerCase().includes(q) ||
+              (t.description || '').toLowerCase().includes(q) ||
+              `${t.creator?.firstName} ${t.creator?.lastName}`.toLowerCase().includes(q)
+            )
+          : tickets ?? [];
+
+        return isLoading ? (
         <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-gray-100 dark:bg-charcoal-800 rounded-lg animate-pulse" />)}</div>
-      ) : !tickets?.length ? (
+      ) : !filtered.length ? (
         <div className="text-center py-12 text-gray-500">
           <Ticket size={48} className="mx-auto mb-4 opacity-30" />
-          <p className="text-lg font-medium">No tickets{statusFilter || categoryFilter ? ' match your filters' : ' yet'}.</p>
+          <p className="text-lg font-medium">No tickets{search || statusFilter || categoryFilter ? ' match your filters' : ' yet'}.</p>
           <p className="text-sm mb-4">{isItOrAdmin ? 'Waiting for employees to submit tickets.' : 'Submit your first ticket to get IT support.'}</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {tickets.map((ticket: any) => (
+          {filtered.map((ticket: any) => (
             <Card key={ticket.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedId(ticket.id)}>
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -256,7 +276,8 @@ export default function ITTicketsPage() {
             </Card>
           ))}
         </div>
-      )}
+      );
+      })()}
 
       {/* Create ticket dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
