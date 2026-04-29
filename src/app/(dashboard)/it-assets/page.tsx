@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Monitor, Trash2, Pencil, Download } from "lucide-react";
+import { Plus, Monitor, Trash2, Pencil, Download, MessageSquare, Send } from "lucide-react";
 import { format } from "date-fns";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import * as XLSX from "xlsx";
 
 const TYPES = ['Laptop', 'Monitor', 'Phone', 'Keyboard', 'Mouse', 'Headset', 'Tablet', 'Other'];
@@ -47,6 +48,8 @@ export default function ITAssetsPage() {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null);
+  const [notesAssetId, setNotesAssetId] = useState<string | null>(null);
+  const [newNote, setNewNote] = useState('');
 
   const { data: assets, isLoading } = trpc.itAssets.list.useQuery({
     type: typeFilter || undefined,
@@ -55,9 +58,16 @@ export default function ITAssetsPage() {
   const { data: stats } = trpc.itAssets.stats.useQuery();
   const { data: employees } = trpc.employee.list.useQuery({ limit: 500 });
 
+  const { data: notesAsset } = trpc.itAssets.getById.useQuery(
+    { id: notesAssetId! },
+    { enabled: !!notesAssetId }
+  );
+
   const createMutation = trpc.itAssets.create.useMutation({ onSuccess: () => { utils.itAssets.invalidate(); setCreateOpen(false); } });
   const updateMutation = trpc.itAssets.update.useMutation({ onSuccess: () => { utils.itAssets.invalidate(); setEditId(null); } });
   const deleteMutation = trpc.itAssets.delete.useMutation({ onSuccess: () => utils.itAssets.invalidate() });
+  const addNoteMutation = trpc.itAssets.addNote.useMutation({ onSuccess: () => { utils.itAssets.getById.invalidate({ id: notesAssetId! }); setNewNote(''); } });
+  const deleteNoteMutation = trpc.itAssets.deleteNote.useMutation({ onSuccess: () => utils.itAssets.getById.invalidate({ id: notesAssetId! }) });
 
   // Unique values for dynamic filter dropdowns
   const uniqueVals = (key: string) => Array.from(new Set((assets ?? []).map((a: any) => a[key]).filter(Boolean))).sort();
@@ -305,7 +315,8 @@ export default function ITAssetsPage() {
             </thead>
             <tbody>
               {sorted.map((a: any) => (
-                <tr key={a.id} className="border-b hover:bg-gray-50 dark:hover:bg-charcoal-800 group">
+                <React.Fragment key={a.id}>
+                <tr className="border-b hover:bg-gray-50 dark:hover:bg-charcoal-800 group">
                   <td className="px-3 py-2 font-medium">{a.item}</td>
                   <td className="px-3 py-2 text-gray-500 font-mono text-xs">{a.serialNumber || '—'}</td>
                   <td className="px-3 py-2 text-gray-600">{a.model || '—'}</td>
@@ -322,11 +333,65 @@ export default function ITAssetsPage() {
                   <td className="px-3 py-2 text-gray-500 text-xs">{a.storage || '—'}</td>
                   <td className="px-3 py-2">
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => setNotesAssetId(notesAssetId === a.id ? null : a.id)} className="p-1 text-blue-400 hover:text-blue-600" title="Notes"><MessageSquare size={14} /></button>
                       <button onClick={() => setEditId(a.id)} className="p-1 text-gray-400 hover:text-gray-600"><Pencil size={14} /></button>
                       <button onClick={() => { if (confirm('Delete this asset?')) deleteMutation.mutate({ id: a.id }); }} className="p-1 text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
                     </div>
                   </td>
                 </tr>
+                {/* Inline notes panel */}
+                {notesAssetId === a.id && (
+                  <tr className="bg-gray-50 dark:bg-charcoal-800/50">
+                    <td colSpan={13} className="px-6 py-4">
+                      <div className="max-w-2xl">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                            <MessageSquare size={14} /> Notes — {a.item} {a.model || ''}
+                          </h4>
+                          <button onClick={() => setNotesAssetId(null)} className="text-gray-400 hover:text-gray-600 text-xs">Close</button>
+                        </div>
+                        <div className="space-y-3 mb-4">
+                          {notesAsset?.assetNotes?.length ? notesAsset.assetNotes.map((note: any) => (
+                            <div key={note.id} className="flex gap-3 group/note">
+                              <Avatar className="h-7 w-7 shrink-0">
+                                <AvatarFallback className="text-[10px]">{note.author.firstName?.[0]}{note.author.lastName?.[0]}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs">
+                                  <span className="font-medium">{note.author.firstName} {note.author.lastName}</span>
+                                  <span className="text-gray-400 ml-2">{format(new Date(note.createdAt), "MMM d, yyyy 'at' HH:mm")}</span>
+                                  <button
+                                    onClick={() => deleteNoteMutation.mutate({ id: note.id })}
+                                    className="ml-2 opacity-0 group-hover/note:opacity-100 text-red-400 hover:text-red-600 transition-opacity"
+                                    title="Delete note"
+                                  ><Trash2 size={10} /></button>
+                                </p>
+                                <p className="text-sm text-gray-700 dark:text-gray-300 mt-0.5 whitespace-pre-line">{note.content}</p>
+                              </div>
+                            </div>
+                          )) : (
+                            <p className="text-xs text-gray-400">No notes yet.</p>
+                          )}
+                        </div>
+                        <form
+                          onSubmit={e => { e.preventDefault(); if (newNote.trim()) addNoteMutation.mutate({ assetId: a.id, content: newNote.trim() }); }}
+                          className="flex gap-2"
+                        >
+                          <Input
+                            value={newNote}
+                            onChange={e => setNewNote(e.target.value)}
+                            placeholder="Add a note..."
+                            className="flex-1 text-sm"
+                          />
+                          <Button type="submit" size="sm" disabled={!newNote.trim() || addNoteMutation.isPending} className="gap-1">
+                            <Send size={14} /> Add
+                          </Button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
               ))}
             </tbody>
           </table>

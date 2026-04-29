@@ -94,6 +94,51 @@ export const itAssetsRouter = router({
       return ctx.db.iTAsset.delete({ where: { id: input.id } });
     }),
 
+  // Get a single asset with all its notes
+  getById: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      requireIt(ctx.user.role);
+      const asset = await ctx.db.iTAsset.findUnique({
+        where: { id: input.id },
+        include: {
+          assignee: { select: { id: true, firstName: true, lastName: true, department: { select: { name: true } } } },
+          assetNotes: {
+            include: { author: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      });
+      if (!asset) throw new TRPCError({ code: 'NOT_FOUND' });
+      return asset;
+    }),
+
+  addNote: protectedProcedure
+    .input(z.object({
+      assetId: z.string(),
+      content: z.string().min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      requireIt(ctx.user.role);
+      return ctx.db.iTAssetNote.create({
+        data: {
+          assetId: input.assetId,
+          authorId: ctx.user.employeeId!,
+          content: input.content,
+        },
+        include: {
+          author: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+        },
+      });
+    }),
+
+  deleteNote: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      requireIt(ctx.user.role);
+      return ctx.db.iTAssetNote.delete({ where: { id: input.id } });
+    }),
+
   stats: protectedProcedure.query(async ({ ctx }) => {
     requireIt(ctx.user.role);
     const where = { companyId: ctx.user.companyId };
