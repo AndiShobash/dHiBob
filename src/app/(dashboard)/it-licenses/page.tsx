@@ -25,8 +25,75 @@ const CAT_COLORS: Record<string, string> = {
   Other: 'bg-gray-100 text-gray-600 dark:bg-gray-800',
 };
 
+function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; employees: any[] }) {
+  // Build the matrix: rows = employees (sorted), columns = active licenses
+  const activeLicenses = licenses.filter((l: any) => l.status === 'Active').sort((a: any, b: any) => a.item.localeCompare(b.item));
+  const sortedEmployees = [...employees].sort((a: any, b: any) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
+
+  // Build a set of "licenseId:employeeId" for quick lookup
+  const assignmentSet = new Set<string>();
+  for (const l of activeLicenses) {
+    for (const a of (l.assignments ?? [])) {
+      assignmentSet.add(`${l.id}:${a.employeeId}`);
+    }
+  }
+
+  if (!activeLicenses.length) {
+    return <p className="text-sm text-gray-400 py-8 text-center">No active licenses to display.</p>;
+  }
+
+  return (
+    <div className="overflow-x-auto border rounded-lg">
+      <table className="text-xs">
+        <thead>
+          <tr className="border-b bg-gray-50 dark:bg-charcoal-800">
+            <th className="px-3 py-2 text-left font-medium text-gray-500 sticky left-0 bg-gray-50 dark:bg-charcoal-800 min-w-[160px] z-10">Name</th>
+            <th className="px-3 py-2 text-left font-medium text-gray-500 sticky left-[160px] bg-gray-50 dark:bg-charcoal-800 min-w-[180px] z-10">Email</th>
+            <th className="px-3 py-2 text-left font-medium text-gray-500 min-w-[100px]">Department</th>
+            <th className="px-3 py-2 text-left font-medium text-gray-500 min-w-[140px]">Job Title</th>
+            {activeLicenses.map((l: any) => (
+              <th key={l.id} className="px-2 py-2 text-center font-medium text-gray-500 min-w-[80px] whitespace-nowrap">
+                <div className="flex flex-col items-center gap-0.5">
+                  <span>{l.item}</span>
+                  {l.pricePerSeat > 0 && <span className="text-[9px] text-gray-400">{currencySymbol(l.currency)}{l.pricePerSeat}</span>}
+                </div>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {sortedEmployees.map((emp: any) => {
+            const workInfo = (() => { try { return JSON.parse(emp.workInfo || '{}'); } catch { return {}; } })();
+            return (
+              <tr key={emp.id} className="border-b hover:bg-gray-50 dark:hover:bg-charcoal-800/50">
+                <td className="px-3 py-1.5 font-medium sticky left-0 bg-white dark:bg-charcoal-900 z-10">{emp.firstName} {emp.lastName}</td>
+                <td className="px-3 py-1.5 text-gray-500 sticky left-[160px] bg-white dark:bg-charcoal-900 z-10">{emp.email}</td>
+                <td className="px-3 py-1.5 text-gray-500">{emp.department?.name || '—'}</td>
+                <td className="px-3 py-1.5 text-gray-500">{workInfo.jobTitle || '—'}</td>
+                {activeLicenses.map((l: any) => {
+                  const has = assignmentSet.has(`${l.id}:${emp.id}`);
+                  return (
+                    <td key={l.id} className="px-2 py-1.5 text-center">
+                      {has ? (
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 font-bold">✓</span>
+                      ) : (
+                        <span className="text-gray-200 dark:text-charcoal-700">—</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function ITLicensesPage() {
   const utils = trpc.useContext();
+  const [view, setView] = useState<'catalog' | 'matrix'>('catalog');
   const [createOpen, setCreateOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [assignLicenseId, setAssignLicenseId] = useState<string | null>(null);
@@ -109,7 +176,19 @@ export default function ITLicensesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">IT Licenses</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold">IT Licenses</h1>
+          <div className="flex border rounded-md overflow-hidden">
+            <button
+              onClick={() => setView('catalog')}
+              className={`px-3 py-1.5 text-xs font-medium ${view === 'catalog' ? 'bg-gray-800 text-white dark:bg-white dark:text-gray-900' : 'bg-gray-100 dark:bg-charcoal-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}
+            >Catalog</button>
+            <button
+              onClick={() => setView('matrix')}
+              className={`px-3 py-1.5 text-xs font-medium ${view === 'matrix' ? 'bg-gray-800 text-white dark:bg-white dark:text-gray-900' : 'bg-gray-100 dark:bg-charcoal-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}
+            >Employee Matrix</button>
+          </div>
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2" onClick={() => {
             if (!licenses?.length) return;
@@ -154,7 +233,11 @@ export default function ITLicensesPage() {
         </div>
       )}
 
-      {isLoading ? (
+      {view === 'matrix' && (
+        <EmployeeLicenseMatrix licenses={licenses ?? []} employees={(employees as any)?.employees ?? []} />
+      )}
+
+      {view === 'catalog' && (isLoading ? (
         <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 dark:bg-charcoal-800 rounded animate-pulse" />)}</div>
       ) : !licenses?.length ? (
         <div className="text-center py-12 text-gray-500">
@@ -243,7 +326,7 @@ export default function ITLicensesPage() {
             </tbody>
           </table>
         </div>
-      )}
+      ))}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
