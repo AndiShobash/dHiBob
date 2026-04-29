@@ -31,6 +31,24 @@ export const DEPT_COLORS: Record<string, { border: string; bg: string; dot: stri
 
 export const DEFAULT_COLORS = { border: "#94a3b8", bg: "rgba(148,163,184,0.08)", dot: "#94a3b8", text: "#334155" };
 
+// Color palette for group-leader subtrees. Each direct child of the root
+// gets one color; all their descendants inherit it. This visually groups
+// each GL's team in the org chart.
+const GROUP_PALETTE: Array<{ border: string; bg: string; dot: string; text: string }> = [
+  { border: "#3b82f6", bg: "rgba(59,130,246,0.08)",  dot: "#3b82f6", text: "#1d4ed8" },  // blue
+  { border: "#8b5cf6", bg: "rgba(139,92,246,0.08)",  dot: "#8b5cf6", text: "#6d28d9" },  // violet
+  { border: "#10b981", bg: "rgba(16,185,129,0.08)",  dot: "#10b981", text: "#047857" },  // emerald
+  { border: "#f59e0b", bg: "rgba(245,158,11,0.08)",  dot: "#f59e0b", text: "#b45309" },  // amber
+  { border: "#ef4444", bg: "rgba(239,68,68,0.08)",   dot: "#ef4444", text: "#b91c1c" },  // red
+  { border: "#06b6d4", bg: "rgba(6,182,212,0.08)",   dot: "#06b6d4", text: "#0e7490" },  // cyan
+  { border: "#ec4899", bg: "rgba(236,72,153,0.08)",  dot: "#ec4899", text: "#be185d" },  // pink
+  { border: "#f97316", bg: "rgba(249,115,22,0.08)",  dot: "#f97316", text: "#c2410c" },  // orange
+  { border: "#14b8a6", bg: "rgba(20,184,166,0.08)",  dot: "#14b8a6", text: "#0f766e" },  // teal
+  { border: "#a855f7", bg: "rgba(168,85,247,0.08)",  dot: "#a855f7", text: "#7e22ce" },  // purple
+];
+
+const ROOT_COLORS = { border: "#6b7280", bg: "rgba(107,114,128,0.08)", dot: "#6b7280", text: "#374151" };
+
 const CARD_WIDTH = 240;
 const CARD_HEIGHT = 92;
 const LEVEL_HEIGHT = 150;
@@ -182,6 +200,24 @@ export function TreeView({ rootId, employees, expandedIds, onToggleExpand, highl
   const nodes = layout.descendants();
   const links = layout.links();
 
+  // Compute per-node group color: each direct child of root gets a palette color,
+  // all their descendants inherit it. Root itself gets a neutral color.
+  const groupColorMap = useMemo(() => {
+    const map = new Map<string, typeof ROOT_COLORS>();
+    if (!layout) return map;
+    map.set(layout.data.id, ROOT_COLORS);
+    const rootChildren = layout.children ?? [];
+    rootChildren.forEach((child, i) => {
+      const color = GROUP_PALETTE[i % GROUP_PALETTE.length];
+      function tag(node: typeof child) {
+        map.set(node.data.id, color);
+        (node.children ?? []).forEach(tag);
+      }
+      tag(child);
+    });
+    return map;
+  }, [layout]);
+
   return (
     <div
       ref={containerRef}
@@ -195,19 +231,21 @@ export function TreeView({ rootId, employees, expandedIds, onToggleExpand, highl
       <svg ref={svgRef} width="100%" height="100%" style={{ display: "block" }}>
         <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
           {/* Edges — orthogonal elbow with rounded corners, traditional org-chart style */}
-          {links.map((link, i) => (
-            <path
-              key={i}
-              d={elbowPath(link.source, link.target)}
-              fill="none"
-              stroke="#94a3b8"
-              strokeOpacity={0.6}
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="dark:stroke-gray-500"
-            />
-          ))}
+          {links.map((link, i) => {
+            const targetColor = groupColorMap.get(link.target.data.id);
+            return (
+              <path
+                key={i}
+                d={elbowPath(link.source, link.target)}
+                fill="none"
+                stroke={targetColor?.dot ?? "#94a3b8"}
+                strokeOpacity={0.4}
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            );
+          })}
           {/* Nodes */}
           {nodes.map(node => (
             <foreignObject
@@ -224,6 +262,7 @@ export function TreeView({ rootId, employees, expandedIds, onToggleExpand, highl
                 onToggle={() => onToggleExpand(node.data.id)}
                 onOpenProfile={() => router.push(`/people/${node.data.id}`)}
                 isExpanded={expandedIds.has(node.data.id)}
+                groupColors={groupColorMap.get(node.data.id)}
               />
             </foreignObject>
           ))}
@@ -258,17 +297,19 @@ function EmployeeCard({
   onToggle,
   onOpenProfile,
   isExpanded,
+  groupColors,
 }: {
   node: TreeNode;
   highlighted: boolean;
   onToggle: () => void;
   onOpenProfile: () => void;
   isExpanded: boolean;
+  groupColors?: { border: string; bg: string; dot: string; text: string };
 }) {
   const emp = node.employee;
   const name = `${emp.firstName} ${emp.lastName}`;
   const dept = emp.department?.name || "";
-  const colors = DEPT_COLORS[dept] || DEFAULT_COLORS;
+  const colors = groupColors || DEPT_COLORS[dept] || DEFAULT_COLORS;
   const initials = `${emp.firstName?.[0] || ""}${emp.lastName?.[0] || ""}`.toUpperCase();
   const hasChildren = emp.directReportsCount > 0;
 
