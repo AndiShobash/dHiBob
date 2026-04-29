@@ -65,16 +65,7 @@ export default function PeoplePage() {
 
   const employees = data?.employees ?? [];
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">People</h1>
-        </div>
-        <p className="text-gray-500 dark:text-gray-400">Loading...</p>
-      </div>
-    );
-  }
+  const isFirstLoad = isLoading && !data;
 
   return (
     <div className="space-y-6">
@@ -132,29 +123,38 @@ export default function PeoplePage() {
         </div>
       </div>
 
-      <p className="text-sm text-gray-500 dark:text-gray-400">{employees.length} employees</p>
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        {isFirstLoad ? 'Loading...' : `${employees.length} employees`}
+        {isLoading && !isFirstLoad && <span className="ml-2 text-gray-400 animate-pulse">updating…</span>}
+      </p>
 
-      <div className={view === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-2"}>
-        {employees.map(emp => (
-          <Link key={emp.id} href={`/people/${emp.id}`}>
-            <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-primary-100 text-primary-600 font-bold">
-                    {getInitials(emp.firstName, emp.lastName)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate">{emp.firstName} {emp.lastName}</p>
-                  <p className="text-xs text-gray-400">{(emp as any).department?.name ?? '—'}</p>
-                  <p className="text-xs text-gray-400">{emp.email}</p>
+      {isFirstLoad ? (
+        <div className={view === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-2"}>
+          {[1,2,3,4,5,6].map(i => <div key={i} className="h-20 bg-gray-100 dark:bg-charcoal-800 rounded-lg animate-pulse" />)}
+        </div>
+      ) : (
+        <div className={view === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-2"}>
+          {employees.map(emp => (
+            <Link key={emp.id} href={`/people/${emp.id}`}>
+              <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-12 w-12">
+                    <AvatarFallback className="bg-primary-100 text-primary-600 font-bold">
+                      {getInitials(emp.firstName, emp.lastName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate">{emp.firstName} {emp.lastName}</p>
+                    <p className="text-xs text-gray-400">{(emp as any).department?.name ?? '—'}</p>
+                    <p className="text-xs text-gray-400">{emp.email}</p>
+                  </div>
+                  <Badge variant={statusVariant(emp.status)}>{statusLabel(emp.status)}</Badge>
                 </div>
-                <Badge variant={statusVariant(emp.status)}>{statusLabel(emp.status)}</Badge>
-              </div>
-            </Card>
-          </Link>
-        ))}
-      </div>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
 
       <AddEmployeeModal open={addOpen} onOpenChange={setAddOpen} />
     </div>
