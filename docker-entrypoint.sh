@@ -31,4 +31,4 @@ if [ "$#" -gt 0 ]; then
 fi
 
 echo "Starting server..."
-exec npm run start
+exec node server.js
