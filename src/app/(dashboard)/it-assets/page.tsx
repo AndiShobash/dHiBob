@@ -11,8 +11,15 @@ import { format } from "date-fns";
 
 const TYPES = ['Laptop', 'Monitor', 'Phone', 'Keyboard', 'Mouse', 'Headset', 'Tablet', 'Other'];
 const STATUSES = ['Available', 'In Use', 'Repair', 'Retired'];
-const WARRANTY = ['Under warranty', 'Out of warranty'];
 const OS_OPTIONS = ['Windows', 'macOS', 'Ubuntu', 'Linux', 'ChromeOS', 'Other'];
+
+/** Auto-derive warranty status from the end date. */
+function getWarrantyStatus(warrantyEndDate: string | Date | null | undefined): string | null {
+  if (!warrantyEndDate) return null;
+  const end = new Date(warrantyEndDate);
+  if (isNaN(end.getTime())) return null;
+  return end >= new Date() ? 'Under warranty' : 'Out of warranty';
+}
 
 const STATUS_COLORS: Record<string, string> = {
   'Available': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30',
@@ -109,14 +116,7 @@ export default function ITAssetsPage() {
               {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Warranty</label>
-            <select name="warrantyStatus" defaultValue={defaults?.warrantyStatus || ''} className="w-full border rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 dark:border-charcoal-600">
-              <option value="">—</option>
-              {WARRANTY.map(w => <option key={w} value={w}>{w}</option>)}
-            </select>
-          </div>
-          <div><label className="block text-sm font-medium mb-1">Warranty End</label><Input type="date" name="warrantyEndDate" defaultValue={defaults?.warrantyEndDate ? format(new Date(defaults.warrantyEndDate), 'yyyy-MM-dd') : ''} /></div>
+          <div><label className="block text-sm font-medium mb-1">Warranty End Date</label><Input type="date" name="warrantyEndDate" defaultValue={defaults?.warrantyEndDate ? format(new Date(defaults.warrantyEndDate), 'yyyy-MM-dd') : ''} /></div>
         </div>
         <div className="grid grid-cols-4 gap-4">
           <div><label className="block text-sm font-medium mb-1">CPU</label><Input name="cpu" defaultValue={defaults?.cpu || ''} placeholder="i7-1165G7" /></div>
@@ -195,7 +195,9 @@ export default function ITAssetsPage() {
                   <td className="px-3 py-2">{a.assignee ? `${a.assignee.firstName} ${a.assignee.lastName}` : '—'}</td>
                   <td className="px-3 py-2 text-gray-500">{a.factoryOS || '—'}</td>
                   <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded text-[10px] font-medium ${STATUS_COLORS[a.status] || ''}`}>{a.status}</span></td>
-                  <td className="px-3 py-2">{a.warrantyStatus ? <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${WARRANTY_COLORS[a.warrantyStatus] || ''}`}>{a.warrantyStatus}</span> : '—'}</td>
+                  {(() => { const ws = getWarrantyStatus(a.warrantyEndDate); return (
+                    <td className="px-3 py-2">{ws ? <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${WARRANTY_COLORS[ws] || ''}`}>{ws}</span> : '—'}</td>
+                  ); })()}
                   <td className="px-3 py-2 text-gray-500 text-xs">{a.warrantyEndDate ? format(new Date(a.warrantyEndDate), 'MMM d, yyyy') : '—'}</td>
                   <td className="px-3 py-2 text-gray-500 text-xs">{a.cpu || '—'}</td>
                   <td className="px-3 py-2 text-gray-500 text-xs">{a.ram || '—'}</td>

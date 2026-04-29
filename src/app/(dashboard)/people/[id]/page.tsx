@@ -395,9 +395,14 @@ function EmployeeITSection({ employeeId }: { employeeId: string }) {
                       <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${a.status === 'In Use' ? 'bg-sky-200 text-sky-800 dark:bg-sky-500/30 dark:text-sky-200' : 'bg-gray-100 text-gray-600'}`}>{a.status}</span>
                     </td>
                     <td className="px-3 py-2">
-                      {a.warrantyStatus ? (
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${a.warrantyStatus === 'Under warranty' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{a.warrantyStatus}</span>
-                      ) : '—'}
+                      {(() => {
+                      const ws = a.warrantyEndDate
+                        ? new Date(a.warrantyEndDate) >= new Date() ? 'Under warranty' : 'Out of warranty'
+                        : null;
+                      return ws ? (
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${ws === 'Under warranty' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{ws}</span>
+                      ) : '—';
+                    })()}
                     </td>
                   </tr>
                 ))}
