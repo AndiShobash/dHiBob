@@ -45,6 +45,8 @@ export default function ITAssetsPage() {
   const [ramFilter, setRamFilter] = useState('');
   const [storageFilter, setStorageFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null);
 
   const { data: assets, isLoading } = trpc.itAssets.list.useQuery({
     type: typeFilter || undefined,
@@ -64,6 +66,38 @@ export default function ITAssetsPage() {
   const ramOptions = uniqueVals('ram');
   const storageOptions = uniqueVals('storage');
 
+  const COLUMNS: Array<{ label: string; key: string }> = [
+    { label: 'Item', key: 'item' },
+    { label: 'Serial Number', key: 'serialNumber' },
+    { label: 'Model', key: 'model' },
+    { label: 'Type', key: 'type' },
+    { label: 'Assigned', key: '_assignee' },
+    { label: 'OS', key: 'factoryOS' },
+    { label: 'Status', key: 'status' },
+    { label: 'Warranty', key: '_warranty' },
+    { label: 'Warranty End', key: 'warrantyEndDate' },
+    { label: 'CPU', key: 'cpu' },
+    { label: 'RAM', key: 'ram' },
+    { label: 'Storage', key: 'storage' },
+    { label: '', key: '' },
+  ];
+
+  function handleSort(key: string) {
+    if (!key) return;
+    if (sortKey === key) {
+      if (sortDir === 'asc') setSortDir('desc');
+      else { setSortKey(null); setSortDir(null); }
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  }
+
+  function sortIndicator(key: string) {
+    if (sortKey !== key) return '';
+    return sortDir === 'asc' ? ' ↑' : ' ↓';
+  }
+
   const filtered = (assets ?? []).filter((a: any) => {
     if (osFilter && a.factoryOS !== osFilter) return false;
     if (cpuFilter && a.cpu !== cpuFilter) return false;
@@ -73,6 +107,26 @@ export default function ITAssetsPage() {
     const q = search.toLowerCase();
     return [a.item, a.serialNumber, a.model, a.assignee?.firstName, a.assignee?.lastName].some(v => (v || '').toLowerCase().includes(q));
   });
+
+  const sorted = sortKey && sortDir ? [...filtered].sort((a: any, b: any) => {
+    let av: any, bv: any;
+    if (sortKey === '_assignee') {
+      av = a.assignee ? `${a.assignee.firstName} ${a.assignee.lastName}` : '';
+      bv = b.assignee ? `${b.assignee.firstName} ${b.assignee.lastName}` : '';
+    } else if (sortKey === '_warranty') {
+      av = getWarrantyStatus(a.warrantyEndDate) || '';
+      bv = getWarrantyStatus(b.warrantyEndDate) || '';
+    } else if (sortKey === 'warrantyEndDate') {
+      av = a.warrantyEndDate ? new Date(a.warrantyEndDate).getTime() : 0;
+      bv = b.warrantyEndDate ? new Date(b.warrantyEndDate).getTime() : 0;
+      return sortDir === 'asc' ? av - bv : bv - av;
+    } else {
+      av = (a[sortKey] || '').toString().toLowerCase();
+      bv = (b[sortKey] || '').toString().toLowerCase();
+    }
+    const cmp = String(av).localeCompare(String(bv));
+    return sortDir === 'asc' ? cmp : -cmp;
+  }) : filtered;
 
   const editAsset = editId ? assets?.find((a: any) => a.id === editId) : null;
 
@@ -155,8 +209,8 @@ export default function ITAssetsPage() {
         <h1 className="text-2xl font-bold">IT Assets</h1>
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2" onClick={() => {
-            if (!filtered.length) return;
-            const rows = filtered.map((a: any) => ({
+            if (!sorted.length) return;
+            const rows = sorted.map((a: any) => ({
               Item: a.item, 'Serial Number': a.serialNumber || '', Model: a.model || '', Type: a.type,
               'Assigned To': a.assignee ? `${a.assignee.firstName} ${a.assignee.lastName}` : '',
               OS: a.factoryOS || '', Status: a.status,
@@ -228,7 +282,7 @@ export default function ITAssetsPage() {
 
       {isLoading ? (
         <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 dark:bg-charcoal-800 rounded animate-pulse" />)}</div>
-      ) : filtered.length === 0 ? (
+      ) : sorted.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           <Monitor size={48} className="mx-auto mb-4 opacity-30" />
           <p className="text-lg font-medium">No assets found.</p>
@@ -238,13 +292,19 @@ export default function ITAssetsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left">
-                {['Item', 'Serial Number', 'Model', 'Type', 'Assigned', 'OS', 'Status', 'Warranty', 'Warranty End', 'CPU', 'RAM', 'Storage', ''].map(h => (
-                  <th key={h || 'actions'} className="px-3 py-2 text-xs font-medium text-gray-500 whitespace-nowrap">{h}</th>
+                {COLUMNS.map(col => (
+                  <th
+                    key={col.key || 'actions'}
+                    onClick={() => handleSort(col.key)}
+                    className={`px-3 py-2 text-xs font-medium text-gray-500 whitespace-nowrap ${col.key ? 'cursor-pointer select-none hover:text-gray-900 dark:hover:text-white' : ''}`}
+                  >
+                    {col.label}{sortIndicator(col.key)}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.map((a: any) => (
+              {sorted.map((a: any) => (
                 <tr key={a.id} className="border-b hover:bg-gray-50 dark:hover:bg-charcoal-800 group">
                   <td className="px-3 py-2 font-medium">{a.item}</td>
                   <td className="px-3 py-2 text-gray-500 font-mono text-xs">{a.serialNumber || '—'}</td>
