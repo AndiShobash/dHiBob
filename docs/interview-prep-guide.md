@@ -95,6 +95,38 @@ Browser → Caddy (TLS) → Next.js App (:3000)
 
 ---
 
+## "Why tRPC and not REST?" (expect this question)
+
+### What is type-safe RPC?
+
+**RPC** (Remote Procedure Call) means the client calls a server function by name — `trpc.tickets.create.useMutation()` — instead of making an HTTP request to a URL like `POST /api/tickets`.
+
+**Type-safe** means TypeScript knows the exact input and output shapes at both ends. If the server's `tickets.create` expects `{ title: string, category: string }`, the client gets a compile error on a typo or missing field. No runtime surprise, no 400 Bad Request you only discover when testing.
+
+No OpenAPI spec, no Swagger doc, no code generation step. Change the server schema → the client breaks at compile time → you fix it before shipping.
+
+### Why not REST?
+
+| | REST | tRPC |
+|---|---|---|
+| **Type safety** | None by default. Need OpenAPI + codegen for types. | Automatic. Change the Zod schema, TypeScript errors appear in the client instantly. |
+| **Boilerplate** | 160 procedures = 160 route files, each with request parsing, validation, error handling. | Each procedure is ~10 lines. Validation, auth, error handling are shared via middleware. |
+| **Best for** | Multiple different clients (mobile, third-party, CLI). Public APIs. | Frontend and backend in the **same repo, same language**. Internal tools. |
+
+### The trade-off (know this — interviewers love trade-off awareness)
+
+tRPC is not accessible outside the codebase. No URL a mobile app can hit. If Develeap ever needed a public API or mobile app, we'd add REST endpoints alongside tRPC for external consumers. For an internal HR tool with one client in the same repo, tRPC eliminates an entire class of bugs with zero extra work.
+
+### One-sentence answer
+
+> "tRPC gives me end-to-end type safety between frontend and backend with no code generation — I change a Zod schema on the server and TypeScript catches every broken callsite at build time. I chose it over REST because this is a single-repo full-stack app with one consumer, so the public-API flexibility of REST wasn't needed."
+
+### The numbers
+
+21 routers, ~160 procedures. That's the entire API surface — every backend operation (people, time-off, expenses, IT tickets, org chart, etc.) goes through tRPC.
+
+---
+
 ## Preparation Checklist (your task before the interview)
 
 - [ ] **Draw the architecture** — open Excalidraw, sketch the diagram from memory, then verify against the codebase
