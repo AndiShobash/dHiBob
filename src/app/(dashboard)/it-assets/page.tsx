@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Monitor, Trash2, Pencil } from "lucide-react";
+import { Plus, Monitor, Trash2, Pencil, Download } from "lucide-react";
 import { format } from "date-fns";
+import * as XLSX from "xlsx";
 
 const TYPES = ['Laptop', 'Monitor', 'Phone', 'Keyboard', 'Mouse', 'Headset', 'Tablet', 'Other'];
 const STATUSES = ['Available', 'In Use', 'Repair', 'Retired'];
@@ -152,7 +153,25 @@ export default function ITAssetsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">IT Assets</h1>
-        <Button onClick={() => setCreateOpen(true)} className="gap-2"><Plus size={16} /> Add Asset</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => {
+            if (!filtered.length) return;
+            const rows = filtered.map((a: any) => ({
+              Item: a.item, 'Serial Number': a.serialNumber || '', Model: a.model || '', Type: a.type,
+              'Assigned To': a.assignee ? `${a.assignee.firstName} ${a.assignee.lastName}` : '',
+              OS: a.factoryOS || '', Status: a.status,
+              Warranty: getWarrantyStatus(a.warrantyEndDate) || '',
+              'Warranty End': a.warrantyEndDate ? format(new Date(a.warrantyEndDate), 'yyyy-MM-dd') : '',
+              CPU: a.cpu || '', RAM: a.ram || '', Storage: a.storage || '', GPU: a.gpu || '',
+              Notes: a.notes || '',
+            }));
+            const ws = XLSX.utils.json_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'IT Assets');
+            XLSX.writeFile(wb, 'it-assets.xlsx');
+          }}><Download size={16} /> Export</Button>
+          <Button onClick={() => setCreateOpen(true)} className="gap-2"><Plus size={16} /> Add Asset</Button>
+        </div>
       </div>
 
       {stats && (

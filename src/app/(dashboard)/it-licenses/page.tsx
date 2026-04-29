@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Trash2, Pencil, Key, UserPlus, X } from "lucide-react";
+import { Plus, Trash2, Pencil, Key, UserPlus, X, Download } from "lucide-react";
 import { format } from "date-fns";
 import { currencySymbol } from "@/lib/currency";
+import * as XLSX from "xlsx";
 
 const CATEGORIES = ['Identity', 'Communication', 'AI', 'Development', 'Security', 'General', 'Other'];
 const LICENSE_TYPES = ['Monthly', 'Yearly', 'Perpetual'];
@@ -109,7 +110,31 @@ export default function ITLicensesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">IT Licenses</h1>
-        <Button onClick={() => setCreateOpen(true)} className="gap-2"><Plus size={16} /> Add License</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => {
+            if (!licenses?.length) return;
+            const rows = licenses.map((l: any) => {
+              const assigned = l._count.assignments;
+              const monthlyCost = l.licenseType === 'Yearly' ? (l.pricePerSeat * assigned) / 12 : l.pricePerSeat * assigned;
+              const annualCost = l.licenseType === 'Yearly' ? l.pricePerSeat * assigned : l.pricePerSeat * assigned * 12;
+              return {
+                Item: l.item, Publisher: l.publisher || '', 'Plan Name': l.planName || '',
+                Category: l.category, 'License Type': l.licenseType,
+                'Renewal Date': l.renewalDate ? format(new Date(l.renewalDate), 'yyyy-MM-dd') : '',
+                Status: l.status, 'Total Seats': l.totalSeats, 'Assigned Seats': assigned,
+                'Price/Seat': l.pricePerSeat, Currency: l.currency,
+                'Monthly Cost': Math.round(monthlyCost), 'Annual Cost': Math.round(annualCost),
+                'Assigned Users': l.assignments.map((a: any) => `${a.employee.firstName} ${a.employee.lastName}`).join(', '),
+                Notes: l.notes || '',
+              };
+            });
+            const ws = XLSX.utils.json_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'IT Licenses');
+            XLSX.writeFile(wb, 'it-licenses.xlsx');
+          }}><Download size={16} /> Export</Button>
+          <Button onClick={() => setCreateOpen(true)} className="gap-2"><Plus size={16} /> Add License</Button>
+        </div>
       </div>
 
       {stats && (
