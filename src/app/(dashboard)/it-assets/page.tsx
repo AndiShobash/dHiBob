@@ -39,6 +39,10 @@ export default function ITAssetsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [osFilter, setOsFilter] = useState('');
+  const [cpuFilter, setCpuFilter] = useState('');
+  const [ramFilter, setRamFilter] = useState('');
+  const [storageFilter, setStorageFilter] = useState('');
   const [search, setSearch] = useState('');
 
   const { data: assets, isLoading } = trpc.itAssets.list.useQuery({
@@ -52,11 +56,22 @@ export default function ITAssetsPage() {
   const updateMutation = trpc.itAssets.update.useMutation({ onSuccess: () => { utils.itAssets.invalidate(); setEditId(null); } });
   const deleteMutation = trpc.itAssets.delete.useMutation({ onSuccess: () => utils.itAssets.invalidate() });
 
-  const filtered = assets?.filter((a: any) => {
+  // Unique values for dynamic filter dropdowns
+  const uniqueVals = (key: string) => Array.from(new Set((assets ?? []).map((a: any) => a[key]).filter(Boolean))).sort();
+  const osOptions = uniqueVals('factoryOS');
+  const cpuOptions = uniqueVals('cpu');
+  const ramOptions = uniqueVals('ram');
+  const storageOptions = uniqueVals('storage');
+
+  const filtered = (assets ?? []).filter((a: any) => {
+    if (osFilter && a.factoryOS !== osFilter) return false;
+    if (cpuFilter && a.cpu !== cpuFilter) return false;
+    if (ramFilter && a.ram !== ramFilter) return false;
+    if (storageFilter && a.storage !== storageFilter) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return [a.item, a.serialNumber, a.model, a.assignee?.firstName, a.assignee?.lastName].some(v => (v || '').toLowerCase().includes(q));
-  }) ?? [];
+  });
 
   const editAsset = editId ? assets?.find((a: any) => a.id === editId) : null;
 
@@ -166,6 +181,30 @@ export default function ITAssetsPage() {
           <option value="">All Statuses</option>
           {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
+        {osOptions.length > 1 && (
+          <select value={osFilter} onChange={e => setOsFilter(e.target.value)} className="border rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 dark:border-charcoal-600">
+            <option value="">All OS</option>
+            {osOptions.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        )}
+        {cpuOptions.length > 1 && (
+          <select value={cpuFilter} onChange={e => setCpuFilter(e.target.value)} className="border rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 dark:border-charcoal-600">
+            <option value="">All CPUs</option>
+            {cpuOptions.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
+        {ramOptions.length > 1 && (
+          <select value={ramFilter} onChange={e => setRamFilter(e.target.value)} className="border rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 dark:border-charcoal-600">
+            <option value="">All RAM</option>
+            {ramOptions.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        )}
+        {storageOptions.length > 1 && (
+          <select value={storageFilter} onChange={e => setStorageFilter(e.target.value)} className="border rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 dark:border-charcoal-600">
+            <option value="">All Storage</option>
+            {storageOptions.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
       </div>
 
       {isLoading ? (
