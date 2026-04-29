@@ -26,15 +26,18 @@ const CAT_COLORS: Record<string, string> = {
 };
 
 function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; employees: any[] }) {
-  // Build the matrix: rows = employees (sorted), columns = active licenses
+  const utils = trpc.useContext();
+  const assignMutation = trpc.itLicenses.assign.useMutation({ onSuccess: () => utils.itLicenses.invalidate() });
+  const unassignMutation = trpc.itLicenses.unassign.useMutation({ onSuccess: () => utils.itLicenses.invalidate() });
+
   const activeLicenses = licenses.filter((l: any) => l.status === 'Active').sort((a: any, b: any) => a.item.localeCompare(b.item));
   const sortedEmployees = [...employees].sort((a: any, b: any) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
 
-  // Build a set of "licenseId:employeeId" for quick lookup
-  const assignmentSet = new Set<string>();
+  // Build maps for quick lookup: "licenseId:employeeId" → assignmentId
+  const assignmentMap = new Map<string, string>();
   for (const l of activeLicenses) {
     for (const a of (l.assignments ?? [])) {
-      assignmentSet.add(`${l.id}:${a.employeeId}`);
+      assignmentMap.set(`${l.id}:${a.employeeId}`, a.id);
     }
   }
 
@@ -42,8 +45,19 @@ function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; emplo
     return <p className="text-sm text-gray-400 py-8 text-center">No active licenses to display.</p>;
   }
 
+  function toggleAssignment(licenseId: string, employeeId: string) {
+    const key = `${licenseId}:${employeeId}`;
+    const assignmentId = assignmentMap.get(key);
+    if (assignmentId) {
+      unassignMutation.mutate({ id: assignmentId });
+    } else {
+      assignMutation.mutate({ licenseId, employeeId });
+    }
+  }
+
   return (
     <div className="overflow-x-auto border rounded-lg">
+      <p className="px-4 py-2 text-[10px] text-gray-400 border-b bg-gray-50 dark:bg-charcoal-800">Click a cell to assign or unassign a license</p>
       <table className="text-xs">
         <thead>
           <tr className="border-b bg-gray-50 dark:bg-charcoal-800">
@@ -71,13 +85,18 @@ function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; emplo
                 <td className="px-3 py-1.5 text-gray-500">{emp.department?.name || '—'}</td>
                 <td className="px-3 py-1.5 text-gray-500">{workInfo.jobTitle || '—'}</td>
                 {activeLicenses.map((l: any) => {
-                  const has = assignmentSet.has(`${l.id}:${emp.id}`);
+                  const has = assignmentMap.has(`${l.id}:${emp.id}`);
                   return (
-                    <td key={l.id} className="px-2 py-1.5 text-center">
+                    <td
+                      key={l.id}
+                      className="px-2 py-1.5 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-charcoal-700 transition-colors"
+                      onClick={() => toggleAssignment(l.id, emp.id)}
+                      title={has ? `Remove ${l.item} from ${emp.firstName}` : `Assign ${l.item} to ${emp.firstName}`}
+                    >
                       {has ? (
                         <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 font-bold">✓</span>
                       ) : (
-                        <span className="text-gray-200 dark:text-charcoal-700">—</span>
+                        <span className="text-gray-200 dark:text-charcoal-700 hover:text-gray-400">—</span>
                       )}
                     </td>
                   );
@@ -113,22 +132,40 @@ export default function ITLicensesPage() {
   const assignLicense = assignLicenseId ? licenses?.find((l: any) => l.id === assignLicenseId) : null;
 
   function LicenseForm({ onSubmit, defaults, submitLabel }: { onSubmit: (data: any) => void; defaults?: any; submitLabel: string }) {
+    const [errors, setErrors] = useState<Record<string, string>>({});
+
     return (
       <form onSubmit={e => {
         e.preventDefault();
         const fd = new FormData(e.target as HTMLFormElement);
         const data: any = {};
+        const newErrors: Record<string, string> = {};
         for (const [k, v] of fd.entries()) {
           if (v === '') continue;
           if (k === 'totalSeats') { data[k] = parseInt(v as string); continue; }
           if (k === 'pricePerSeat') { data[k] = parseFloat(v as string); continue; }
           data[k] = v;
         }
+        // Validation
+        if (!data.item) newErrors.item = 'Item name is required';
+        if (!data.publisher) newErrors.publisher = 'Publisher is required';
+        if (data.totalSeats !== undefined && data.totalSeats < 0) newErrors.totalSeats = 'Seats cannot be negative';
+        if (data.pricePerSeat !== undefined && data.pricePerSeat < 0) newErrors.pricePerSeat = 'Price cannot be negative';
+        if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
+        setErrors({});
         onSubmit(data);
       }} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <div><label className="block text-sm font-medium mb-1">Item *</label><Input name="item" required defaultValue={defaults?.item || ''} placeholder="e.g. Google Workspace" /></div>
-          <div><label className="block text-sm font-medium mb-1">Publisher</label><Input name="publisher" defaultValue={defaults?.publisher || ''} placeholder="e.g. Google" /></div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Item <span className="text-red-500">*</span></label>
+            <Input name="item" defaultValue={defaults?.item || ''} placeholder="e.g. Google Workspace" className={errors.item ? 'border-red-500' : ''} />
+            {errors.item && <p className="text-xs text-red-500 mt-1">{errors.item}</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Publisher <span className="text-red-500">*</span></label>
+            <Input name="publisher" defaultValue={defaults?.publisher || ''} placeholder="e.g. Google" className={errors.publisher ? 'border-red-500' : ''} />
+            {errors.publisher && <p className="text-xs text-red-500 mt-1">{errors.publisher}</p>}
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div><label className="block text-sm font-medium mb-1">Plan Name</label><Input name="planName" defaultValue={defaults?.planName || ''} placeholder="e.g. Business Starter" /></div>
@@ -155,8 +192,16 @@ export default function ITLicensesPage() {
           </div>
         </div>
         <div className="grid grid-cols-3 gap-4">
-          <div><label className="block text-sm font-medium mb-1">Total Seats</label><Input type="number" name="totalSeats" defaultValue={defaults?.totalSeats ?? 0} /></div>
-          <div><label className="block text-sm font-medium mb-1">Price per Seat</label><Input type="number" step="0.01" name="pricePerSeat" defaultValue={defaults?.pricePerSeat ?? 0} /></div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Total Seats</label>
+            <Input type="number" min="0" name="totalSeats" defaultValue={defaults?.totalSeats ?? 0} className={errors.totalSeats ? 'border-red-500' : ''} />
+            {errors.totalSeats && <p className="text-xs text-red-500 mt-1">{errors.totalSeats}</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Price per Seat</label>
+            <Input type="number" step="0.01" min="0" name="pricePerSeat" defaultValue={defaults?.pricePerSeat ?? 0} className={errors.pricePerSeat ? 'border-red-500' : ''} />
+            {errors.pricePerSeat && <p className="text-xs text-red-500 mt-1">{errors.pricePerSeat}</p>}
+          </div>
           <div>
             <label className="block text-sm font-medium mb-1">Currency</label>
             <select name="currency" defaultValue={defaults?.currency || 'USD'} className="w-full border rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 dark:border-charcoal-600">
