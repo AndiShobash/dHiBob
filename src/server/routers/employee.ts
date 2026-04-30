@@ -295,6 +295,7 @@ export const employeeRouter = router({
     contractDocuments: z.string().optional(),
     assets: z.any().optional(),
     salaryHistory: z.any().optional(),
+    certifications: z.any().optional(),
     pensionFundName: z.string().optional(),
     pensionEmployeeContribution: z.string().optional(),
     pensionEmployerContribution: z.string().optional(),

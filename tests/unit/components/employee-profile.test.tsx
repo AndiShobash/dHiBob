@@ -34,6 +34,15 @@ vi.mock('@/lib/trpc', () => ({
       list: {
         useQuery: vi.fn(() => ({ data: { employees: [] } })),
       },
+      getExchangeRates: {
+        useQuery: vi.fn(() => ({ data: null })),
+      },
+      getEmployeeAssets: {
+        useQuery: vi.fn(() => ({ data: [], isLoading: false })),
+      },
+      getEmployeeLicenses: {
+        useQuery: vi.fn(() => ({ data: [], isLoading: false })),
+      },
     },
     useContext: () => ({
       employee: {
@@ -393,5 +402,145 @@ describe('Employee profile page', () => {
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
     await userEvent.click(screen.getByRole('tab', { name: 'Work' }))
     expect(screen.getByText('ILS')).toBeInTheDocument()
+  })
+
+  // Certifications tab tests
+  it('shows Certifications tab for admin users', () => {
+    vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
+      data: mockEmployee,
+      isLoading: false,
+      error: null,
+    } as any)
+    render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
+    expect(screen.getByRole('tab', { name: 'Certifications' })).toBeInTheDocument()
+  })
+
+  it('renders certifications table with headers when tab is clicked', async () => {
+    vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
+      data: mockEmployee,
+      isLoading: false,
+      error: null,
+    } as any)
+    render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Certifications' }))
+    expect(screen.getByText('Issuing Authority')).toBeInTheDocument()
+    expect(screen.getByText('Issue Date')).toBeInTheDocument()
+    expect(screen.getByText('Expiry Date')).toBeInTheDocument()
+  })
+
+  it('shows Add certification button for admin users', async () => {
+    vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
+      data: mockEmployee,
+      isLoading: false,
+      error: null,
+    } as any)
+    render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Certifications' }))
+    expect(screen.getByText('Add certification')).toBeInTheDocument()
+  })
+
+  it('renders certification data from workInfo', async () => {
+    const mockWithCerts = {
+      ...mockEmployee,
+      workInfo: JSON.stringify({
+        certifications: [
+          { name: 'AWS Solutions Architect', issuingAuthority: 'Amazon Web Services', issueDate: '2024-06-15', expiryDate: '2027-06-15', documentUrl: '' },
+        ],
+      }),
+    }
+    vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
+      data: mockWithCerts,
+      isLoading: false,
+      error: null,
+    } as any)
+    render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Certifications' }))
+    expect(screen.getByText('AWS Solutions Architect')).toBeInTheDocument()
+    expect(screen.getByText('Amazon Web Services')).toBeInTheDocument()
+  })
+
+  it('shows Expired badge for past expiry date', async () => {
+    const mockWithExpired = {
+      ...mockEmployee,
+      workInfo: JSON.stringify({
+        certifications: [
+          { name: 'Old Cert', issuingAuthority: 'Test Org', issueDate: '2020-01-01', expiryDate: '2023-01-01', documentUrl: '' },
+        ],
+      }),
+    }
+    vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
+      data: mockWithExpired,
+      isLoading: false,
+      error: null,
+    } as any)
+    render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Certifications' }))
+    expect(screen.getByText('Expired')).toBeInTheDocument()
+  })
+
+  it('shows Expiring soon badge for expiry within 90 days', async () => {
+    const soon = new Date()
+    soon.setDate(soon.getDate() + 30) // 30 days from now
+    const mockWithExpiringSoon = {
+      ...mockEmployee,
+      workInfo: JSON.stringify({
+        certifications: [
+          { name: 'Expiring Cert', issuingAuthority: 'Test Org', issueDate: '2023-01-01', expiryDate: soon.toISOString().slice(0, 10), documentUrl: '' },
+        ],
+      }),
+    }
+    vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
+      data: mockWithExpiringSoon,
+      isLoading: false,
+      error: null,
+    } as any)
+    render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Certifications' }))
+    expect(screen.getByText('Expiring soon')).toBeInTheDocument()
+  })
+
+  it('does not show expiry badge when expiry date is far in the future', async () => {
+    const future = new Date()
+    future.setFullYear(future.getFullYear() + 2) // 2 years from now
+    const mockWithFutureCert = {
+      ...mockEmployee,
+      workInfo: JSON.stringify({
+        certifications: [
+          { name: 'Valid Cert', issuingAuthority: 'Test Org', issueDate: '2023-01-01', expiryDate: future.toISOString().slice(0, 10), documentUrl: '' },
+        ],
+      }),
+    }
+    vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
+      data: mockWithFutureCert,
+      isLoading: false,
+      error: null,
+    } as any)
+    render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Certifications' }))
+    expect(screen.queryByText('Expired')).not.toBeInTheDocument()
+    expect(screen.queryByText('Expiring soon')).not.toBeInTheDocument()
+  })
+
+  it('renders multiple certifications', async () => {
+    const mockWithMultipleCerts = {
+      ...mockEmployee,
+      workInfo: JSON.stringify({
+        certifications: [
+          { name: 'PMP', issuingAuthority: 'PMI', issueDate: '2022-03-01', expiryDate: '', documentUrl: '' },
+          { name: 'CISSP', issuingAuthority: 'ISC2', issueDate: '2023-11-01', expiryDate: '', documentUrl: '' },
+        ],
+      }),
+    }
+    vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
+      data: mockWithMultipleCerts,
+      isLoading: false,
+      error: null,
+    } as any)
+    render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Certifications' }))
+    expect(screen.getByText('PMP')).toBeInTheDocument()
+    expect(screen.getByText('PMI')).toBeInTheDocument()
+    expect(screen.getByText('CISSP')).toBeInTheDocument()
+    expect(screen.getByText('ISC2')).toBeInTheDocument()
   })
 })
