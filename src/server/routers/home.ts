@@ -47,6 +47,39 @@ export const homeRouter = router({
       });
     }),
 
+  // Who's out today (approved time-off that overlaps with today)
+  getTodayAbsences: protectedProcedure.query(async ({ ctx }) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const requests = await ctx.db.timeOffRequest.findMany({
+      where: {
+        status: 'APPROVED',
+        startDate: { lte: tomorrow },
+        endDate: { gte: today },
+        employee: { companyId: ctx.user.companyId },
+      },
+      include: {
+        employee: { select: { id: true, firstName: true, lastName: true, avatar: true, department: { select: { name: true } } } },
+        policy: { select: { name: true, color: true } },
+      },
+      orderBy: { startDate: 'asc' },
+    });
+
+    return requests.map(r => ({
+      employeeId: r.employee.id,
+      name: `${r.employee.firstName} ${r.employee.lastName}`,
+      avatar: r.employee.avatar,
+      department: r.employee.department?.name || '',
+      leaveType: r.policy.name,
+      color: r.policy.color,
+      startDate: r.startDate,
+      endDate: r.endDate,
+    }));
+  }),
+
   // Quick stats for the dashboard
   getStats: protectedProcedure.query(async ({ ctx }) => {
     const companyId = ctx.user.companyId;
@@ -106,8 +139,8 @@ export const homeRouter = router({
 
   getFeed: protectedProcedure.query(async ({ ctx }) => {
     const today = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(today.getDate() - 7);
     const nextSevenDays = new Date();
     nextSevenDays.setDate(today.getDate() + 7);
 
@@ -143,8 +176,8 @@ export const homeRouter = router({
 
     const feed: any[] = [];
 
-    // New Joiners (last 30 days)
-    employees.filter(e => e.startDate >= thirtyDaysAgo && e.startDate <= today).forEach(e => {
+    // New Joiners (last 7 days — shown on the Welcome screen for one week after start date)
+    employees.filter(e => e.startDate >= sevenDaysAgo && e.startDate <= today).forEach(e => {
       feed.push({ 
         type: 'NEW_JOINER', 
         date: e.startDate, 
@@ -181,12 +214,7 @@ export const homeRouter = router({
       } catch (err) { /* ignore */ }
     });
 
-    // Shoutouts
-    posts.forEach((p: any) => {
-      feed.push({ type: 'SHOUTOUT', date: p.createdAt, data: p });
-    });
-
-    // HR Announcements from HR Portal
+    // HR Announcements from HR Portal (shoutouts removed per feedback)
     hrItems.forEach((item: any) => {
       feed.push({
         type: 'HR_ANNOUNCEMENT',
