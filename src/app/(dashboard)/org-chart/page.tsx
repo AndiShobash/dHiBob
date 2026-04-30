@@ -25,6 +25,7 @@ export default function OrgChartPage() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [autoFocused, setAutoFocused] = useState(false);
+  const [myView, setMyView] = useState(true); // bottom-up view focused on logged-in user
 
   const employees: OrgEmployee[] = useMemo(() => {
     if (!data) return [];
@@ -114,8 +115,7 @@ export default function OrgChartPage() {
     return () => clearTimeout(t);
   }, [rootId, focusedId, byId, employees.length]);
 
-  // Auto-focus on the logged-in user on first load so their level
-  // appears at the bottom of the visible chain.
+  // Auto-focus on the logged-in user on first load
   useEffect(() => {
     if (autoFocused || !session?.user?.employeeId || !employees.length) return;
     const myId = session.user.employeeId;
@@ -124,6 +124,39 @@ export default function OrgChartPage() {
       setAutoFocused(true);
     }
   }, [session, employees.length, byId, autoFocused]);
+
+  // "My View" — reverse the chain so the logged-in user is at the top (root)
+  // and their managers go downward toward the CEO at the bottom.
+  const { myViewEmployees, myViewRootId } = useMemo(() => {
+    const myId = session?.user?.employeeId;
+    if (!myView || !myId || !byId.has(myId)) {
+      return { myViewEmployees: null, myViewRootId: null };
+    }
+
+    // Walk from user up to the CEO, collect the chain
+    const chain: OrgEmployee[] = [];
+    let cur = byId.get(myId);
+    while (cur) {
+      chain.push(cur);
+      if (!cur.managerId) break;
+      cur = byId.get(cur.managerId);
+    }
+
+    if (chain.length === 0) return { myViewEmployees: null, myViewRootId: null };
+
+    // Reverse the relationships: user is root, each manager becomes the child
+    // chain[0] = me, chain[1] = my TL, chain[2] = my GL, ... chain[N] = CEO
+    const reversed: OrgEmployee[] = chain.map((emp, i) => ({
+      ...emp,
+      managerId: i === 0 ? null : chain[i - 1].id, // parent = the person below in the chain
+      directReportsCount: i < chain.length - 1 ? 1 : 0,
+    }));
+
+    // Also include direct reports of the logged-in user (if any) hanging below them
+    // Wait — that would be above them in the reversed view. Skip for clarity.
+
+    return { myViewEmployees: reversed, myViewRootId: myId };
+  }, [myView, session, byId, employees]);
 
   const departments = useMemo(() => {
     const s = new Set<string>();
@@ -279,30 +312,44 @@ export default function OrgChartPage() {
           </div>
 
           <div className="flex gap-1.5">
-            <button
-              onClick={handleExpandAll}
-              className="px-3 py-1.5 text-xs rounded-md border border-gray-200 dark:border-charcoal-700 hover:bg-gray-50 dark:hover:bg-charcoal-800 flex items-center gap-1.5"
-              title="Expand all"
-            >
-              <Maximize2 size={12} /> Expand all
-            </button>
-            <button
-              onClick={handleCollapseAll}
-              className="px-3 py-1.5 text-xs rounded-md border border-gray-200 dark:border-charcoal-700 hover:bg-gray-50 dark:hover:bg-charcoal-800"
-              title="Collapse all"
-            >
-              Collapse all
-            </button>
+            <div className="flex border rounded-md overflow-hidden mr-2">
+              <button
+                onClick={() => setMyView(true)}
+                className={`px-3 py-1.5 text-xs font-medium ${myView ? 'bg-gray-800 text-white dark:bg-white dark:text-gray-900' : 'bg-gray-100 dark:bg-charcoal-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}
+              >My View</button>
+              <button
+                onClick={() => { setMyView(false); setFocusedId(null); }}
+                className={`px-3 py-1.5 text-xs font-medium ${!myView ? 'bg-gray-800 text-white dark:bg-white dark:text-gray-900' : 'bg-gray-100 dark:bg-charcoal-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}
+              >Full Org</button>
+            </div>
+            {!myView && (
+              <>
+                <button
+                  onClick={handleExpandAll}
+                  className="px-3 py-1.5 text-xs rounded-md border border-gray-200 dark:border-charcoal-700 hover:bg-gray-50 dark:hover:bg-charcoal-800 flex items-center gap-1.5"
+                  title="Expand all"
+                >
+                  <Maximize2 size={12} /> Expand all
+                </button>
+                <button
+                  onClick={handleCollapseAll}
+                  className="px-3 py-1.5 text-xs rounded-md border border-gray-200 dark:border-charcoal-700 hover:bg-gray-50 dark:hover:bg-charcoal-800"
+                  title="Collapse all"
+                >
+                  Collapse all
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
 
       <div className="h-[calc(100vh-220px)] border rounded-xl bg-gradient-to-br from-gray-50 to-white dark:bg-charcoal-800 dark:bg-none border-gray-200 dark:border-charcoal-700 overflow-hidden">
         <TreeView
-          rootId={rootId}
-          employees={visibleEmployees}
-          expandedIds={expandedIds}
-          onToggleExpand={handleToggleExpand}
+          rootId={myViewEmployees ? myViewRootId! : rootId}
+          employees={myViewEmployees ?? visibleEmployees}
+          expandedIds={myViewEmployees ? new Set((myViewEmployees).map(e => e.id)) : expandedIds}
+          onToggleExpand={myViewEmployees ? () => {} : handleToggleExpand}
           highlightedId={highlightedId}
         />
       </div>
