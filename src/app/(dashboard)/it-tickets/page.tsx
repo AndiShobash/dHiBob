@@ -81,7 +81,7 @@ export default function ITTicketsPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-xl font-bold">{selectedTicket.title}</h2>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">
                       Opened by {selectedTicket.creator.firstName} {selectedTicket.creator.lastName}
                       {selectedTicket.creator.department?.name && ` · ${selectedTicket.creator.department.name}`}
                       {" · "}{format(new Date(selectedTicket.createdAt), "MMM d, yyyy 'at' HH:mm")}
@@ -144,7 +144,7 @@ export default function ITTicketsPage() {
                     </div>
                   ))}
                   {selectedTicket.comments.length === 0 && (
-                    <p className="text-sm text-gray-400">No comments yet.</p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500">No comments yet.</p>
                   )}
                 </div>
 
@@ -193,7 +193,7 @@ export default function ITTicketsPage() {
             <Card key={s.label}>
               <CardContent className="p-4 text-center">
                 <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                <p className="text-xs text-gray-500 mt-1">{s.label}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">{s.label}</p>
               </CardContent>
             </Card>
           ))}
@@ -243,7 +243,7 @@ export default function ITTicketsPage() {
         return isLoading ? (
         <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-gray-100 dark:bg-charcoal-800 rounded-lg animate-pulse" />)}</div>
       ) : !filtered.length ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-500 dark:text-gray-300">
           <Ticket size={48} className="mx-auto mb-4 opacity-30" />
           <p className="text-lg font-medium">No tickets{search || statusFilter || categoryFilter ? ' match your filters' : ' yet'}.</p>
           <p className="text-sm mb-4">{isItOrAdmin ? 'Waiting for employees to submit tickets.' : 'Submit your first ticket to get IT support.'}</p>
@@ -261,7 +261,7 @@ export default function ITTicketsPage() {
                       <Badge variant={STATUS_VARIANT[ticket.status]} className="text-[10px]">{ticket.status.replace('_', ' ')}</Badge>
                       <span className={`text-[10px] font-medium ${PRIORITY_COLORS[ticket.priority]}`}>{ticket.priority}</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-xs text-gray-500 dark:text-gray-300 mt-0.5">
                       {ticket.creator.firstName} {ticket.creator.lastName}
                       {ticket.creator.department?.name && ` · ${ticket.creator.department.name}`}
                       {" · "}{format(new Date(ticket.createdAt), "MMM d")}

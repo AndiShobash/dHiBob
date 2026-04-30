@@ -293,7 +293,7 @@ export default function ITAssetsPage() {
       {isLoading ? (
         <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 dark:bg-charcoal-800 rounded animate-pulse" />)}</div>
       ) : sorted.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-500 dark:text-gray-300">
           <Monitor size={48} className="mx-auto mb-4 opacity-30" />
           <p className="text-lg font-medium">No assets found.</p>
         </div>
@@ -306,7 +306,7 @@ export default function ITAssetsPage() {
                   <th
                     key={col.key || 'actions'}
                     onClick={() => handleSort(col.key)}
-                    className={`px-3 py-2 text-xs font-medium text-gray-500 whitespace-nowrap ${col.key ? 'cursor-pointer select-none hover:text-gray-900 dark:hover:text-white' : ''}`}
+                    className={`px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-300 whitespace-nowrap ${col.key ? 'cursor-pointer select-none hover:text-gray-900 dark:hover:text-white' : ''}`}
                   >
                     {col.label}{sortIndicator(col.key)}
                   </th>
@@ -318,23 +318,23 @@ export default function ITAssetsPage() {
                 <React.Fragment key={a.id}>
                 <tr className="border-b hover:bg-gray-50 dark:hover:bg-charcoal-800 group">
                   <td className="px-3 py-2 font-medium">{a.item}</td>
-                  <td className="px-3 py-2 text-gray-500 font-mono text-xs">{a.serialNumber || '—'}</td>
-                  <td className="px-3 py-2 text-gray-600">{a.model || '—'}</td>
+                  <td className="px-3 py-2 text-gray-500 dark:text-gray-400 font-mono text-xs">{a.serialNumber || '—'}</td>
+                  <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{a.model || '—'}</td>
                   <td className="px-3 py-2"><Badge variant="outline" className="text-[10px]">{a.type}</Badge></td>
                   <td className="px-3 py-2">{a.assignee ? `${a.assignee.firstName} ${a.assignee.lastName}` : '—'}</td>
-                  <td className="px-3 py-2 text-gray-500">{a.factoryOS || '—'}</td>
+                  <td className="px-3 py-2 text-gray-500 dark:text-gray-300">{a.factoryOS || '—'}</td>
                   <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded text-[10px] font-medium ${STATUS_COLORS[a.status] || ''}`}>{a.status}</span></td>
                   {(() => { const ws = getWarrantyStatus(a.warrantyEndDate); return (
                     <td className="px-3 py-2">{ws ? <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${WARRANTY_COLORS[ws] || ''}`}>{ws}</span> : '—'}</td>
                   ); })()}
-                  <td className="px-3 py-2 text-gray-500 text-xs">{a.warrantyEndDate ? format(new Date(a.warrantyEndDate), 'MMM d, yyyy') : '—'}</td>
-                  <td className="px-3 py-2 text-gray-500 text-xs">{a.cpu || '—'}</td>
-                  <td className="px-3 py-2 text-gray-500 text-xs">{a.ram || '—'}</td>
-                  <td className="px-3 py-2 text-gray-500 text-xs">{a.storage || '—'}</td>
+                  <td className="px-3 py-2 text-gray-500 dark:text-gray-300 text-xs">{a.warrantyEndDate ? format(new Date(a.warrantyEndDate), 'MMM d, yyyy') : '—'}</td>
+                  <td className="px-3 py-2 text-gray-500 dark:text-gray-300 text-xs">{a.cpu || '—'}</td>
+                  <td className="px-3 py-2 text-gray-500 dark:text-gray-300 text-xs">{a.ram || '—'}</td>
+                  <td className="px-3 py-2 text-gray-500 dark:text-gray-300 text-xs">{a.storage || '—'}</td>
                   <td className="px-3 py-2">
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => setNotesAssetId(notesAssetId === a.id ? null : a.id)} className="p-1 text-blue-400 hover:text-blue-600" title="Notes"><MessageSquare size={14} /></button>
-                      <button onClick={() => setEditId(a.id)} className="p-1 text-gray-400 hover:text-gray-600"><Pencil size={14} /></button>
+                      <button onClick={() => setEditId(a.id)} className="p-1 text-gray-400 hover:text-gray-600 dark:text-gray-300"><Pencil size={14} /></button>
                       <button onClick={() => { if (confirm('Delete this asset?')) deleteMutation.mutate({ id: a.id }); }} className="p-1 text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
                     </div>
                   </td>
@@ -370,7 +370,7 @@ export default function ITAssetsPage() {
                               </div>
                             </div>
                           )) : (
-                            <p className="text-xs text-gray-400">No notes yet.</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">No notes yet.</p>
                           )}
                         </div>
                         <form

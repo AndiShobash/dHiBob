@@ -105,7 +105,7 @@ function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; emplo
 
   return (
     <div className="overflow-x-auto border rounded-lg">
-      <p className="px-4 py-2 text-[10px] text-gray-400 border-b bg-gray-50 dark:bg-charcoal-800">Click a cell to assign/unassign · Click a column header to sort</p>
+      <p className="px-4 py-2 text-[10px] text-gray-400 dark:text-gray-500 border-b bg-gray-50 dark:bg-charcoal-800">Click a cell to assign/unassign · Click a column header to sort</p>
       <table className="text-xs">
         <thead>
           <tr className="border-b bg-gray-50 dark:bg-charcoal-800">
@@ -127,9 +127,9 @@ function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; emplo
           {sortedEmployees.map((emp: any) => (
             <tr key={emp.id} className="border-b hover:bg-gray-50 dark:hover:bg-charcoal-800/50">
               <td className="px-3 py-1.5 font-medium sticky left-0 bg-white dark:bg-charcoal-900 z-10">{emp._name}</td>
-              <td className="px-3 py-1.5 text-gray-500 sticky left-[160px] bg-white dark:bg-charcoal-900 z-10">{emp.email}</td>
-              <td className="px-3 py-1.5 text-gray-500">{emp._dept}</td>
-              <td className="px-3 py-1.5 text-gray-500">{emp._jobTitle}</td>
+              <td className="px-3 py-1.5 text-gray-500 dark:text-gray-300 sticky left-[160px] bg-white dark:bg-charcoal-900 z-10">{emp.email}</td>
+              <td className="px-3 py-1.5 text-gray-500 dark:text-gray-300">{emp._dept}</td>
+              <td className="px-3 py-1.5 text-gray-500 dark:text-gray-300">{emp._jobTitle}</td>
               {activeLicenses.map((l: any) => {
                 const has = assignmentMap.has(`${l.id}:${emp.id}`);
                 return (
@@ -332,7 +332,7 @@ export default function ITLicensesPage() {
       {view === 'catalog' && (isLoading ? (
         <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 dark:bg-charcoal-800 rounded animate-pulse" />)}</div>
       ) : !licenses?.length ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-500 dark:text-gray-300">
           <Key size={48} className="mx-auto mb-4 opacity-30" />
           <p className="text-lg font-medium">No licenses configured.</p>
         </div>
@@ -403,7 +403,7 @@ export default function ITLicensesPage() {
                   <th
                     key={col.key || 'actions'}
                     onClick={() => handleSort(col.key)}
-                    className={`px-3 py-2 text-xs font-medium text-gray-500 whitespace-nowrap ${col.key ? 'cursor-pointer select-none hover:text-gray-900 dark:hover:text-white' : ''}`}
+                    className={`px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-300 whitespace-nowrap ${col.key ? 'cursor-pointer select-none hover:text-gray-900 dark:hover:text-white' : ''}`}
                   >
                     {col.label}{sortIndicator(col.key)}
                   </th>
@@ -420,16 +420,16 @@ export default function ITLicensesPage() {
                   <React.Fragment key={l.id}>
                     <tr className="border-b hover:bg-gray-50 dark:hover:bg-charcoal-800 group">
                       <td className="px-3 py-2 font-medium">{l.item}</td>
-                      <td className="px-3 py-2 text-gray-500">{l.publisher || '—'}</td>
-                      <td className="px-3 py-2 text-gray-500">{l.planName || '—'}</td>
+                      <td className="px-3 py-2 text-gray-500 dark:text-gray-300">{l.publisher || '—'}</td>
+                      <td className="px-3 py-2 text-gray-500 dark:text-gray-300">{l.planName || '—'}</td>
                       <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded text-[10px] font-medium ${CAT_COLORS[l.category] || ''}`}>{l.category}</span></td>
                       <td className="px-3 py-2"><Badge variant="outline" className="text-[10px]">{l.licenseType}</Badge></td>
                       <td className="px-3 py-2 text-gray-500 text-xs">{l.renewalDate ? format(new Date(l.renewalDate), 'MMM d') : '—'}</td>
                       <td className="px-3 py-2"><Badge variant={l.status === 'Active' ? 'success' : l.status === 'Expired' ? 'destructive' : 'default'}>{l.status}</Badge></td>
                       <td className="px-3 py-2 text-center">{assigned}/{l.totalSeats}</td>
-                      <td className="px-3 py-2 text-gray-500">{sym}{l.pricePerSeat}</td>
+                      <td className="px-3 py-2 text-gray-500 dark:text-gray-300">{sym}{l.pricePerSeat}</td>
                       <td className="px-3 py-2 font-medium">{sym}{Math.round(monthlyCost).toLocaleString()}</td>
-                      <td className="px-3 py-2 text-gray-500">{sym}{Math.round(annualCost).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-gray-500 dark:text-gray-300">{sym}{Math.round(annualCost).toLocaleString()}</td>
                       <td className="px-3 py-2">
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => setAssignLicenseId(l.id)} className="p-1 text-emerald-400 hover:text-emerald-600" title="Manage users"><UserPlus size={14} /></button>
@@ -443,7 +443,7 @@ export default function ITLicensesPage() {
                       <tr className="bg-gray-50 dark:bg-charcoal-800/50">
                         <td colSpan={12} className="px-6 py-3">
                           <div className="flex items-center gap-2 mb-2">
-                            <p className="text-xs font-medium text-gray-500">Assigned Users ({assigned})</p>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-300">Assigned Users ({assigned})</p>
                             <select
                               value={assignEmployeeId}
                               onChange={e => setAssignEmployeeId(e.target.value)}
