@@ -202,6 +202,7 @@ const BADGE_COLORS: Record<string, string> = {
   jpy:          'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
   inr:          'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300',
   brl:          'bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-300',
+  pln:          'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
 };
 function badgeColor(val: string) {
   return BADGE_COLORS[val.toLowerCase()] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300';
@@ -209,7 +210,7 @@ function badgeColor(val: string) {
 
 const CONTRACT_TYPE_OPTIONS = ['Full-time', 'Part-time', 'Contract', 'Freelance', 'Intern'];
 const SALARY_TYPE_OPTIONS   = ['Base Salary', 'Bonus', 'Commission', 'Equity', 'Other'];
-const CURRENCY_OPTIONS      = ['USD', 'EUR', 'GBP', 'ILS', 'CAD', 'AUD', 'CHF', 'JPY', 'INR', 'BRL'];
+const CURRENCY_OPTIONS      = ['USD', 'EUR', 'GBP', 'ILS', 'CAD', 'AUD', 'CHF', 'JPY', 'INR', 'BRL', 'PLN'];
 
 function DropdownBadgeField({
   label,
@@ -1406,7 +1407,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               <SectionCard title="Equipment Budget" subtitle="One-time budget for office and home equipment purchases">
                 <div className="grid grid-cols-4 gap-4 mb-4">
                   <F label="Budget Amount" value={workInfo.assetBudget || ''} onSave={wi('assetBudget')} />
-                  <DropdownBadgeField label="Currency" value={budgetCcy} options={['ILS', 'USD', 'EUR', 'GBP']} onSave={isAdmin ? (val) => { const fn = wi('assetBudgetCurrency'); if (fn) fn(val); } : undefined} />
+                  <DropdownBadgeField label="Currency" value={budgetCcy} options={['ILS', 'USD', 'EUR', 'GBP', 'PLN']} onSave={isAdmin ? (val) => { const fn = wi('assetBudgetCurrency'); if (fn) fn(val); } : undefined} />
                   <FieldCell label="Total Spent" value={totalSpent > 0 ? `${sym}${totalSpent.toLocaleString()}` : '—'} />
                   <FieldCell
                     label="Remaining"
@@ -1440,7 +1441,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                 <DateField label="Date Loaned" value={asset.dateLoaned || ''} onSave={saveAssetField(i, 'dateLoaned')} />
                 <DateField label="Date Returned" value={asset.dateReturned || ''} onSave={saveAssetField(i, 'dateReturned')} />
                 <F label="Cost" value={asset.assetsCost || ''} onSave={saveAssetField(i, 'assetsCost')} />
-                <DropdownBadgeField label="Currency" value={asset.assetCurrency || 'ILS'} options={['ILS', 'USD', 'EUR', 'GBP']} onSave={isAdmin ? (val) => { const fn = saveAssetField(i, 'assetCurrency'); if (fn) fn(val); } : undefined} />
+                <DropdownBadgeField label="Currency" value={asset.assetCurrency || 'ILS'} options={['ILS', 'USD', 'EUR', 'GBP', 'PLN']} onSave={isAdmin ? (val) => { const fn = saveAssetField(i, 'assetCurrency'); if (fn) fn(val); } : undefined} />
               </div>
               <div>
                 <F label="Notes" value={asset.notes || ''} onSave={saveAssetField(i, 'notes')} />

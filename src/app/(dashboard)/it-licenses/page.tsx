@@ -252,7 +252,7 @@ export default function ITLicensesPage() {
           <div>
             <label className="block text-sm font-medium mb-1">Currency</label>
             <select name="currency" defaultValue={defaults?.currency || 'USD'} className="w-full border rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 dark:border-charcoal-600">
-              {['USD', 'ILS', 'EUR', 'GBP'].map(c => <option key={c} value={c}>{c}</option>)}
+              {['USD', 'ILS', 'EUR', 'GBP', 'PLN'].map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
         </div>

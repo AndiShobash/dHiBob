@@ -14,6 +14,7 @@ const SYMBOLS: Record<string, string> = {
   JPY: '¥',
   INR: '₹',
   BRL: 'R$',
+  PLN: 'zł',
 };
 
 export function currencySymbol(code?: string | null): string {
@@ -41,6 +42,7 @@ const FALLBACK_RATES_TO_USD: Record<string, number> = {
   JPY: 0.0067,
   INR: 0.012,
   BRL: 0.19,
+  PLN: 0.24,
 };
 
 export type ExchangeRates = Record<string, number>;

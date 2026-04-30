@@ -326,7 +326,7 @@ export default function ExpensesPage() {
                 <label className="block text-sm font-medium mb-1">Currency</label>
                 <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
                   className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800">
-                  {['USD','EUR','GBP','ILS','CAD','AUD'].map(c => <option key={c} value={c}>{c}</option>)}
+                  {['USD','EUR','GBP','ILS','CAD','AUD','PLN'].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
