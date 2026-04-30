@@ -125,14 +125,20 @@ export function TreeView({ rootId, employees, expandedIds, onToggleExpand, highl
       const t = tree<TreeNode>()
         .nodeSize([CARD_WIDTH + 40, LEVEL_HEIGHT])
         .separation((a, b) => (a.parent === b.parent ? 1 : 1.3));
-      return t(h);
+      const laid = t(h);
+      // Flip the tree upside-down: negate all Y so the root (CEO) is at the
+      // bottom and leaf employees are at the top.
+      laid.each(n => { n.y = -n.y; });
+      return laid;
     } catch (err) {
       console.error("Org chart layout error:", err);
       return null;
     }
   }, [rootId, byId, childrenByParent, expandedIds]);
 
-  // Fit content in viewport on first render / when layout changes structurally
+  // Fit content in viewport on first render / when layout changes structurally.
+  // Tree is flipped (root at bottom), so anchor the view so the root (CEO) is
+  // visible near the bottom and leaves extend upward.
   useEffect(() => {
     if (!layout || !containerRef.current) return;
     const bbox = computeBBox(layout);
@@ -144,7 +150,7 @@ export function TreeView({ rootId, employees, expandedIds, onToggleExpand, highl
     const scale = Math.min(1, scaleX, scaleY, 1.2);
     setTransform({
       x: w / 2 - (bbox.x + bbox.width / 2) * scale,
-      y: padding - bbox.y * scale,
+      y: h - padding - (bbox.y + bbox.height) * scale,
       scale,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -188,7 +194,7 @@ export function TreeView({ rootId, employees, expandedIds, onToggleExpand, highl
     const scale = Math.min(1, (w - 120) / (bbox.width || 1), (h - 120) / (bbox.height || 1), 1.2);
     setTransform({
       x: w / 2 - (bbox.x + bbox.width / 2) * scale,
-      y: 60 - bbox.y * scale,
+      y: h - 60 - (bbox.y + bbox.height) * scale,
       scale,
     });
   }, [layout]);
@@ -321,8 +327,8 @@ function EmployeeCard({
       }`}
       style={{ borderColor: colors.border, width: CARD_WIDTH, height: CARD_HEIGHT }}
     >
-      {/* Accent strip */}
-      <div className="absolute top-0 left-0 right-0 h-1 rounded-t-lg" style={{ backgroundColor: colors.border }} />
+      {/* Accent strip — at bottom since tree is flipped */}
+      <div className="absolute bottom-0 left-0 right-0 h-1 rounded-b-lg" style={{ backgroundColor: colors.border }} />
 
       <button
         onClick={onOpenProfile}
@@ -363,25 +369,25 @@ function EmployeeCard({
         </div>
       </button>
 
-      {/* Expand/collapse button */}
+      {/* Expand/collapse button — at top since tree is flipped (children are above) */}
       {hasChildren && (
         <button
           onClick={e => { e.stopPropagation(); onToggle(); }}
-          className="absolute left-1/2 -translate-x-1/2 -bottom-3 w-6 h-6 rounded-full bg-white dark:bg-charcoal-800 border-2 flex items-center justify-center shadow-sm hover:scale-110 transition-transform z-10"
+          className="absolute left-1/2 -translate-x-1/2 -top-3 w-6 h-6 rounded-full bg-white dark:bg-charcoal-800 border-2 flex items-center justify-center shadow-sm hover:scale-110 transition-transform z-10"
           style={{ borderColor: colors.border }}
           title={isExpanded ? "Collapse" : `Expand (${emp.directReportsCount})`}
         >
           {isExpanded ? (
-            <ChevronDown size={14} style={{ color: colors.text }} />
+            <ChevronDown size={14} style={{ color: colors.text }} className="rotate-180" />
           ) : (
-            <ChevronRight size={14} style={{ color: colors.text }} />
+            <ChevronRight size={14} style={{ color: colors.text }} className="-rotate-90" />
           )}
         </button>
       )}
 
       {node.hiddenChildCount > 0 && !isExpanded && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 -bottom-7 text-[9px] text-gray-400 whitespace-nowrap"
+          className="absolute left-1/2 -translate-x-1/2 -top-7 text-[9px] text-gray-400 whitespace-nowrap"
           style={{ color: colors.text }}
         >
           {node.hiddenChildCount} direct report{node.hiddenChildCount !== 1 ? "s" : ""}
@@ -392,25 +398,24 @@ function EmployeeCard({
 }
 
 // Orthogonal elbow path with rounded corners — the traditional org-chart connector.
-// Drops straight down from the parent, turns, travels horizontally, turns, drops into the child.
+// Tree is flipped: parent (source) is BELOW child (target), so the path goes upward.
 function elbowPath(source: HierarchyPointNode<TreeNode>, target: HierarchyPointNode<TreeNode>) {
   const sx = source.x;
-  const sy = source.y + CARD_HEIGHT / 2;
+  const sy = source.y - CARD_HEIGHT / 2; // top edge of parent (parent is below)
   const tx = target.x;
-  const ty = target.y - CARD_HEIGHT / 2;
+  const ty = target.y + CARD_HEIGHT / 2; // bottom edge of child (child is above)
   if (sx === tx) {
     return `M${sx},${sy} L${tx},${ty}`;
   }
   const midY = sy + (ty - sy) / 2;
-  const r = Math.min(10, Math.abs(tx - sx) / 2, Math.abs(ty - sy) / 2);
+  const r = Math.min(10, Math.abs(tx - sx) / 2, Math.abs(sy - ty) / 2);
   const dir = tx > sx ? 1 : -1;
-  // Down from parent, round corner, horizontal to above child, round corner, down into child
   return [
     `M${sx},${sy}`,
-    `L${sx},${midY - r}`,
+    `L${sx},${midY + r}`,
     `Q${sx},${midY} ${sx + dir * r},${midY}`,
     `L${tx - dir * r},${midY}`,
-    `Q${tx},${midY} ${tx},${midY + r}`,
+    `Q${tx},${midY} ${tx},${midY - r}`,
     `L${tx},${ty}`,
   ].join(" ");
 }
