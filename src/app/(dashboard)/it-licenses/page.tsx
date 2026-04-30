@@ -29,9 +29,10 @@ function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; emplo
   const utils = trpc.useContext();
   const assignMutation = trpc.itLicenses.assign.useMutation({ onSuccess: () => utils.itLicenses.invalidate() });
   const unassignMutation = trpc.itLicenses.unassign.useMutation({ onSuccess: () => utils.itLicenses.invalidate() });
+  const [mSortKey, setMSortKey] = useState<string | null>(null);
+  const [mSortDir, setMSortDir] = useState<'asc' | 'desc' | null>(null);
 
   const activeLicenses = licenses.filter((l: any) => l.status === 'Active').sort((a: any, b: any) => a.item.localeCompare(b.item));
-  const sortedEmployees = [...employees].sort((a: any, b: any) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
 
   // Build maps for quick lookup: "licenseId:employeeId" → assignmentId
   const assignmentMap = new Map<string, string>();
@@ -40,6 +41,49 @@ function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; emplo
       assignmentMap.set(`${l.id}:${a.employeeId}`, a.id);
     }
   }
+
+  // Enrich employees with parsed workInfo for sorting
+  const enriched = employees.map((emp: any) => {
+    const workInfo = (() => { try { return JSON.parse(emp.workInfo || '{}'); } catch { return {}; } })();
+    return { ...emp, _name: `${emp.firstName} ${emp.lastName}`, _dept: emp.department?.name || '', _jobTitle: workInfo.jobTitle || '', _workInfo: workInfo,
+      // Count how many licenses this employee has (for sorting by license columns)
+      _licenseCount: activeLicenses.filter((l: any) => assignmentMap.has(`${l.id}:${emp.id}`)).length,
+    };
+  });
+
+  function handleMatrixSort(key: string) {
+    if (!key) return;
+    if (mSortKey === key) {
+      if (mSortDir === 'asc') setMSortDir('desc');
+      else { setMSortKey(null); setMSortDir(null); }
+    } else {
+      setMSortKey(key);
+      setMSortDir('asc');
+    }
+  }
+
+  function matrixSortIndicator(key: string) {
+    if (mSortKey !== key) return '';
+    return mSortDir === 'asc' ? ' ↑' : ' ↓';
+  }
+
+  const sortedEmployees = mSortKey && mSortDir ? [...enriched].sort((a: any, b: any) => {
+    let av: any, bv: any;
+    if (mSortKey === '_name') { av = a._name; bv = b._name; }
+    else if (mSortKey === 'email') { av = a.email; bv = b.email; }
+    else if (mSortKey === '_dept') { av = a._dept; bv = b._dept; }
+    else if (mSortKey === '_jobTitle') { av = a._jobTitle; bv = b._jobTitle; }
+    else if (mSortKey.startsWith('lic_')) {
+      // Sort by whether employee has this specific license (✓ first or last)
+      const licId = mSortKey.replace('lic_', '');
+      av = assignmentMap.has(`${licId}:${a.id}`) ? 1 : 0;
+      bv = assignmentMap.has(`${licId}:${b.id}`) ? 1 : 0;
+      return mSortDir === 'asc' ? bv - av : av - bv; // asc = assigned first
+    }
+    else { av = ''; bv = ''; }
+    const cmp = String(av).localeCompare(String(bv));
+    return mSortDir === 'asc' ? cmp : -cmp;
+  }) : [...enriched].sort((a, b) => a._name.localeCompare(b._name));
 
   if (!activeLicenses.length) {
     return <p className="text-sm text-gray-400 py-8 text-center">No active licenses to display.</p>;
@@ -55,20 +99,24 @@ function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; emplo
     }
   }
 
+  const thBase = "px-3 py-2 text-left font-medium text-gray-500 cursor-pointer select-none hover:text-gray-900 dark:hover:text-white";
+  const thSticky0 = `${thBase} sticky left-0 bg-gray-50 dark:bg-charcoal-800 min-w-[160px] z-10`;
+  const thSticky1 = `${thBase} sticky left-[160px] bg-gray-50 dark:bg-charcoal-800 min-w-[180px] z-10`;
+
   return (
     <div className="overflow-x-auto border rounded-lg">
-      <p className="px-4 py-2 text-[10px] text-gray-400 border-b bg-gray-50 dark:bg-charcoal-800">Click a cell to assign or unassign a license</p>
+      <p className="px-4 py-2 text-[10px] text-gray-400 border-b bg-gray-50 dark:bg-charcoal-800">Click a cell to assign/unassign · Click a column header to sort</p>
       <table className="text-xs">
         <thead>
           <tr className="border-b bg-gray-50 dark:bg-charcoal-800">
-            <th className="px-3 py-2 text-left font-medium text-gray-500 sticky left-0 bg-gray-50 dark:bg-charcoal-800 min-w-[160px] z-10">Name</th>
-            <th className="px-3 py-2 text-left font-medium text-gray-500 sticky left-[160px] bg-gray-50 dark:bg-charcoal-800 min-w-[180px] z-10">Email</th>
-            <th className="px-3 py-2 text-left font-medium text-gray-500 min-w-[100px]">Department</th>
-            <th className="px-3 py-2 text-left font-medium text-gray-500 min-w-[140px]">Job Title</th>
+            <th className={thSticky0} onClick={() => handleMatrixSort('_name')}>Name{matrixSortIndicator('_name')}</th>
+            <th className={thSticky1} onClick={() => handleMatrixSort('email')}>Email{matrixSortIndicator('email')}</th>
+            <th className={`${thBase} min-w-[100px]`} onClick={() => handleMatrixSort('_dept')}>Department{matrixSortIndicator('_dept')}</th>
+            <th className={`${thBase} min-w-[140px]`} onClick={() => handleMatrixSort('_jobTitle')}>Job Title{matrixSortIndicator('_jobTitle')}</th>
             {activeLicenses.map((l: any) => (
-              <th key={l.id} className="px-2 py-2 text-center font-medium text-gray-500 min-w-[80px] whitespace-nowrap">
+              <th key={l.id} className="px-2 py-2 text-center font-medium text-gray-500 min-w-[80px] whitespace-nowrap cursor-pointer select-none hover:text-gray-900 dark:hover:text-white" onClick={() => handleMatrixSort(`lic_${l.id}`)}>
                 <div className="flex flex-col items-center gap-0.5">
-                  <span>{l.item}</span>
+                  <span>{l.item}{matrixSortIndicator(`lic_${l.id}`)}</span>
                   {l.pricePerSeat > 0 && <span className="text-[9px] text-gray-400">{currencySymbol(l.currency)}{l.pricePerSeat}</span>}
                 </div>
               </th>
@@ -76,34 +124,31 @@ function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; emplo
           </tr>
         </thead>
         <tbody>
-          {sortedEmployees.map((emp: any) => {
-            const workInfo = (() => { try { return JSON.parse(emp.workInfo || '{}'); } catch { return {}; } })();
-            return (
-              <tr key={emp.id} className="border-b hover:bg-gray-50 dark:hover:bg-charcoal-800/50">
-                <td className="px-3 py-1.5 font-medium sticky left-0 bg-white dark:bg-charcoal-900 z-10">{emp.firstName} {emp.lastName}</td>
-                <td className="px-3 py-1.5 text-gray-500 sticky left-[160px] bg-white dark:bg-charcoal-900 z-10">{emp.email}</td>
-                <td className="px-3 py-1.5 text-gray-500">{emp.department?.name || '—'}</td>
-                <td className="px-3 py-1.5 text-gray-500">{workInfo.jobTitle || '—'}</td>
-                {activeLicenses.map((l: any) => {
-                  const has = assignmentMap.has(`${l.id}:${emp.id}`);
-                  return (
-                    <td
-                      key={l.id}
-                      className="px-2 py-1.5 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-charcoal-700 transition-colors"
-                      onClick={() => toggleAssignment(l.id, emp.id)}
-                      title={has ? `Remove ${l.item} from ${emp.firstName}` : `Assign ${l.item} to ${emp.firstName}`}
-                    >
-                      {has ? (
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 font-bold">✓</span>
-                      ) : (
-                        <span className="text-gray-200 dark:text-charcoal-700 hover:text-gray-400">—</span>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
+          {sortedEmployees.map((emp: any) => (
+            <tr key={emp.id} className="border-b hover:bg-gray-50 dark:hover:bg-charcoal-800/50">
+              <td className="px-3 py-1.5 font-medium sticky left-0 bg-white dark:bg-charcoal-900 z-10">{emp._name}</td>
+              <td className="px-3 py-1.5 text-gray-500 sticky left-[160px] bg-white dark:bg-charcoal-900 z-10">{emp.email}</td>
+              <td className="px-3 py-1.5 text-gray-500">{emp._dept}</td>
+              <td className="px-3 py-1.5 text-gray-500">{emp._jobTitle}</td>
+              {activeLicenses.map((l: any) => {
+                const has = assignmentMap.has(`${l.id}:${emp.id}`);
+                return (
+                  <td
+                    key={l.id}
+                    className="px-2 py-1.5 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-charcoal-700 transition-colors"
+                    onClick={() => toggleAssignment(l.id, emp.id)}
+                    title={has ? `Remove ${l.item} from ${emp.firstName}` : `Assign ${l.item} to ${emp.firstName}`}
+                  >
+                    {has ? (
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 font-bold">✓</span>
+                    ) : (
+                      <span className="text-gray-200 dark:text-charcoal-700 hover:text-gray-400">—</span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
