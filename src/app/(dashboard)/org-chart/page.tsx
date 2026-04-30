@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc";
 import { Input } from "@/components/ui/input";
 import { Search, X, Maximize2, Target } from "lucide-react";
@@ -16,12 +17,14 @@ function parseJobTitle(workInfo: any): string {
 }
 
 export default function OrgChartPage() {
+  const { data: session } = useSession();
   const { data, isLoading } = trpc.employee.getOrgChartData.useQuery();
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState<string>("");
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [autoFocused, setAutoFocused] = useState(false);
 
   const employees: OrgEmployee[] = useMemo(() => {
     if (!data) return [];
@@ -110,6 +113,17 @@ export default function OrgChartPage() {
     const t = setTimeout(() => setHighlightedId(null), 2500);
     return () => clearTimeout(t);
   }, [rootId, focusedId, byId, employees.length]);
+
+  // Auto-focus on the logged-in user on first load so their level
+  // appears at the bottom of the visible chain.
+  useEffect(() => {
+    if (autoFocused || !session?.user?.employeeId || !employees.length) return;
+    const myId = session.user.employeeId;
+    if (byId.has(myId)) {
+      setFocusedId(myId);
+      setAutoFocused(true);
+    }
+  }, [session, employees.length, byId, autoFocused]);
 
   const departments = useMemo(() => {
     const s = new Set<string>();
