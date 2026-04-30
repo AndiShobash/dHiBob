@@ -117,6 +117,8 @@ export default function ITLicensesPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [assignLicenseId, setAssignLicenseId] = useState<string | null>(null);
   const [assignEmployeeId, setAssignEmployeeId] = useState('');
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null);
 
   const { data: licenses, isLoading } = trpc.itLicenses.list.useQuery();
   const { data: stats } = trpc.itLicenses.stats.useQuery();
@@ -289,21 +291,85 @@ export default function ITLicensesPage() {
           <Key size={48} className="mx-auto mb-4 opacity-30" />
           <p className="text-lg font-medium">No licenses configured.</p>
         </div>
-      ) : (
+      ) : (() => {
+        const COLS: Array<{ label: string; key: string }> = [
+          { label: 'Item', key: 'item' },
+          { label: 'Publisher', key: 'publisher' },
+          { label: 'Plan', key: 'planName' },
+          { label: 'Category', key: 'category' },
+          { label: 'Type', key: 'licenseType' },
+          { label: 'Renewal', key: 'renewalDate' },
+          { label: 'Status', key: 'status' },
+          { label: 'Seats', key: '_seats' },
+          { label: 'Price/Seat', key: 'pricePerSeat' },
+          { label: 'Monthly Cost', key: '_monthly' },
+          { label: 'Annual Cost', key: '_annual' },
+          { label: '', key: '' },
+        ];
+
+        function handleSort(key: string) {
+          if (!key) return;
+          if (sortKey === key) {
+            if (sortDir === 'asc') setSortDir('desc');
+            else { setSortKey(null); setSortDir(null); }
+          } else {
+            setSortKey(key);
+            setSortDir('asc');
+          }
+        }
+
+        function sortIndicator(key: string) {
+          if (sortKey !== key) return '';
+          return sortDir === 'asc' ? ' ↑' : ' ↓';
+        }
+
+        // Enrich licenses with computed fields for sorting
+        const enriched = (licenses ?? []).map((l: any) => {
+          const assigned = l._count.assignments;
+          return {
+            ...l,
+            _seats: assigned,
+            _monthly: l.licenseType === 'Yearly' ? (l.pricePerSeat * assigned) / 12 : l.pricePerSeat * assigned,
+            _annual: l.licenseType === 'Yearly' ? l.pricePerSeat * assigned : l.pricePerSeat * assigned * 12,
+          };
+        });
+
+        const sorted = sortKey && sortDir ? [...enriched].sort((a: any, b: any) => {
+          let av = a[sortKey], bv = b[sortKey];
+          if (sortKey === 'renewalDate') {
+            av = av ? new Date(av).getTime() : 0;
+            bv = bv ? new Date(bv).getTime() : 0;
+            return sortDir === 'asc' ? av - bv : bv - av;
+          }
+          if (typeof av === 'number' && typeof bv === 'number') {
+            return sortDir === 'asc' ? av - bv : bv - av;
+          }
+          return sortDir === 'asc'
+            ? String(av || '').localeCompare(String(bv || ''))
+            : String(bv || '').localeCompare(String(av || ''));
+        }) : enriched;
+
+        return (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left">
-                {['Item', 'Publisher', 'Plan', 'Category', 'Type', 'Renewal', 'Status', 'Seats', 'Price/Seat', 'Monthly Cost', 'Annual Cost', ''].map(h => (
-                  <th key={h || 'actions'} className="px-3 py-2 text-xs font-medium text-gray-500 whitespace-nowrap">{h}</th>
+                {COLS.map(col => (
+                  <th
+                    key={col.key || 'actions'}
+                    onClick={() => handleSort(col.key)}
+                    className={`px-3 py-2 text-xs font-medium text-gray-500 whitespace-nowrap ${col.key ? 'cursor-pointer select-none hover:text-gray-900 dark:hover:text-white' : ''}`}
+                  >
+                    {col.label}{sortIndicator(col.key)}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {licenses.map((l: any) => {
-                const assigned = l._count.assignments;
-                const monthlyCost = l.licenseType === 'Yearly' ? (l.pricePerSeat * assigned) / 12 : l.pricePerSeat * assigned;
-                const annualCost = l.licenseType === 'Yearly' ? l.pricePerSeat * assigned : l.pricePerSeat * assigned * 12;
+              {sorted.map((l: any) => {
+                const assigned = l._seats;
+                const monthlyCost = l._monthly;
+                const annualCost = l._annual;
                 const sym = currencySymbol(l.currency);
                 return (
                   <React.Fragment key={l.id}>
@@ -371,7 +437,8 @@ export default function ITLicensesPage() {
             </tbody>
           </table>
         </div>
-      ))}
+      );
+      })())}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
