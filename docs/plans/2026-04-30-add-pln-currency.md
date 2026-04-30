@@ -19,9 +19,9 @@ This is a small, mechanical change touching ~7 files. No schema changes, no new 
 
 1. Add PLN badge color to `BADGE_COLORS` (after `brl` around line 204):
    ```
-   pln: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+   pln: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
    ```
-   (Red chosen to echo the Polish flag — distinct from existing currency colors)
+   (Orange chosen because red is already used by CAD — orange is unused by any currency badge)
 
 2. Add `'PLN'` to the `CURRENCY_OPTIONS` array (line 212)
 
