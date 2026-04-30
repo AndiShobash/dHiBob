@@ -149,7 +149,7 @@ function CourseDetail({ courseId, onBack }: { courseId: string; onBack: () => vo
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <button onClick={onBack} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
+      <button onClick={onBack} className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-300 hover:text-gray-700">
         <ArrowLeft size={16} /> Back to catalog
       </button>
 
@@ -159,8 +159,8 @@ function CourseDetail({ courseId, onBack }: { courseId: string; onBack: () => vo
             <div>
               <Badge className={CATEGORY_COLORS[course.category] || CATEGORY_COLORS.General}>{course.category}</Badge>
               <h1 className="text-2xl font-bold mt-2">{course.title}</h1>
-              {course.description && <p className="text-gray-500 mt-2">{course.description}</p>}
-              <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
+              {course.description && <p className="text-gray-500 dark:text-gray-300 mt-2">{course.description}</p>}
+              <div className="flex items-center gap-4 mt-3 text-sm text-gray-500 dark:text-gray-300">
                 {course.duration && <span className="flex items-center gap-1"><Clock size={14} /> {course.duration}</span>}
                 <span className="flex items-center gap-1"><Users size={14} /> {course.enrolledCount} enrolled</span>
                 <span className="flex items-center gap-1"><BookOpen size={14} /> {lessons.length} lesson{lessons.length !== 1 ? 's' : ''}</span>
@@ -192,7 +192,7 @@ function CourseDetail({ courseId, onBack }: { courseId: string; onBack: () => vo
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">Lessons</h2>
         {lessons.length === 0 ? (
-          <p className="text-gray-500 text-sm py-4">No lessons added yet.</p>
+          <p className="text-gray-500 dark:text-gray-300 text-sm py-4">No lessons added yet.</p>
         ) : lessons.map((lesson, idx) => {
           const isCompleted = completedLessons.includes(lesson.id);
           const LessonIcon = LESSON_ICONS[lesson.type] || Link2;
@@ -215,7 +215,7 @@ function CourseDetail({ courseId, onBack }: { courseId: string; onBack: () => vo
                   <p className={`font-medium text-sm ${isCompleted ? 'line-through text-gray-400' : ''}`}>
                     {idx + 1}. {lesson.title}
                   </p>
-                  {lesson.duration && <p className="text-xs text-gray-500">{lesson.duration}</p>}
+                  {lesson.duration && <p className="text-xs text-gray-500 dark:text-gray-300">{lesson.duration}</p>}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant="outline" className="text-xs gap-1">
@@ -291,7 +291,7 @@ export default function LearningPage() {
       )}
 
       {!isLoading && (!courses || courses.length === 0) && (
-        <div className="text-center py-16 text-gray-500">
+        <div className="text-center py-16 text-gray-500 dark:text-gray-300">
           <BookOpen size={48} className="mx-auto mb-4 opacity-30" />
           <p className="text-lg font-medium">No courses found.</p>
           <p className="text-sm mt-1">{search || categoryFilter ? 'Try adjusting your filters.' : 'Create your first course to get started.'}</p>
@@ -321,8 +321,8 @@ export default function LearningPage() {
                     </div>
                   </div>
                   <h3 className="font-semibold mt-2">{course.title}</h3>
-                  {course.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{course.description}</p>}
-                  <div className="flex items-center gap-3 mt-3 text-sm text-gray-500">
+                  {course.description && <p className="text-sm text-gray-500 dark:text-gray-300 mt-1 line-clamp-2">{course.description}</p>}
+                  <div className="flex items-center gap-3 mt-3 text-sm text-gray-500 dark:text-gray-300">
                     {course.duration && <span className="flex items-center gap-1"><Clock size={14} /> {course.duration}</span>}
                     <span className="flex items-center gap-1"><Users size={14} /> {course.enrolledCount}</span>
                     <span className="flex items-center gap-1"><BookOpen size={14} /> {course.lessons.length}</span>

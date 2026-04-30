@@ -75,7 +75,7 @@ export default function DocumentsPage() {
 
       <div className="space-y-2">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+          <div className="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-300">
             <Loader2 className="animate-spin mb-2" size={32} aria-hidden="true" />
             <p>Loading documents...</p>
           </div>
@@ -88,7 +88,7 @@ export default function DocumentsPage() {
             </Button>
           </div>
         ) : filteredDocuments?.length === 0 ? (
-          <div className="text-center py-10 text-gray-500">
+          <div className="text-center py-10 text-gray-500 dark:text-gray-300">
             {search ? "No documents match your search." : "No documents found."}
           </div>
         ) : (
@@ -101,7 +101,7 @@ export default function DocumentsPage() {
                     <Icon size={24} className="text-gray-400" aria-hidden="true" />
                     <div>
                       <p className="font-medium">{d.name}</p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 dark:text-gray-300">
                         {d.type} · {formatSize(d.fileSize)} · Updated {format(new Date(d.createdAt), 'MMM dd')}
                       </p>
                     </div>
@@ -146,7 +146,7 @@ export default function DocumentsPage() {
           <DialogHeader>
             <DialogTitle>Send for Signature</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-500 mb-2">
+          <p className="text-sm text-gray-500 dark:text-gray-300 mb-2">
             Send <span className="font-medium text-gray-700 dark:text-gray-300">{signDoc?.name}</span> for e-signature via DocuSign.
           </p>
           {!docuSignStatus?.configured && (

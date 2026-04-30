@@ -47,7 +47,7 @@ export default function OnboardingPage() {
           {pendingHires.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-semibold text-gray-500">Pending Hires</h2>
+                <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-300">Pending Hires</h2>
                 <Badge variant="warning" className="text-[10px]">{pendingHires.length}</Badge>
                 <span className="text-[10px] text-gray-400">Profile created when Contract task is completed</span>
               </div>
@@ -66,7 +66,7 @@ export default function OnboardingPage() {
           {activeHires.length > 0 && (
             <div className="space-y-3">
               {pendingHires.length > 0 && (
-                <h2 className="text-sm font-semibold text-gray-500">Active Employees</h2>
+                <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-300">Active Employees</h2>
               )}
               {activeHires.map((emp: any) => (
                 <EmployeeChecklistRow
@@ -80,7 +80,7 @@ export default function OnboardingPage() {
           )}
 
           {pendingHires.length === 0 && activeHires.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-500 dark:text-gray-300">
               <p>No employees currently being onboarded.</p>
               <p className="text-sm mt-1">Click "New Hire" to start onboarding someone.</p>
             </div>

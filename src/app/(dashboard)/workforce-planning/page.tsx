@@ -172,12 +172,12 @@ export default function WorkforcePlanningPage() {
           {positionsLoading ? (
             <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />)}</div>
           ) : !positions || positions.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No positions created yet. Click "New Position" to add one.</p>
+            <p className="text-gray-500 dark:text-gray-300 text-center py-8">No positions created yet. Click "New Position" to add one.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+                  <tr className="border-b border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-300">
                     <th className="text-left py-2 pr-4 font-medium">Title</th>
                     <th className="text-left py-2 pr-4 font-medium">Department</th>
                     <th className="text-left py-2 pr-4 font-medium">Site</th>
@@ -191,23 +191,23 @@ export default function WorkforcePlanningPage() {
                   {positions.map((pos: any) => (
                     <tr key={pos.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 group">
                       <td className="py-3 pr-4 font-medium">{pos.title}</td>
-                      <td className="py-3 pr-4 text-gray-500">{pos.department?.name || '—'}</td>
-                      <td className="py-3 pr-4 text-gray-500">{pos.site?.name || '—'}</td>
+                      <td className="py-3 pr-4 text-gray-500 dark:text-gray-300">{pos.department?.name || '—'}</td>
+                      <td className="py-3 pr-4 text-gray-500 dark:text-gray-300">{pos.site?.name || '—'}</td>
                       <td className="py-3 pr-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[pos.status] || STATUS_COLORS.OPEN}`}>
                           {pos.status}
                         </span>
                       </td>
-                      <td className="py-3 pr-4 text-gray-500">
+                      <td className="py-3 pr-4 text-gray-500 dark:text-gray-300">
                         {pos.employee ? `${pos.employee.firstName} ${pos.employee.lastName}` : '—'}
                       </td>
-                      <td className="py-3 pr-4 text-gray-500">
+                      <td className="py-3 pr-4 text-gray-500 dark:text-gray-300">
                         {pos.budgetedSalary ? `$${pos.budgetedSalary.toLocaleString()}` : '—'}
                       </td>
                       <td className="py-3">
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => openEdit(pos)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded" title="Edit">
-                            <Pencil size={14} className="text-gray-500" />
+                            <Pencil size={14} className="text-gray-500 dark:text-gray-300" />
                           </button>
                           <button onClick={() => { if (confirm('Delete this position?')) deleteMutation.mutate({ id: pos.id }); }} className="p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded" title="Delete">
                             <Trash2 size={14} className="text-red-500" />

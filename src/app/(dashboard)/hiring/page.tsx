@@ -102,7 +102,7 @@ export default function HiringPage() {
           {jobsLoading ? (
             <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />)}</div>
           ) : !jobsData?.jobs.length ? (
-            <p className="text-center text-gray-500 py-8">No job postings yet.</p>
+            <p className="text-center text-gray-500 dark:text-gray-300 py-8">No job postings yet.</p>
           ) : (
             <div className="space-y-2">
               {jobsData.jobs.map(job => {
@@ -117,7 +117,7 @@ export default function HiringPage() {
                         <p className="font-semibold">{job.title}</p>
                         <Badge variant={job.status === 'OPEN' ? 'success' : job.status === 'ON_HOLD' ? 'warning' : 'secondary'}>{job.status}</Badge>
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
+                      <div className="flex items-center gap-3 mt-1 text-sm text-gray-500 dark:text-gray-300">
                         {(job as any).department?.name && <span className="flex items-center gap-1"><MapPin size={12} /> {(job as any).department.name}</span>}
                         <span>{job._count.candidates} candidate{job._count.candidates !== 1 ? 's' : ''}</span>
                         {job.salaryMin && job.salaryMax && <span>${(job.salaryMin/1000).toFixed(0)}k - ${(job.salaryMax/1000).toFixed(0)}k</span>}
@@ -162,7 +162,7 @@ export default function HiringPage() {
                           <div className="flex items-start justify-between">
                             <div>
                               <p className="font-medium text-sm">{c.firstName} {c.lastName}</p>
-                              <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                              <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 dark:text-gray-300">
                                 {c.email && <span className="flex items-center gap-0.5"><Mail size={10} /> {c.email.split('@')[0]}</span>}
                                 {(c as any).source && <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SOURCE_COLORS[(c as any).source] || SOURCE_COLORS.OTHER}`}>{(c as any).source}</span>}
                               </div>
@@ -196,7 +196,7 @@ export default function HiringPage() {
             {/* Rejected section */}
             {candidatesByStage.REJECTED.length > 0 && (
               <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <h4 className="text-sm font-medium text-gray-500 mb-2">Rejected ({candidatesByStage.REJECTED.length})</h4>
+                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-300 mb-2">Rejected ({candidatesByStage.REJECTED.length})</h4>
                 <div className="flex flex-wrap gap-2">
                   {candidatesByStage.REJECTED.map(c => (
                     <span key={c.id} className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-1 rounded">

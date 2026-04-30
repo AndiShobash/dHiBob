@@ -128,7 +128,7 @@ export default function HrPortalPage() {
       )}
 
       {!isLoading && (!sections || sections.length === 0) && (
-        <div className="text-center py-16 text-gray-500">
+        <div className="text-center py-16 text-gray-500 dark:text-gray-300">
           <Megaphone size={48} className="mx-auto mb-4 opacity-30" />
           <p className="text-lg font-medium">No items in the HR Portal yet.</p>
           {isHr && <p className="text-sm mt-1">Click "Add Item" to start adding links, announcements, and documents.</p>}
@@ -169,7 +169,7 @@ export default function HrPortalPage() {
                   </CardHeader>
                   <CardContent className="pt-0">
                     {item.content && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{item.content}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{item.content}</p>
                     )}
                     {item.type === 'FILE' && item.fileUrl && (
                       <a
@@ -189,7 +189,7 @@ export default function HrPortalPage() {
                       {isHr && (
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => openEdit(item)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded" title="Edit">
-                            <Pencil size={14} className="text-gray-500" />
+                            <Pencil size={14} className="text-gray-500 dark:text-gray-300" />
                           </button>
                           <button onClick={() => { if (confirm('Delete this item?')) deleteMutation.mutate({ id: item.id }); }} className="p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded" title="Delete">
                             <Trash2 size={14} className="text-red-500" />
@@ -266,7 +266,7 @@ export default function HrPortalPage() {
               <div>
                 <label className="block text-sm font-medium mb-1">File</label>
                 <input type="file" onChange={handleFileChange} className="text-sm" />
-                {form.fileName && <p className="text-xs text-gray-500 mt-1">{form.fileName}</p>}
+                {form.fileName && <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">{form.fileName}</p>}
               </div>
             )}
             <label className="flex items-center gap-2 cursor-pointer">

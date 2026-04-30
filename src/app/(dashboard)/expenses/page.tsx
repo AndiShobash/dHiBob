@@ -113,7 +113,7 @@ export default function ExpensesPage() {
 
   function renderTable(items: any[], showActions: boolean) {
     if (items.length === 0) return (
-      <div className="p-12 text-center text-gray-500">
+      <div className="p-12 text-center text-gray-500 dark:text-gray-300">
         <DollarSign size={48} className="mx-auto mb-4 opacity-30" />
         <p className="text-lg font-medium">No expenses found.</p>
       </div>
@@ -122,7 +122,7 @@ export default function ExpensesPage() {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+            <tr className="border-b border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-300">
               <th className="text-left p-3 font-medium">Employee</th>
               <th className="text-left p-3 font-medium">Type</th>
               <th className="text-left p-3 font-medium">Supplier</th>
@@ -138,11 +138,11 @@ export default function ExpensesPage() {
             {items.map((expense: any) => (
               <tr key={expense.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 group">
                 <td className="p-3 font-medium">{expense.employee.firstName} {expense.employee.lastName}</td>
-                <td className="p-3 text-gray-600 dark:text-gray-400">{expense.expenseType}</td>
-                <td className="p-3 text-gray-600 dark:text-gray-400">{expense.supplierName || '—'}</td>
+                <td className="p-3 text-gray-600 dark:text-gray-300">{expense.expenseType}</td>
+                <td className="p-3 text-gray-600 dark:text-gray-300">{expense.supplierName || '—'}</td>
                 <td className="p-3 font-semibold">{expense.currency === 'USD' ? '$' : expense.currency + ' '}{expense.amount.toLocaleString()}</td>
-                <td className="p-3 text-gray-500">{fmtDate(expense.expenseDate)}</td>
-                <td className="p-3 text-gray-500">{expense.payrollMonth || '—'}</td>
+                <td className="p-3 text-gray-500 dark:text-gray-300">{fmtDate(expense.expenseDate)}</td>
+                <td className="p-3 text-gray-500 dark:text-gray-300">{expense.payrollMonth || '—'}</td>
                 <td className="p-3">
                   {expense.invoiceFileUrl ? (
                     <a href={expense.invoiceFileUrl} target="_blank" rel="noopener noreferrer" download={expense.invoiceFileName ?? undefined} className="text-primary-500 hover:text-primary-600 flex items-center gap-1">
@@ -337,7 +337,7 @@ export default function ExpensesPage() {
             <div>
               <label className="block text-sm font-medium mb-1">Invoice File</label>
               <input type="file" onChange={handleFileChange} className="text-sm" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
-              {form.invoiceFileName && <p className="text-xs text-gray-500 mt-1">{form.invoiceFileName}</p>}
+              {form.invoiceFileName && <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">{form.invoiceFileName}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Notes</label>

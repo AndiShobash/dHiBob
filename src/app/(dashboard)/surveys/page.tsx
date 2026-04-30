@@ -136,7 +136,7 @@ function SurveyBuilder({ onClose, editSurvey }: { onClose: () => void; editSurve
                 {/* Rating preview */}
                 {q.type === 'RATING' && (
                   <div className="flex items-center gap-3 pl-6">
-                    <span className="text-sm text-gray-500">Scale: 1 to</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-300">Scale: 1 to</span>
                     <select value={q.maxRating || 5} onChange={e => updateQuestion(qIdx, { maxRating: Number(e.target.value) })} className="border rounded px-2 py-1 text-sm bg-white dark:bg-charcoal-800 dark:border-gray-700">
                       <option value={5}>5</option>
                       <option value={10}>10</option>
@@ -151,7 +151,7 @@ function SurveyBuilder({ onClose, editSurvey }: { onClose: () => void; editSurve
                 {q.type === 'SHORT_TEXT' && <div className="pl-6"><div className="h-8 border-b border-gray-300 dark:border-gray-600 w-2/3" /></div>}
                 {q.type === 'LONG_TEXT' && <div className="pl-6"><div className="h-20 border border-gray-300 dark:border-gray-600 rounded-md w-full" /></div>}
 
-                <label className="flex items-center gap-2 text-sm text-gray-500">
+                <label className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-300">
                   <input type="checkbox" checked={q.required} onChange={e => updateQuestion(qIdx, { required: e.target.checked })} className="rounded" />
                   Required
                 </label>
@@ -164,7 +164,7 @@ function SurveyBuilder({ onClose, editSurvey }: { onClose: () => void; editSurve
       {/* Add question buttons */}
       <Card>
         <CardContent className="p-4">
-          <p className="text-sm font-medium text-gray-500 mb-3">Add question</p>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-300 mb-3">Add question</p>
           <div className="flex flex-wrap gap-2">
             {Object.entries(TYPE_LABELS).map(([type, { label, icon: Icon }]) => (
               <button key={type} onClick={() => addQuestion(type as QuestionType)} className="flex items-center gap-2 px-3 py-2 text-sm border rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 dark:border-gray-700">
@@ -213,11 +213,11 @@ function SurveyFillForm({ surveyId, onClose }: { surveyId: string; onClose: () =
   if (hasResponded) {
     return (
       <div className="space-y-6">
-        <button onClick={onClose} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"><ArrowLeft size={16} /> Back to surveys</button>
+        <button onClick={onClose} className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-300 hover:text-gray-700"><ArrowLeft size={16} /> Back to surveys</button>
         <Card><CardContent className="p-12 text-center">
           <CheckSquare size={48} className="mx-auto mb-4 text-emerald-500" />
           <p className="text-lg font-semibold">You&apos;ve already responded to this survey.</p>
-          <p className="text-sm text-gray-500 mt-1">Thank you for your feedback!</p>
+          <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">Thank you for your feedback!</p>
         </CardContent></Card>
       </div>
     );
@@ -225,11 +225,11 @@ function SurveyFillForm({ surveyId, onClose }: { surveyId: string; onClose: () =
 
   return (
     <div className="space-y-6">
-      <button onClick={onClose} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"><ArrowLeft size={16} /> Back to surveys</button>
+      <button onClick={onClose} className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-300 hover:text-gray-700"><ArrowLeft size={16} /> Back to surveys</button>
       <Card>
         <CardContent className="p-6">
           <h2 className="text-xl font-bold">{survey.title}</h2>
-          {survey.description && <p className="text-sm text-gray-500 mt-1">{survey.description}</p>}
+          {survey.description && <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">{survey.description}</p>}
           {survey.anonymous && <p className="text-xs text-gray-400 mt-2">This survey is anonymous.</p>}
         </CardContent>
       </Card>
@@ -310,7 +310,7 @@ function SurveyResults({ surveyId, onClose }: { surveyId: string; onClose: () =>
         <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"><ArrowLeft size={20} /></button>
         <div>
           <h1 className="text-2xl font-bold">{survey.title} — Results</h1>
-          <p className="text-sm text-gray-500">{totalResponses} response{totalResponses !== 1 ? 's' : ''}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-300">{totalResponses} response{totalResponses !== 1 ? 's' : ''}</p>
         </div>
       </div>
 
@@ -342,7 +342,7 @@ function SurveyResults({ surveyId, onClose }: { surveyId: string; onClose: () =>
                               {pct > 10 && <span className="text-xs text-white font-medium">{pct}%</span>}
                             </div>
                           </div>
-                          <span className="text-sm text-gray-500 w-16 text-right">{count} ({pct}%)</span>
+                          <span className="text-sm text-gray-500 dark:text-gray-300 w-16 text-right">{count} ({pct}%)</span>
                         </div>
                       );
                     })}
@@ -356,7 +356,7 @@ function SurveyResults({ surveyId, onClose }: { surveyId: string; onClose: () =>
                 return (
                   <div className="flex items-center gap-4">
                     <span className="text-3xl font-bold text-amber-500">{avg}</span>
-                    <span className="text-sm text-gray-500">/ {q.maxRating || 5} average from {nums.length} responses</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-300">/ {q.maxRating || 5} average from {nums.length} responses</span>
                   </div>
                 );
               })()}
@@ -383,7 +383,7 @@ function SurveyResults({ surveyId, onClose }: { surveyId: string; onClose: () =>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-xs text-gray-500">
+                  <tr className="border-b text-xs text-gray-500 dark:text-gray-300">
                     <th className="text-left p-2 font-medium">Employee</th>
                     {questions.map((q: any, i: number) => (
                       <th key={q.id} className="text-left p-2 font-medium">{i + 1}. {q.title}</th>
@@ -398,7 +398,7 @@ function SurveyResults({ surveyId, onClose }: { surveyId: string; onClose: () =>
                         {r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : 'Unknown'}
                       </td>
                       {questions.map((q: any) => (
-                        <td key={q.id} className="p-2 text-gray-600 dark:text-gray-400 max-w-[200px] truncate">
+                        <td key={q.id} className="p-2 text-gray-600 dark:text-gray-300 max-w-[200px] truncate">
                           {Array.isArray(r.answers[q.id]) ? r.answers[q.id].join(', ') : String(r.answers[q.id] ?? '—')}
                         </td>
                       ))}
@@ -467,7 +467,7 @@ export default function SurveysPage() {
       )}
 
       {!isLoading && (!surveys || surveys.length === 0) && (
-        <div className="text-center py-16 text-gray-500">
+        <div className="text-center py-16 text-gray-500 dark:text-gray-300">
           <BarChart3 size={48} className="mx-auto mb-4 opacity-30" />
           <p className="text-lg font-medium">No surveys yet.</p>
           <p className="text-sm mt-1">Create your first survey to start collecting feedback.</p>
@@ -487,7 +487,7 @@ export default function SurveysPage() {
                         <h3 className="font-semibold truncate">{survey.title}</h3>
                         <Badge variant={statusVariant(survey.status)}>{survey.status}</Badge>
                       </div>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">
                         {questions.length} question{questions.length !== 1 ? 's' : ''} · {survey._count.responses} response{survey._count.responses !== 1 ? 's' : ''}
                         {survey.creator && ` · by ${survey.creator.firstName} ${survey.creator.lastName}`}
                       </p>

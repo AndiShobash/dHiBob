@@ -35,7 +35,7 @@ export default function HomePage() {
         <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
           {greeting}, {userName}!
         </h1>
-        <p className="text-gray-500 dark:text-gray-400 font-medium">
+        <p className="text-gray-500 dark:text-gray-300 font-medium">
           Here&apos;s what is happening in your company today.
         </p>
       </div>
@@ -45,31 +45,31 @@ export default function HomePage() {
         <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/people')}>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30"><Users size={18} className="text-blue-600" /></div>
-            <div><p className="text-2xl font-bold">{stats?.headcount ?? '—'}</p><p className="text-[11px] text-gray-500">Employees</p></div>
+            <div><p className="text-2xl font-bold">{stats?.headcount ?? '—'}</p><p className="text-[11px] text-gray-500 dark:text-gray-300">Employees</p></div>
           </CardContent>
         </Card>
         <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/onboarding')}>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30"><CheckSquare size={18} className="text-amber-600" /></div>
-            <div><p className="text-2xl font-bold">{stats?.myTasks ?? '—'}</p><p className="text-[11px] text-gray-500">My Tasks</p></div>
+            <div><p className="text-2xl font-bold">{stats?.myTasks ?? '—'}</p><p className="text-[11px] text-gray-500 dark:text-gray-300">My Tasks</p></div>
           </CardContent>
         </Card>
         <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/time-off')}>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30"><Calendar size={18} className="text-orange-600" /></div>
-            <div><p className="text-2xl font-bold">{stats?.pendingTimeOff ?? '—'}</p><p className="text-[11px] text-gray-500">Pending Leave</p></div>
+            <div><p className="text-2xl font-bold">{stats?.pendingTimeOff ?? '—'}</p><p className="text-[11px] text-gray-500 dark:text-gray-300">Pending Leave</p></div>
           </CardContent>
         </Card>
         <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/surveys')}>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30"><ClipboardList size={18} className="text-purple-600" /></div>
-            <div><p className="text-2xl font-bold">{stats?.activeSurveys ?? '—'}</p><p className="text-[11px] text-gray-500">Active Surveys</p></div>
+            <div><p className="text-2xl font-bold">{stats?.activeSurveys ?? '—'}</p><p className="text-[11px] text-gray-500 dark:text-gray-300">Active Surveys</p></div>
           </CardContent>
         </Card>
         <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/workforce-planning')}>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30"><Briefcase size={18} className="text-green-600" /></div>
-            <div><p className="text-2xl font-bold">{stats?.openPositions ?? '—'}</p><p className="text-[11px] text-gray-500">Open Positions</p></div>
+            <div><p className="text-2xl font-bold">{stats?.openPositions ?? '—'}</p><p className="text-[11px] text-gray-500 dark:text-gray-300">Open Positions</p></div>
           </CardContent>
         </Card>
       </div>
@@ -93,7 +93,7 @@ export default function HomePage() {
                   >
                     What&apos;s on your mind or want to give a shoutout?
                   </div>
-                  <div className="flex items-center gap-4 text-gray-500 dark:text-gray-400 px-2">
+                  <div className="flex items-center gap-4 text-gray-500 dark:text-gray-300 px-2">
                     <button onClick={() => setIsShoutoutOpen(true)} className="flex items-center gap-1.5 text-xs font-bold hover:text-primary-500 transition-colors">
                       <Smile size={16} className="text-amber-400" /> Shoutout
                     </button>

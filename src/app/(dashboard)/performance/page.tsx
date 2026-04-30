@@ -63,7 +63,7 @@ function GoalCard({ goal, showOwner }: { goal: any; showOwner?: boolean }) {
               <Badge variant={goal.status === 'COMPLETED' ? 'success' : 'secondary'}>{goal.status}</Badge>
             </div>
 
-            {goal.description && <p className="text-sm text-gray-500 mb-2">{goal.description}</p>}
+            {goal.description && <p className="text-sm text-gray-500 dark:text-gray-300 mb-2">{goal.description}</p>}
 
             {showOwner && goal.employee && (
               <p className="text-xs text-gray-400 mb-2">Owner: {goal.employee.firstName} {goal.employee.lastName}</p>
@@ -93,7 +93,7 @@ function GoalCard({ goal, showOwner }: { goal: any; showOwner?: boolean }) {
                 <div key={kr.id} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-sm font-medium">{kr.title}</p>
-                    <span className="text-xs text-gray-500">{kr.currentValue} / {kr.targetValue} {kr.unit}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-300">{kr.currentValue} / {kr.targetValue} {kr.unit}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full">
@@ -136,7 +136,7 @@ function GoalCard({ goal, showOwner }: { goal: any; showOwner?: boolean }) {
             {/* Manual progress override */}
             {!hasKrs && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Manual progress:</span>
+                <span className="text-xs text-gray-500 dark:text-gray-300">Manual progress:</span>
                 <input type="range" min={0} max={100} defaultValue={goal.progress} className="flex-1 h-1.5 accent-primary-500"
                   onMouseUp={e => updateProgress.mutate({ goalId: goal.id, progress: Number((e.target as HTMLInputElement).value) })} />
               </div>
@@ -430,7 +430,7 @@ export default function PerformancePage() {
           {goalsLoading ? (
             <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-24 w-full" />)}</div>
           ) : goals.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-500 dark:text-gray-300">
               <Target size={48} className="mx-auto mb-4 opacity-30" />
               <p className="text-lg font-medium">No goals yet.</p>
               <p className="text-sm">Click "New Goal" to create one.</p>
@@ -446,7 +446,7 @@ export default function PerformancePage() {
           {cyclesLoading ? (
             <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-20 w-full" />)}</div>
           ) : cycles.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-500 dark:text-gray-300">
               <Star size={48} className="mx-auto mb-4 opacity-30" />
               <p className="text-lg font-medium">No review cycles yet.</p>
               <p className="text-sm">Click "New Cycle" to create one.</p>

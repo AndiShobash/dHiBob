@@ -63,7 +63,7 @@ function ApprovalProgress({ req }: { req: any }) {
           : slot.status === "SKIPPED" ? "n/a"
           : "pending";
         return (
-          <span key={slot.label} className="inline-flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+          <span key={slot.label} className="inline-flex items-center gap-1.5 text-gray-600 dark:text-gray-300">
             {icon}
             <span className="font-medium text-gray-700 dark:text-gray-300">{slot.label}:</span>
             {slot.name ? <span>{slot.name}</span> : <span className="text-gray-400">—</span>}
@@ -114,7 +114,7 @@ function TeamCalendarGrid({ currentMonth, policies }: { currentMonth: Date; poli
       <CardContent className="p-4">
         <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700 rounded-lg">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-            <div key={d} className="bg-gray-50 dark:bg-gray-800 p-2 text-center text-xs font-semibold text-gray-500">{d}</div>
+            <div key={d} className="bg-gray-50 dark:bg-gray-800 p-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-300">{d}</div>
           ))}
           {Array.from({ length: startDay }).map((_, i) => (
             <div key={`empty-${i}`} className="bg-white dark:bg-charcoal-900 p-2 h-[100px]" />
@@ -156,7 +156,7 @@ function TeamCalendarGrid({ currentMonth, policies }: { currentMonth: Date; poli
                     <div className={`absolute left-0 z-[101] bg-white dark:bg-charcoal-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-4 min-w-[260px] max-w-[320px] max-h-[320px] overflow-y-auto bottom-full mb-1`}>
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="font-semibold text-sm">{format(day, 'EEEE, MMMM d')}</h3>
-                        <button onClick={() => setPopoverDay(null)} className="text-gray-400 hover:text-gray-600 p-0.5">
+                        <button onClick={() => setPopoverDay(null)} className="text-gray-400 hover:text-gray-600 dark:text-gray-300 p-0.5">
                           <X size={14} />
                         </button>
                       </div>
@@ -166,7 +166,7 @@ function TeamCalendarGrid({ currentMonth, policies }: { currentMonth: Date; poli
                             <div className={`w-2 h-2 rounded-full shrink-0 ${req.status === 'PENDING' ? 'opacity-60' : ''}`} style={{ backgroundColor: policyColor(req, policies) }} />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium truncate">{req.employee?.firstName} {req.employee?.lastName}</p>
-                              <p className="text-[11px] text-gray-500">
+                              <p className="text-[11px] text-gray-500 dark:text-gray-300">
                                 {req.policy?.name} · {format(new Date(req.startDate), 'MMM d')}–{format(new Date(req.endDate), 'MMM d')}
                                 {req.status === 'PENDING' && <span className="ml-1 text-amber-500">(pending)</span>}
                               </p>
@@ -317,7 +317,7 @@ export default function TimeOffPage() {
           </div>
           <TeamCalendarGrid currentMonth={currentMonth} policies={policiesData || []} />
           <div className="flex items-center justify-between">
-            <div className="flex gap-4 text-xs text-gray-500 flex-wrap">
+            <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-300 flex-wrap">
               {(policiesData || []).map((p: any) => (
                 <span key={p.id} className="flex items-center gap-1 relative">
                   {canManagePolicies && editingPolicyId === p.id ? (
@@ -364,7 +364,7 @@ export default function TimeOffPage() {
           {requestsLoading ? (
             <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />)}</div>
           ) : !myRequests.length ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-500 dark:text-gray-300">
               <Calendar size={48} className="mx-auto mb-4 opacity-30" />
               <p className="text-lg font-medium">No time-off requests yet.</p>
               <p className="text-sm mb-4">Submit your first request to get started.</p>
@@ -385,7 +385,7 @@ export default function TimeOffPage() {
                             <p className="font-semibold">{req.policy.name}</p>
                             <Badge variant={STATUS_VARIANT[req.status] || "default"}>{req.status}</Badge>
                           </div>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-500 dark:text-gray-300">
                             {format(new Date(req.startDate), "MMM d")} — {format(new Date(req.endDate), "MMM d, yyyy")} · {req.days} day{req.days !== 1 ? 's' : ''}
                           </p>
                           {req.reason && <p className="text-xs text-gray-400 mt-0.5">{req.reason}</p>}
@@ -460,7 +460,7 @@ export default function TimeOffPage() {
                 }} className="space-y-4">
                   <div>
                     <p className="text-sm font-medium mb-1">Leave Type</p>
-                    <p className="text-sm text-gray-500">{req.policy.name}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-300">{req.policy.name}</p>
                   </div>
                   <div>
                     <label htmlFor="edit-start" className="block text-sm font-medium mb-1">Start Date</label>
@@ -510,7 +510,7 @@ export default function TimeOffPage() {
                 <label className="block text-sm font-medium mb-1">Color</label>
                 <div className="flex items-center gap-3">
                   <input type="color" value={newPolicyColor} onChange={e => setNewPolicyColor(e.target.value)} className="w-10 h-10 rounded cursor-pointer border-0 p-0" />
-                  <span className="text-xs text-gray-500">Pick a color for the calendar</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-300">Pick a color for the calendar</span>
                   <span className="text-xs font-mono text-gray-400">{newPolicyColor}</span>
                 </div>
               </div>

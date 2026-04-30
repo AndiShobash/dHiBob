@@ -23,7 +23,7 @@ export default function OffboardingPage() {
       {!isLoading && (
         <>
           {!offboarding || offboarding.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-500 dark:text-gray-300">
               <p>No employees being offboarded.</p>
             </div>
           ) : (
