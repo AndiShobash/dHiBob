@@ -976,10 +976,10 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
   const bankBranch = personalInfo.bankBranch || '';
   const bankAccount = personalInfo.bankAccount || '';
   const bankAccountName = personalInfo.bankAccountName || '';
-  const FAMILY_ROWS = 10;
   const familyDetails: Array<{ fullName?: string; relationship?: string; dateOfBirth?: string; note?: string }> =
-    Array.isArray(personalInfo.familyDetails) ? personalInfo.familyDetails : [];
-  const familyRows = Array.from({ length: FAMILY_ROWS }, (_, i) => familyDetails[i] ?? {});
+    Array.isArray(personalInfo.familyDetails) ? personalInfo.familyDetails.filter(
+      (m: any) => m && (m.fullName || m.relationship || m.dateOfBirth || m.note)
+    ) : [];
 
   // workInfo fields
   const hrContact = workInfo.hrContact || '';
@@ -1011,11 +1011,18 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
   // Per-row save helpers for arrays
   const saveFamilyField = (idx: number, field: string) => isAdmin
     ? (val: string) => {
-        const rows = Array.from({ length: FAMILY_ROWS }, (_, i) => familyDetails[i] ?? {});
-        const updated = rows.map((m, i) => i === idx ? { ...m, [field]: val } : m);
+        const updated = familyDetails.map((m, i) => i === idx ? { ...m, [field]: val } : m);
         return updatePersonalInfo.mutateAsync({ id: params.id, familyDetails: updated } as any);
       }
     : undefined;
+  const addFamilyMember = () => {
+    const updated = [...familyDetails, { fullName: '', relationship: '' }];
+    updatePersonalInfo.mutateAsync({ id: params.id, familyDetails: updated } as any);
+  };
+  const deleteFamilyMember = (idx: number) => {
+    const updated = familyDetails.filter((_, i) => i !== idx);
+    updatePersonalInfo.mutateAsync({ id: params.id, familyDetails: updated } as any);
+  };
 
   const saveSalaryField = (idx: number, field: string) => isAdmin
     ? (val: string) => {
@@ -1302,14 +1309,42 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
           </SectionCard>}
 
           {canSeeSensitive && <SectionCard title="Family Details">
-            {familyRows.map((member, i) => (
-              <div key={i} className="grid grid-cols-4 gap-4 mb-3">
-                <F label="Full name" value={member.fullName || ''} onSave={saveFamilyField(i, 'fullName')} />
-                <F label="Relationship" value={member.relationship || ''} onSave={saveFamilyField(i, 'relationship')} />
-                <DateField label="Date of Birth" value={member.dateOfBirth || ''} onSave={saveFamilyField(i, 'dateOfBirth')} />
-                <F label="Note" value={member.note || ''} onSave={saveFamilyField(i, 'note')} />
+            {familyDetails.length === 0 && !isAdmin && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">No family members recorded.</p>
+            )}
+            {familyDetails.map((member, i) => (
+              <div key={i} className="mb-4 border-b border-gray-100 dark:border-charcoal-800 pb-4 last:border-0 last:pb-0">
+                <div className="grid grid-cols-3 gap-4">
+                  <F label="Full Name" value={member.fullName || ''} onSave={saveFamilyField(i, 'fullName')} />
+                  <F label="Relationship" value={member.relationship || ''} onSave={saveFamilyField(i, 'relationship')} />
+                  {isAdmin && (
+                    <div className="flex items-end justify-end">
+                      <button
+                        onClick={() => deleteFamilyMember(i)}
+                        className="text-gray-400 hover:text-red-500 transition-colors mb-1"
+                        title="Remove family member"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {(member.dateOfBirth || member.note || isAdmin) && (
+                  <div className="grid grid-cols-3 gap-4 mt-2">
+                    <DateField label="Date of Birth" value={member.dateOfBirth || ''} onSave={saveFamilyField(i, 'dateOfBirth')} />
+                    <F label="Note" value={member.note || ''} onSave={saveFamilyField(i, 'note')} />
+                  </div>
+                )}
               </div>
             ))}
+            {isAdmin && (
+              <button
+                onClick={addFamilyMember}
+                className="mt-2 flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600 font-medium"
+              >
+                <Plus size={14} /> Add family member
+              </button>
+            )}
           </SectionCard>}
         </TabsContent>
 
