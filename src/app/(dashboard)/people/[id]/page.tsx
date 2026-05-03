@@ -1140,7 +1140,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
           <TabsTrigger value="profile" className={tabTriggerClass}>Profile</TabsTrigger>
           {canSeeSensitive && <TabsTrigger value="work" className={tabTriggerClass}>Work</TabsTrigger>}
           {canSeeSensitive && <TabsTrigger value="assets" className={tabTriggerClass}>Assets</TabsTrigger>}
-          {(canSeeSensitive || isSelf) && <TabsTrigger value="certifications" className={tabTriggerClass}>Certifications</TabsTrigger>}
+
           {(canSeeSensitive || isSelf) && <TabsTrigger value="it-equipment" className={tabTriggerClass}>IT Equipment & Licenses</TabsTrigger>}
           {canSeeSensitive && <TabsTrigger value="bank" className={tabTriggerClass}>Bank Details</TabsTrigger>}
           {canSeeSensitive && <TabsTrigger value="pension" className={tabTriggerClass}>Pension</TabsTrigger>}
@@ -1184,6 +1184,82 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               } : undefined} />}
               {canSeeFiles && <DocumentField label="CV Old" value={personalInfo.cvOld} folder={docsFolder} onSave={isAdmin ? pi('cvOld') : undefined} />}
             </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Certifications"
+            subtitle="Professional certifications and licenses"
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-charcoal-700">
+                    <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 pr-4">Name</th>
+                    <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 pr-4">Issuing Authority</th>
+                    <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 pr-4">Issue Date</th>
+                    <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 pr-4">Expiry Date</th>
+                    <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 pr-4">Document</th>
+                    {(isAdmin || isSelf) && <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 w-10"></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(certifications.length > 0 ? certifications : [{}]).map((cert, idx) => {
+                    let expiryBadge: React.ReactNode = null;
+                    if (cert.expiryDate) {
+                      const expiry = new Date(cert.expiryDate);
+                      const now = new Date();
+                      const daysUntil = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                      if (daysUntil < 0) {
+                        expiryBadge = <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">Expired</span>;
+                      } else if (daysUntil <= 90) {
+                        expiryBadge = <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Expiring soon</span>;
+                      }
+                    }
+                    return (
+                      <tr key={idx} className="border-b border-gray-100 dark:border-charcoal-800">
+                        <td className="py-2 pr-4">
+                          <F label="" value={cert.name || ''} onSave={saveCertField(idx, 'name')} />
+                        </td>
+                        <td className="py-2 pr-4">
+                          <F label="" value={cert.issuingAuthority || ''} onSave={saveCertField(idx, 'issuingAuthority')} />
+                        </td>
+                        <td className="py-2 pr-4">
+                          <DateField label="" value={cert.issueDate || ''} onSave={saveCertField(idx, 'issueDate')} />
+                        </td>
+                        <td className="py-2 pr-4">
+                          <div className="flex items-center">
+                            <DateField label="" value={cert.expiryDate || ''} onSave={saveCertField(idx, 'expiryDate')} />
+                            {expiryBadge}
+                          </div>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <DocumentField label="" value={cert.documentUrl || null} folder={docsFolder} onSave={(isAdmin || isSelf) ? saveCertField(idx, 'documentUrl') : undefined} />
+                        </td>
+                        {(isAdmin || isSelf) && (
+                          <td className="py-2">
+                            <button
+                              onClick={() => deleteCertEntry(idx)}
+                              className="text-gray-400 hover:text-red-500 transition-colors"
+                              title="Delete certification"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {(isAdmin || isSelf) && (
+              <button
+                onClick={addCertEntry}
+                className="mt-4 flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600 font-medium"
+              >
+                <Plus size={14} /> Add certification
+              </button>
+            )}
           </SectionCard>
 
           {canSeeSensitive && <SectionCard
@@ -1481,84 +1557,6 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
         </TabsContent>}
 
         {/* Certifications tab */}
-        {(canSeeSensitive || isSelf) && <TabsContent value="certifications" className="mt-6 space-y-4">
-          <SectionCard
-            title="Certifications"
-            subtitle="Professional certifications and licenses"
-          >
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-charcoal-700">
-                    <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 pr-4">Name</th>
-                    <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 pr-4">Issuing Authority</th>
-                    <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 pr-4">Issue Date</th>
-                    <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 pr-4">Expiry Date</th>
-                    <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 pr-4">Document</th>
-                    {(isAdmin || isSelf) && <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 w-10"></th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {(certifications.length > 0 ? certifications : [{}]).map((cert, idx) => {
-                    // Expiry badge logic
-                    let expiryBadge: React.ReactNode = null;
-                    if (cert.expiryDate) {
-                      const expiry = new Date(cert.expiryDate);
-                      const now = new Date();
-                      const daysUntil = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                      if (daysUntil < 0) {
-                        expiryBadge = <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">Expired</span>;
-                      } else if (daysUntil <= 90) {
-                        expiryBadge = <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Expiring soon</span>;
-                      }
-                    }
-                    return (
-                      <tr key={idx} className="border-b border-gray-100 dark:border-charcoal-800">
-                        <td className="py-2 pr-4">
-                          <F label="" value={cert.name || ''} onSave={saveCertField(idx, 'name')} />
-                        </td>
-                        <td className="py-2 pr-4">
-                          <F label="" value={cert.issuingAuthority || ''} onSave={saveCertField(idx, 'issuingAuthority')} />
-                        </td>
-                        <td className="py-2 pr-4">
-                          <DateField label="" value={cert.issueDate || ''} onSave={saveCertField(idx, 'issueDate')} />
-                        </td>
-                        <td className="py-2 pr-4">
-                          <div className="flex items-center">
-                            <DateField label="" value={cert.expiryDate || ''} onSave={saveCertField(idx, 'expiryDate')} />
-                            {expiryBadge}
-                          </div>
-                        </td>
-                        <td className="py-2 pr-4">
-                          <DocumentField label="" value={cert.documentUrl || null} folder={docsFolder} onSave={(isAdmin || isSelf) ? saveCertField(idx, 'documentUrl') : undefined} />
-                        </td>
-                        {(isAdmin || isSelf) && (
-                          <td className="py-2">
-                            <button
-                              onClick={() => deleteCertEntry(idx)}
-                              className="text-gray-400 hover:text-red-500 transition-colors"
-                              title="Delete certification"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {(isAdmin || isSelf) && (
-              <button
-                onClick={addCertEntry}
-                className="mt-4 flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600 font-medium"
-              >
-                <Plus size={14} /> Add certification
-              </button>
-            )}
-          </SectionCard>
-        </TabsContent>}
 
         {/* IT Equipment & Licenses tab */}
         {(canSeeSensitive || isSelf) && <TabsContent value="it-equipment" className="mt-6 space-y-4">

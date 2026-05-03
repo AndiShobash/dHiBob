@@ -404,42 +404,41 @@ describe('Employee profile page', () => {
     expect(screen.getByText('ILS')).toBeInTheDocument()
   })
 
-  // Certifications tab tests
-  it('shows Certifications tab for admin users', () => {
+  // Certifications section tests (on Profile tab, visible to all)
+  it('shows Certifications section on Profile tab', () => {
     vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
       data: mockEmployee,
       isLoading: false,
       error: null,
     } as any)
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
-    expect(screen.getByRole('tab', { name: 'Certifications' })).toBeInTheDocument()
+    expect(screen.getByText('Certifications')).toBeInTheDocument()
+    expect(screen.getByText('Professional certifications and licenses')).toBeInTheDocument()
   })
 
-  it('renders certifications table with headers when tab is clicked', async () => {
+  it('renders certifications table with headers on Profile tab', () => {
     vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
       data: mockEmployee,
       isLoading: false,
       error: null,
     } as any)
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
-    await userEvent.click(screen.getByRole('tab', { name: 'Certifications' }))
     expect(screen.getByText('Issuing Authority')).toBeInTheDocument()
     expect(screen.getByText('Issue Date')).toBeInTheDocument()
     expect(screen.getByText('Expiry Date')).toBeInTheDocument()
   })
 
-  it('shows Add certification button for admin users', async () => {
+  it('shows Add certification button for admin users', () => {
     vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
       data: mockEmployee,
       isLoading: false,
       error: null,
     } as any)
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
-    await userEvent.click(screen.getByRole('tab', { name: 'Certifications' }))
     expect(screen.getByText('Add certification')).toBeInTheDocument()
   })
 
-  it('renders certification data from workInfo', async () => {
+  it('renders certification data from workInfo', () => {
     const mockWithCerts = {
       ...mockEmployee,
       workInfo: JSON.stringify({
@@ -454,12 +453,11 @@ describe('Employee profile page', () => {
       error: null,
     } as any)
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
-    await userEvent.click(screen.getByRole('tab', { name: 'Certifications' }))
     expect(screen.getByText('AWS Solutions Architect')).toBeInTheDocument()
     expect(screen.getByText('Amazon Web Services')).toBeInTheDocument()
   })
 
-  it('shows Expired badge for past expiry date', async () => {
+  it('shows Expired badge for past expiry date', () => {
     const mockWithExpired = {
       ...mockEmployee,
       workInfo: JSON.stringify({
@@ -474,11 +472,10 @@ describe('Employee profile page', () => {
       error: null,
     } as any)
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
-    await userEvent.click(screen.getByRole('tab', { name: 'Certifications' }))
     expect(screen.getByText('Expired')).toBeInTheDocument()
   })
 
-  it('shows Expiring soon badge for expiry within 90 days', async () => {
+  it('shows Expiring soon badge for expiry within 90 days', () => {
     const soon = new Date()
     soon.setDate(soon.getDate() + 30) // 30 days from now
     const mockWithExpiringSoon = {
@@ -495,11 +492,10 @@ describe('Employee profile page', () => {
       error: null,
     } as any)
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
-    await userEvent.click(screen.getByRole('tab', { name: 'Certifications' }))
     expect(screen.getByText('Expiring soon')).toBeInTheDocument()
   })
 
-  it('does not show expiry badge when expiry date is far in the future', async () => {
+  it('does not show expiry badge when expiry date is far in the future', () => {
     const future = new Date()
     future.setFullYear(future.getFullYear() + 2) // 2 years from now
     const mockWithFutureCert = {
@@ -516,12 +512,11 @@ describe('Employee profile page', () => {
       error: null,
     } as any)
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
-    await userEvent.click(screen.getByRole('tab', { name: 'Certifications' }))
     expect(screen.queryByText('Expired')).not.toBeInTheDocument()
     expect(screen.queryByText('Expiring soon')).not.toBeInTheDocument()
   })
 
-  it('renders multiple certifications', async () => {
+  it('renders multiple certifications', () => {
     const mockWithMultipleCerts = {
       ...mockEmployee,
       workInfo: JSON.stringify({
@@ -537,7 +532,6 @@ describe('Employee profile page', () => {
       error: null,
     } as any)
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
-    await userEvent.click(screen.getByRole('tab', { name: 'Certifications' }))
     expect(screen.getByText('PMP')).toBeInTheDocument()
     expect(screen.getByText('PMI')).toBeInTheDocument()
     expect(screen.getByText('CISSP')).toBeInTheDocument()
