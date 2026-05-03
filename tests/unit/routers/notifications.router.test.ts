@@ -16,6 +16,7 @@ const db = {
   },
   employee: {
     findMany: vi.fn(),
+    findFirst: vi.fn(),
   },
 };
 
@@ -162,7 +163,8 @@ describe('notifications router — preferences', () => {
     ).rejects.toThrow();
   });
 
-  it('create allows admin users', async () => {
+  it('create allows admin users and verifies target belongs to same company', async () => {
+    db.employee.findFirst.mockResolvedValue({ id: 'emp-2', companyId: 'co-1' });
     db.notification.create.mockResolvedValue({ id: 'n1', type: 'TIMEOFF_REQUEST', title: 'Test' });
 
     const router = notificationsRouter.createCaller(makeCtx({ role: 'ADMIN' }));
@@ -173,6 +175,25 @@ describe('notifications router — preferences', () => {
     });
 
     expect(result).toEqual(expect.objectContaining({ id: 'n1' }));
+    // Verify company membership check was performed
+    expect(db.employee.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'emp-2', companyId: 'co-1' },
+      }),
+    );
+  });
+
+  it('create rejects when target employee belongs to different company', async () => {
+    db.employee.findFirst.mockResolvedValue(null); // not found in company
+
+    const router = notificationsRouter.createCaller(makeCtx({ role: 'ADMIN' }));
+    await expect(
+      router.create({
+        employeeId: 'emp-other-company',
+        type: 'TIMEOFF_REQUEST',
+        title: 'Test',
+      })
+    ).rejects.toThrow();
   });
 
   it('upsertPreference rejects invalid eventType', async () => {

@@ -492,11 +492,28 @@ export const onboardingRouter = router({
       if (!task || task.employee.companyId !== ctx.user.companyId) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Task not found' });
       }
-      return ctx.db.offboardingTask.update({
+      const updated = await ctx.db.offboardingTask.update({
         where: { id: input.taskId },
         data: { assigneeId: input.assigneeId },
-        include: { assignee: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
+        include: {
+          assignee: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+          employee: { select: { id: true, firstName: true, lastName: true, companyId: true } },
+        },
       });
+
+      // Notify the new assignee about the task
+      if (input.assigneeId && input.assigneeId !== ctx.user.employeeId) {
+        await notifyService.send({
+          companyId: ctx.user.companyId,
+          recipients: [input.assigneeId],
+          eventType: 'TASK_ASSIGNED',
+          title: `Task assigned: ${task.title}`,
+          message: `You have been assigned an offboarding task for ${updated.employee.firstName} ${updated.employee.lastName}.`,
+          linkUrl: '/lifecycle/offboarding',
+        });
+      }
+
+      return updated;
     }),
 
   // NEW: Start offboarding for a terminated employee

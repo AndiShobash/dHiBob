@@ -57,6 +57,13 @@ export const notificationsRouter = router({
       if (ctx.user.role !== 'ADMIN') {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can create notifications' });
       }
+      // Verify target employee belongs to the same company (multi-tenant isolation)
+      const targetEmployee = await ctx.db.employee.findFirst({
+        where: { id: input.employeeId, companyId: ctx.user.companyId },
+      });
+      if (!targetEmployee) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Employee not found or does not belong to your company' });
+      }
       return ctx.db.notification.create({
         data: {
           companyId: ctx.user.companyId,

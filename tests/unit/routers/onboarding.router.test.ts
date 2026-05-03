@@ -179,7 +179,7 @@ describe('Onboarding Router - Admin', () => {
     // R-3: Use expect.objectContaining for loose matching on the expanded include shape
     expect(prisma.employee.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { companyId: 'company-1', status: 'ACTIVE' },
+        where: { companyId: 'company-1', status: { in: ['ACTIVE', 'PENDING_HIRE'] } },
       })
     );
   });

@@ -203,6 +203,105 @@ describe('onboarding router — notification triggers', () => {
   });
 });
 
+describe('onboarding router — offboarding task notification triggers', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('sends TASK_ASSIGNED notification when an offboarding task assignee is changed', async () => {
+    const mockTask = {
+      id: 'off-task-1',
+      title: 'Revoke VPN access',
+      employeeId: 'emp-2',
+      assigneeId: 'emp-3',
+      employee: { companyId: 'co-1', firstName: 'Alice', lastName: 'Smith' },
+    };
+    const updatedTask = {
+      ...mockTask,
+      assignee: { id: 'emp-3', firstName: 'Bob', lastName: 'Jones', avatar: null },
+      employee: { id: 'emp-2', firstName: 'Alice', lastName: 'Smith', companyId: 'co-1' },
+    };
+    const db = {
+      offboardingTask: {
+        findUnique: vi.fn().mockResolvedValue(mockTask),
+        update: vi.fn().mockResolvedValue(updatedTask),
+      },
+    };
+
+    const { onboardingRouter } = await import('@/server/routers/onboarding');
+    const caller = onboardingRouter.createCaller(makeCtx(db));
+    await caller.updateOffboardingTaskAssignee({
+      taskId: 'off-task-1',
+      assigneeId: 'emp-3',
+    });
+
+    expect(mockNotifySend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'TASK_ASSIGNED',
+        recipients: ['emp-3'],
+        companyId: 'co-1',
+      }),
+    );
+  });
+
+  it('does NOT send TASK_ASSIGNED when offboarding assignee is the current user', async () => {
+    const mockTask = {
+      id: 'off-task-1',
+      title: 'Return laptop',
+      employeeId: 'emp-2',
+      assigneeId: 'emp-admin',
+      employee: { companyId: 'co-1', firstName: 'Alice', lastName: 'Smith' },
+    };
+    const updatedTask = {
+      ...mockTask,
+      assignee: { id: 'emp-admin', firstName: 'Admin', lastName: 'User', avatar: null },
+      employee: { id: 'emp-2', firstName: 'Alice', lastName: 'Smith', companyId: 'co-1' },
+    };
+    const db = {
+      offboardingTask: {
+        findUnique: vi.fn().mockResolvedValue(mockTask),
+        update: vi.fn().mockResolvedValue(updatedTask),
+      },
+    };
+
+    const { onboardingRouter } = await import('@/server/routers/onboarding');
+    const caller = onboardingRouter.createCaller(makeCtx(db));
+    await caller.updateOffboardingTaskAssignee({
+      taskId: 'off-task-1',
+      assigneeId: 'emp-admin',
+    });
+
+    expect(mockNotifySend).not.toHaveBeenCalled();
+  });
+
+  it('does NOT send TASK_ASSIGNED when offboarding assignee is set to null', async () => {
+    const mockTask = {
+      id: 'off-task-1',
+      title: 'Cancel systems',
+      employeeId: 'emp-2',
+      assigneeId: null,
+      employee: { companyId: 'co-1' },
+    };
+    const updatedTask = {
+      ...mockTask,
+      assignee: null,
+    };
+    const db = {
+      offboardingTask: {
+        findUnique: vi.fn().mockResolvedValue(mockTask),
+        update: vi.fn().mockResolvedValue(updatedTask),
+      },
+    };
+
+    const { onboardingRouter } = await import('@/server/routers/onboarding');
+    const caller = onboardingRouter.createCaller(makeCtx(db));
+    await caller.updateOffboardingTaskAssignee({
+      taskId: 'off-task-1',
+      assigneeId: null,
+    });
+
+    expect(mockNotifySend).not.toHaveBeenCalled();
+  });
+});
+
 describe('employee router — notification triggers', () => {
   beforeEach(() => vi.clearAllMocks());
 
