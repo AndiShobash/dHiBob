@@ -43,6 +43,9 @@ class SSEConnectionManager {
     const payload = `data: ${JSON.stringify(data)}\n\n`;
     const encoder = new TextEncoder();
     const encoded = encoder.encode(payload);
+    // Note: Set.delete() during for-of iteration is safe per the ES2015 spec
+    // (https://tc39.es/ecma262/#sec-set.prototype.forEach) — deleted entries
+    // are not revisited and the iterator continues correctly.
     for (const controller of set) {
       try {
         controller.enqueue(encoded);

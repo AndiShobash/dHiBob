@@ -1,19 +1,10 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
+import { NOTIFICATION_EVENT_TYPES } from '@/lib/notification-event-types';
 
-export const NOTIFICATION_EVENT_TYPES = [
-  'TIMEOFF_REQUEST',
-  'TIMEOFF_APPROVED',
-  'TIMEOFF_REJECTED',
-  'DOCUMENT_SIGNED',
-  'DOCUMENT_PENDING_SIGNATURE',
-  'EMPLOYEE_UPDATED',
-  'TASK_ASSIGNED',
-  'SURVEY_PUBLISHED',
-  'HR_ANNOUNCEMENT',
-  'SYSTEM',
-] as const;
+// Re-export for backward compatibility with any server-side consumers
+export { NOTIFICATION_EVENT_TYPES } from '@/lib/notification-event-types';
 
 const eventTypeSchema = z.enum(NOTIFICATION_EVENT_TYPES);
 

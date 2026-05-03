@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { trpc } from "../../lib/trpc";
 import { Bell, Mail, MessageSquare, RotateCcw } from "lucide-react";
 import { Button } from "../ui/button";
-import { NOTIFICATION_EVENT_TYPES } from "@/server/routers/notifications";
+import { NOTIFICATION_EVENT_TYPES } from "@/lib/notification-event-types";
 
 type EventType = (typeof NOTIFICATION_EVENT_TYPES)[number];
 
