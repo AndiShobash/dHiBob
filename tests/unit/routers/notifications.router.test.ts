@@ -14,9 +14,18 @@ const db = {
     upsert: vi.fn(),
     deleteMany: vi.fn(),
   },
+  employee: {
+    findMany: vi.fn(),
+  },
 };
 
 vi.mock('@/lib/db', () => ({ prisma: db }));
+
+// Mock notifyService
+const mockNotifySend = vi.fn().mockResolvedValue(undefined);
+vi.mock('@/lib/notify-service', () => ({
+  notifyService: { send: (...args: any[]) => mockNotifySend(...args) },
+}));
 
 // Import router
 import { notificationsRouter } from '@/server/routers/notifications';
@@ -201,5 +210,80 @@ describe('notifications router — preferences', () => {
     expect(db.notificationPreference.deleteMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { employeeId: 'emp-1' } }),
     );
+  });
+});
+
+describe('notifications router — HR_ANNOUNCEMENT trigger (R2)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('sendAnnouncement sends HR_ANNOUNCEMENT to all active employees', async () => {
+    db.employee.findMany.mockResolvedValue([
+      { id: 'emp-1' },
+      { id: 'emp-2' },
+      { id: 'emp-3' },
+    ]);
+
+    const router = notificationsRouter.createCaller(makeCtx());
+    await router.sendAnnouncement({
+      title: 'Office closed Friday',
+      message: 'Due to the holiday, the office will be closed.',
+    });
+
+    expect(mockNotifySend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'HR_ANNOUNCEMENT',
+        recipients: ['emp-1', 'emp-2', 'emp-3'],
+        companyId: 'co-1',
+        title: 'Office closed Friday',
+        message: 'Due to the holiday, the office will be closed.',
+      }),
+    );
+  });
+
+  it('sendAnnouncement rejects non-admin users', async () => {
+    const router = notificationsRouter.createCaller(makeCtx({ role: 'EMPLOYEE' }));
+    await expect(
+      router.sendAnnouncement({
+        title: 'Test',
+        message: 'Body',
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe('notifications router — SYSTEM trigger (R2)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('sendSystemNotice sends SYSTEM notification to all active employees', async () => {
+    db.employee.findMany.mockResolvedValue([
+      { id: 'emp-1' },
+      { id: 'emp-2' },
+    ]);
+
+    const router = notificationsRouter.createCaller(makeCtx());
+    await router.sendSystemNotice({
+      title: 'Scheduled maintenance',
+      message: 'The system will be offline Saturday 2-4am.',
+    });
+
+    expect(mockNotifySend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'SYSTEM',
+        recipients: ['emp-1', 'emp-2'],
+        companyId: 'co-1',
+        title: 'Scheduled maintenance',
+        message: 'The system will be offline Saturday 2-4am.',
+      }),
+    );
+  });
+
+  it('sendSystemNotice rejects non-admin users', async () => {
+    const router = notificationsRouter.createCaller(makeCtx({ role: 'EMPLOYEE' }));
+    await expect(
+      router.sendSystemNotice({
+        title: 'Test',
+        message: 'Body',
+      }),
+    ).rejects.toThrow();
   });
 });

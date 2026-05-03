@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
 import { NOTIFICATION_EVENT_TYPES } from '@/lib/notification-event-types';
+import { notifyService } from '@/lib/notify-service';
 
 // Re-export for backward compatibility with any server-side consumers
 export { NOTIFICATION_EVENT_TYPES } from '@/lib/notification-event-types';
@@ -113,4 +114,58 @@ export const notificationsRouter = router({
       where: { employeeId },
     });
   }),
+
+  // --- Admin Broadcast Procedures ---
+
+  // Send an HR announcement to all active employees
+  sendAnnouncement: protectedProcedure
+    .input(z.object({
+      title: z.string(),
+      message: z.string(),
+      linkUrl: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'ADMIN') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can send announcements' });
+      }
+      const employees = await ctx.db.employee.findMany({
+        where: { companyId: ctx.user.companyId, status: 'ACTIVE' },
+        select: { id: true },
+      });
+      const recipients = employees.map((e: { id: string }) => e.id);
+      await notifyService.send({
+        companyId: ctx.user.companyId,
+        recipients,
+        eventType: 'HR_ANNOUNCEMENT',
+        title: input.title,
+        message: input.message,
+        linkUrl: input.linkUrl,
+      });
+    }),
+
+  // Send a system notice to all active employees
+  sendSystemNotice: protectedProcedure
+    .input(z.object({
+      title: z.string(),
+      message: z.string(),
+      linkUrl: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'ADMIN') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can send system notices' });
+      }
+      const employees = await ctx.db.employee.findMany({
+        where: { companyId: ctx.user.companyId, status: 'ACTIVE' },
+        select: { id: true },
+      });
+      const recipients = employees.map((e: { id: string }) => e.id);
+      await notifyService.send({
+        companyId: ctx.user.companyId,
+        recipients,
+        eventType: 'SYSTEM',
+        title: input.title,
+        message: input.message,
+        linkUrl: input.linkUrl,
+      });
+    }),
 });

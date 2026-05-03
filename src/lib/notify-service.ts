@@ -84,14 +84,14 @@ export async function send(payload: NotifyPayload): Promise<void> {
       );
     }
 
-    // SLACK
+    // SLACK — uses general title/message (not email-specific overrides)
     if (prefs.slack && isSlackConfigured()) {
       tasks.push(
         sendSlackDM(
           { email: emp.email },
           {
-            subject: payload.emailSubject ?? payload.title,
-            body: payload.emailBody ?? payload.message ?? "",
+            subject: payload.title,
+            body: payload.message ?? "",
             linkPath: payload.linkUrl,
           }
         ).catch(err =>

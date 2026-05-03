@@ -33,6 +33,16 @@ function escapeSlackMrkdwn(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/**
+ * Escape only angle brackets in a URL path for safe inclusion inside
+ * Slack link markup (`<url|label>`). Ampersands must NOT be escaped
+ * here because they are valid URL query-parameter separators and
+ * Slack preserves them literally inside link URLs.
+ */
+function escapeSlackLinkPath(s: string): string {
+  return s.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export async function sendSlackDM(recipient: SlackRecipient, payload: SlackPayload): Promise<void> {
   if (!slack) return;
   try {
@@ -40,7 +50,7 @@ export async function sendSlackDM(recipient: SlackRecipient, payload: SlackPaylo
     if (!lookup.ok || !lookup.user?.id) return;
     const safeSubject = escapeSlackMrkdwn(payload.subject);
     const safeBody = escapeSlackMrkdwn(payload.body);
-    const safeLinkPath = payload.linkPath ? escapeSlackMrkdwn(payload.linkPath) : undefined;
+    const safeLinkPath = payload.linkPath ? escapeSlackLinkPath(payload.linkPath) : undefined;
     const link = safeLinkPath ? ` <${appUrl}${safeLinkPath}|View in DHiBob>` : "";
     await slack.chat.postMessage({
       channel: lookup.user.id,

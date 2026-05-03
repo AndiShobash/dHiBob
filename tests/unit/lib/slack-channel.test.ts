@@ -111,4 +111,21 @@ describe('slack channel', () => {
     // The escaped URL should still be present in a valid Slack link
     expect(msg.text).toContain('View in DHiBob');
   });
+
+  it('preserves ampersands in linkPath (does not break URL query params)', async () => {
+    const { sendSlackDM } = await import('@/lib/channels/slack');
+    await sendSlackDM(
+      { email: 'alice@test.com' },
+      {
+        subject: 'Test',
+        body: 'Body',
+        linkPath: '/time-off?status=pending&page=2',
+      },
+    );
+
+    const msg = mockPostMessage.mock.calls[0][0];
+    // Ampersands in URLs must NOT be converted to &amp; — that breaks the link
+    expect(msg.text).toContain('https://app.test.com/time-off?status=pending&page=2');
+    expect(msg.text).not.toContain('&amp;');
+  });
 });

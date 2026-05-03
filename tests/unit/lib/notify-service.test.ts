@@ -163,6 +163,30 @@ describe('notifyService', () => {
     );
   });
 
+  it('sends general title/message to Slack, not email overrides (R3)', async () => {
+    const { notifyService } = await import('@/lib/notify-service');
+    await notifyService.send({
+      companyId: 'co-1',
+      recipients: ['emp-1'],
+      eventType: 'TIMEOFF_REQUEST',
+      title: 'General Title',
+      message: 'General Message',
+      emailSubject: 'Email-Only Subject',
+      emailBody: 'Email-Only Body',
+    });
+
+    // Slack should receive the general title/message, NOT the email-specific overrides
+    expect(mockSendSlackDM).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ subject: 'General Title', body: 'General Message' }),
+    );
+    // Verify email still gets the overrides
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ subject: 'Email-Only Subject', body: 'Email-Only Body' }),
+    );
+  });
+
   it('fans out to multiple recipients', async () => {
     // Return two employees
     mockFindMany.mockImplementation((args: any) => {
