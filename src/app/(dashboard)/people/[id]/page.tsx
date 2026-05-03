@@ -976,9 +976,9 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
   const bankBranch = personalInfo.bankBranch || '';
   const bankAccount = personalInfo.bankAccount || '';
   const bankAccountName = personalInfo.bankAccountName || '';
-  const familyDetails: Array<{ fullName?: string; relationship?: string; dateOfBirth?: string; note?: string }> =
+  const familyDetails: Array<{ fullName?: string; relationship?: string; dateOfBirth?: string; note?: string; _new?: boolean }> =
     Array.isArray(personalInfo.familyDetails) ? personalInfo.familyDetails.filter(
-      (m: any) => m && (m.fullName || m.relationship || m.dateOfBirth || m.note)
+      (m: any) => m && (m.fullName || m.relationship || m.dateOfBirth || m.note || m._new)
     ) : [];
 
   // workInfo fields
@@ -1011,12 +1011,16 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
   // Per-row save helpers for arrays
   const saveFamilyField = (idx: number, field: string) => isAdmin
     ? (val: string) => {
-        const updated = familyDetails.map((m, i) => i === idx ? { ...m, [field]: val } : m);
+        const updated = familyDetails.map((m, i) => {
+          if (i !== idx) return m;
+          const { _new, ...rest } = m;
+          return { ...rest, [field]: val };
+        });
         return updatePersonalInfo.mutateAsync({ id: params.id, familyDetails: updated } as any);
       }
     : undefined;
   const addFamilyMember = () => {
-    const updated = [...familyDetails, { fullName: '', relationship: '' }];
+    const updated = [...familyDetails, { fullName: '', relationship: '', _new: true }];
     updatePersonalInfo.mutateAsync({ id: params.id, familyDetails: updated } as any);
   };
   const deleteFamilyMember = (idx: number) => {
