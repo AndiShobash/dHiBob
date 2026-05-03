@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
+import { notifyService } from '@/lib/notify-service';
 
 const taskStatusEnum = z.enum(['NOT_STARTED', 'IN_PROGRESS', 'DONE']);
 
@@ -108,7 +109,7 @@ export const onboardingRouter = router({
           message: 'Employee not found or does not belong to your company',
         });
       }
-      return ctx.db.onboardingTask.create({
+      const task = await ctx.db.onboardingTask.create({
         data: {
           employeeId: input.employeeId,
           title: input.title,
@@ -120,6 +121,20 @@ export const onboardingRouter = router({
           status: 'NOT_STARTED',
         },
       });
+
+      // Notify the assignee about the new task
+      if (input.assigneeId && input.assigneeId !== ctx.user.employeeId) {
+        await notifyService.send({
+          companyId: ctx.user.companyId,
+          recipients: [input.assigneeId],
+          eventType: 'TASK_ASSIGNED',
+          title: `New task assigned: ${input.title}`,
+          message: `You have been assigned a new onboarding task for ${employee.firstName} ${employee.lastName}.`,
+          linkUrl: '/lifecycle/onboarding',
+        });
+      }
+
+      return task;
     }),
 
   start: protectedProcedure
@@ -442,11 +457,28 @@ export const onboardingRouter = router({
       if (!task || task.employee.companyId !== ctx.user.companyId) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Task not found' });
       }
-      return ctx.db.onboardingTask.update({
+      const updated = await ctx.db.onboardingTask.update({
         where: { id: input.taskId },
         data: { assigneeId: input.assigneeId },
-        include: { assignee: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
+        include: {
+          assignee: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+          employee: { select: { id: true, firstName: true, lastName: true, companyId: true } },
+        },
       });
+
+      // Notify the new assignee about the task
+      if (input.assigneeId && input.assigneeId !== ctx.user.employeeId) {
+        await notifyService.send({
+          companyId: ctx.user.companyId,
+          recipients: [input.assigneeId],
+          eventType: 'TASK_ASSIGNED',
+          title: `Task assigned: ${task.title}`,
+          message: `You have been assigned an onboarding task for ${updated.employee.firstName} ${updated.employee.lastName}.`,
+          linkUrl: '/lifecycle/onboarding',
+        });
+      }
+
+      return updated;
     }),
 
   // Update offboarding task assignee

@@ -3,6 +3,10 @@ import { appRouter } from '../../../src/server/routers/_app';
 import { prisma } from '../../../src/lib/db';
 import { TRPCError } from '@trpc/server';
 
+vi.mock('../../../src/lib/notify-service', () => ({
+  notifyService: { send: vi.fn().mockResolvedValue(undefined) },
+}));
+
 vi.mock('../../../src/lib/db', () => ({
   prisma: {
     onboardingTask: {

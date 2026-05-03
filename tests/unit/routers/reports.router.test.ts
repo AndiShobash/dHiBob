@@ -19,6 +19,19 @@ function makeCtx() {
 }
 
 vi.mock('@/lib/db', () => ({ prisma: db }));
+vi.mock('@/lib/notify-service', () => ({
+  notifyService: { send: vi.fn().mockResolvedValue(undefined) },
+}));
+vi.mock('@/lib/currency', () => ({
+  getExchangeRates: vi.fn().mockResolvedValue({}),
+}));
+vi.mock('@/lib/docusign', () => ({
+  isDocuSignConfigured: () => false,
+  sendForSignature: vi.fn(),
+}));
+vi.mock('@/lib/storage', () => ({
+  storage: { getUrl: vi.fn() },
+}));
 vi.mock('@/server/trpc', async () => {
   const { initTRPC, TRPCError } = await import('@trpc/server');
   const t = initTRPC.context<{ session: any; db: any; user: any }>().create();

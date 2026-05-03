@@ -92,4 +92,23 @@ describe('slack channel', () => {
     expect(msg.text).toContain('&lt;script&gt;');
     expect(msg.text).toContain('&lt;@U999&gt;');
   });
+
+  it('escapes linkPath to prevent Slack mrkdwn injection via URL', async () => {
+    const { sendSlackDM } = await import('@/lib/channels/slack');
+    await sendSlackDM(
+      { email: 'alice@test.com' },
+      {
+        subject: 'Test',
+        body: 'Body',
+        linkPath: '/path?q=<script>&x=1',
+      },
+    );
+
+    const msg = mockPostMessage.mock.calls[0][0];
+    // linkPath should be escaped — raw angle brackets must not appear
+    // inside the Slack link markup (which uses < > for link syntax)
+    expect(msg.text).not.toContain('<script>');
+    // The escaped URL should still be present in a valid Slack link
+    expect(msg.text).toContain('View in DHiBob');
+  });
 });

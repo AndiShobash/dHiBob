@@ -177,4 +177,29 @@ describe('notifications router — preferences', () => {
       })
     ).rejects.toThrow();
   });
+
+  it('getPreferences returns empty array when no preferences exist (defaults to all enabled)', async () => {
+    db.notificationPreference.findMany.mockResolvedValue([]);
+
+    const router = notificationsRouter.createCaller(makeCtx());
+    const result = await router.getPreferences();
+
+    // Empty result means all channels default to enabled (opt-out model)
+    expect(result).toEqual([]);
+    expect(result).toHaveLength(0);
+  });
+
+  it('resetPreferences deletes all rows so defaults (all enabled) take effect', async () => {
+    db.notificationPreference.deleteMany.mockResolvedValue({ count: 10 });
+
+    const router = notificationsRouter.createCaller(makeCtx());
+    const result = await router.resetPreferences();
+
+    // After reset, the deleteMany count confirms rows were removed
+    expect(result.count).toBe(10);
+    // The deleteMany is scoped to the current user
+    expect(db.notificationPreference.deleteMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { employeeId: 'emp-1' } }),
+    );
+  });
 });

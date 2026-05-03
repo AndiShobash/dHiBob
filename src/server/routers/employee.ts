@@ -4,6 +4,7 @@ import { TRPCError } from '@trpc/server';
 import { getExchangeRates } from '@/lib/currency';
 import { isDocuSignConfigured, sendForSignature } from '@/lib/docusign';
 import { storage } from '@/lib/storage';
+import { notifyService } from '@/lib/notify-service';
 
 const createEmployeeSchema = z.object({
   firstName: z.string().min(1),
@@ -224,6 +225,23 @@ export const employeeRouter = router({
           }
         });
       }
+    }
+
+    // Notify the employee about profile changes (department, manager, status)
+    const changedFields: string[] = [];
+    if (department && department !== current.departmentId) changedFields.push('department');
+    if (manager && manager !== current.managerId) changedFields.push('manager');
+    if (updateData.status && updateData.status !== current.status) changedFields.push('status');
+
+    if (changedFields.length > 0 && id !== ctx.user.employeeId) {
+      await notifyService.send({
+        companyId: ctx.user.companyId,
+        recipients: [id],
+        eventType: 'EMPLOYEE_UPDATED',
+        title: 'Your profile has been updated',
+        message: `The following fields were changed: ${changedFields.join(', ')}.`,
+        linkUrl: `/people/${id}`,
+      });
     }
 
     return updated;
@@ -515,6 +533,18 @@ export const employeeRouter = router({
           signatureStatus: 'PENDING_SIGNATURE',
         },
       });
+
+      // Notify the signer that a document is pending their signature
+      if (doc.employeeId) {
+        await notifyService.send({
+          companyId: ctx.user.companyId,
+          recipients: [doc.employeeId],
+          eventType: 'DOCUMENT_PENDING_SIGNATURE',
+          title: `Document "${doc.name}" requires your signature`,
+          message: `Please review and sign the document.`,
+          linkUrl: '/documents',
+        });
+      }
 
       return result;
     }),

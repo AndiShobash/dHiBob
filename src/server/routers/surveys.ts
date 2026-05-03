@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
+import { notifyService } from '@/lib/notify-service';
 
 const questionSchema = z.object({
   id: z.string(),
@@ -97,10 +98,29 @@ export const surveysRouter = router({
         where: { id: input.id, companyId: ctx.user.companyId },
       });
       if (!survey) throw new TRPCError({ code: 'NOT_FOUND' });
-      return ctx.db.survey.update({
+      const published = await ctx.db.survey.update({
         where: { id: input.id },
         data: { status: 'ACTIVE' },
       });
+
+      // Notify all active employees in the company about the new survey
+      const activeEmployees = await ctx.db.employee.findMany({
+        where: { companyId: ctx.user.companyId, status: 'ACTIVE' },
+        select: { id: true },
+      });
+      const recipientIds = activeEmployees.map((e: { id: string }) => e.id);
+      if (recipientIds.length > 0) {
+        await notifyService.send({
+          companyId: ctx.user.companyId,
+          recipients: recipientIds,
+          eventType: 'SURVEY_PUBLISHED',
+          title: `New survey: ${survey.title}`,
+          message: survey.description || 'A new survey is available for you to complete.',
+          linkUrl: '/surveys',
+        });
+      }
+
+      return published;
     }),
 
   // Close survey (ACTIVE -> COMPLETED)

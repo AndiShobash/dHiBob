@@ -2,6 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { appRouter } from '../../../src/server/routers/_app';
 import { prisma } from '../../../src/lib/db';
 
+vi.mock('../../../src/lib/notify-service', () => ({
+  notifyService: { send: vi.fn().mockResolvedValue(undefined) },
+}));
+
 vi.mock('../../../src/lib/db', () => ({
   prisma: {
     document: {

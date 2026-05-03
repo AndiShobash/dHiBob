@@ -34,6 +34,10 @@ export function NotificationPreferences() {
   const utils = trpc.useUtils();
   const upsert = trpc.notifications.upsertPreference.useMutation({
     onSuccess: () => utils.notifications.getPreferences.invalidate(),
+    onError: () => {
+      // Revert optimistic toggle on failure by re-syncing from server
+      utils.notifications.getPreferences.invalidate();
+    },
   });
   const reset = trpc.notifications.resetPreferences.useMutation({
     onSuccess: () => utils.notifications.getPreferences.invalidate(),
