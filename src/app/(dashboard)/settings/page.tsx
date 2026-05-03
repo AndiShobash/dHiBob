@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Building, Shield, Bell, Table as TableIcon } from "lucide-react";
 import Link from "next/link";
+import { NotificationPreferences } from "@/components/settings/notification-preferences";
 
 export default function SettingsPage() {
   return (
@@ -38,6 +39,17 @@ export default function SettingsPage() {
                   </Button>
                 </Link>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="notifications">
+          <Card>
+            <CardHeader>
+              <CardTitle>Notification Settings</CardTitle>
+              <CardDescription>Configure how you receive notifications across different channels.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <NotificationPreferences />
             </CardContent>
           </Card>
         </TabsContent>

@@ -3,7 +3,7 @@ import { differenceInCalendarDays, startOfYear, endOfYear } from 'date-fns';
 import { router, protectedProcedure } from '@/server/trpc';
 import { TRPCError } from '@trpc/server';
 import { calculateBalance } from '@/lib/accrual-engine';
-import { sendExternal, ExternalRecipient } from '@/lib/notification-dispatcher';
+import { notifyService } from '@/lib/notify-service';
 
 // Find the employeeIds of all HR/ADMIN/SUPER_ADMIN users in a company.
 // Used for deciding who fulfils the HR approval slot on a time-off request.
@@ -22,15 +22,7 @@ function formatDateRange(start: Date, end: Date): string {
   return `${start.toISOString().slice(0, 10)} to ${end.toISOString().slice(0, 10)}`;
 }
 
-// Resolve external-channel recipients for a set of employeeIds.
-async function loadExternalRecipients(db: any, ids: string[]): Promise<ExternalRecipient[]> {
-  if (!ids.length) return [];
-  const employees = await db.employee.findMany({
-    where: { id: { in: Array.from(new Set(ids)) } },
-    select: { id: true, email: true, firstName: true, lastName: true, personalInfo: true },
-  });
-  return employees as ExternalRecipient[];
-}
+// (loadExternalRecipients removed — centralized in notifyService)
 
 // Input schemas aligned to actual Prisma schema
 const submitRequestSchema = z.object({
@@ -323,22 +315,14 @@ export const timeoffRouter = router({
       if (recipients.size > 0) {
         const title = `${employee.firstName} ${employee.lastName} requested time off`;
         const message = `${policy.name} · ${days} day(s) · ${formatDateRange(startDate, endDate)}`;
-        await ctx.db.notification.createMany({
-          data: Array.from(recipients).map(recipientId => ({
-            companyId: ctx.user.companyId,
-            employeeId: recipientId,
-            type: 'TIMEOFF_REQUEST',
-            title,
-            message,
-            linkUrl: '/time-off',
-          })),
-        });
-        // Big event — fan out to email + Slack
-        const externalRecipients = await loadExternalRecipients(ctx.db, Array.from(recipients));
-        await sendExternal(externalRecipients, {
-          subject: title,
-          body: `${message}\n${reason ? `Reason: ${reason}` : ""}`.trim(),
-          linkPath: "/time-off",
+        await notifyService.send({
+          companyId: ctx.user.companyId,
+          recipients: Array.from(recipients),
+          eventType: 'TIMEOFF_REQUEST',
+          title,
+          message,
+          linkUrl: '/time-off',
+          emailBody: `${message}\n${reason ? `Reason: ${reason}` : ""}`.trim(),
         });
       }
     }
@@ -420,40 +404,29 @@ export const timeoffRouter = router({
 
     if (allResolved) {
       // Notify the requester
-      await ctx.db.notification.create({
-        data: {
-          companyId: ctx.user.companyId,
-          employeeId: request.employeeId,
-          type: 'TIMEOFF_APPROVED',
-          title: `Your time off request was approved`,
-          message: `${request.policy.name} · ${dateRange}`,
-          linkUrl: '/time-off',
-        },
+      await notifyService.send({
+        companyId: ctx.user.companyId,
+        recipients: [request.employeeId],
+        eventType: 'TIMEOFF_APPROVED',
+        title: 'Your time off request was approved',
+        message: `${request.policy.name} · ${dateRange}`,
+        linkUrl: '/time-off',
       });
-      // Big event — fan requester approval out to email + Slack
-      const requesterRecipient = await loadExternalRecipients(ctx.db, [request.employeeId]);
-      await sendExternal(requesterRecipient, {
-        subject: "Your time off request was approved",
-        body: `${request.policy.name} · ${dateRange}`,
-        linkPath: "/time-off",
-      });
-      // Inform every approver in-app that the request is fully resolved — no further action needed
+      // Inform every approver that the request is fully resolved — no further action needed
       const finalRecipients = new Set<string>();
       hrIds.forEach(id => finalRecipients.add(id));
       if (effectiveTeamLeaderId) finalRecipients.add(effectiveTeamLeaderId);
       if (effectiveGroupLeaderId) finalRecipients.add(effectiveGroupLeaderId);
-      finalRecipients.delete(request.employeeId); // requester already got their own
-      if (actorEmployeeId) finalRecipients.delete(actorEmployeeId); // actor just clicked approve
+      finalRecipients.delete(request.employeeId);
+      if (actorEmployeeId) finalRecipients.delete(actorEmployeeId);
       if (finalRecipients.size > 0) {
-        await ctx.db.notification.createMany({
-          data: Array.from(finalRecipients).map(rid => ({
-            companyId: ctx.user.companyId,
-            employeeId: rid,
-            type: 'TIMEOFF_APPROVED',
-            title: `${employeeName}'s time off is fully approved`,
-            message: `${request.policy.name} · ${dateRange} · no further action needed`,
-            linkUrl: '/time-off',
-          })),
+        await notifyService.send({
+          companyId: ctx.user.companyId,
+          recipients: Array.from(finalRecipients),
+          eventType: 'TIMEOFF_APPROVED',
+          title: `${employeeName}'s time off is fully approved`,
+          message: `${request.policy.name} · ${dateRange} · no further action needed`,
+          linkUrl: '/time-off',
         });
       }
     } else {
@@ -465,15 +438,13 @@ export const timeoffRouter = router({
       nudgeRecipients.delete(request.employeeId);
       if (actorEmployeeId) nudgeRecipients.delete(actorEmployeeId);
       if (nudgeRecipients.size > 0) {
-        await ctx.db.notification.createMany({
-          data: Array.from(nudgeRecipients).map(rid => ({
-            companyId: ctx.user.companyId,
-            employeeId: rid,
-            type: 'TIMEOFF_REQUEST',
-            title: `Your approval is still needed for ${employeeName}`,
-            message: `${request.policy.name} · ${dateRange}`,
-            linkUrl: '/time-off',
-          })),
+        await notifyService.send({
+          companyId: ctx.user.companyId,
+          recipients: Array.from(nudgeRecipients),
+          eventType: 'TIMEOFF_REQUEST',
+          title: `Your approval is still needed for ${employeeName}`,
+          message: `${request.policy.name} · ${dateRange}`,
+          linkUrl: '/time-off',
         });
       }
     }
@@ -542,25 +513,16 @@ export const timeoffRouter = router({
     const dateRange = formatDateRange(request.startDate, request.endDate);
 
     // Notify the requester
-    await ctx.db.notification.create({
-      data: {
-        companyId: ctx.user.companyId,
-        employeeId: request.employeeId,
-        type: 'TIMEOFF_REJECTED',
-        title: `Your time off request was rejected`,
-        message: `${request.policy.name} · ${dateRange}`,
-        linkUrl: '/time-off',
-      },
-    });
-    // Big event — fan requester rejection out to email + Slack
-    const requesterRecipient = await loadExternalRecipients(ctx.db, [request.employeeId]);
-    await sendExternal(requesterRecipient, {
-      subject: "Your time off request was rejected",
-      body: `${request.policy.name} · ${dateRange}`,
-      linkPath: "/time-off",
+    await notifyService.send({
+      companyId: ctx.user.companyId,
+      recipients: [request.employeeId],
+      eventType: 'TIMEOFF_REJECTED',
+      title: 'Your time off request was rejected',
+      message: `${request.policy.name} · ${dateRange}`,
+      linkUrl: '/time-off',
     });
 
-    // Inform every other approver in-app that the request is resolved — no further action needed
+    // Inform every other approver that the request is resolved — no further action needed
     const hrIds = await findHrApproverIds(ctx.db, ctx.user.companyId);
     const finalRecipients = new Set<string>();
     hrIds.forEach(id => finalRecipients.add(id));
@@ -569,15 +531,13 @@ export const timeoffRouter = router({
     finalRecipients.delete(request.employeeId);
     if (actorEmployeeId) finalRecipients.delete(actorEmployeeId);
     if (finalRecipients.size > 0) {
-      await ctx.db.notification.createMany({
-        data: Array.from(finalRecipients).map(rid => ({
-          companyId: ctx.user.companyId,
-          employeeId: rid,
-          type: 'TIMEOFF_REJECTED',
-          title: `${employeeName}'s time off was rejected`,
-          message: `${request.policy.name} · ${dateRange} · no further action needed`,
-          linkUrl: '/time-off',
-        })),
+      await notifyService.send({
+        companyId: ctx.user.companyId,
+        recipients: Array.from(finalRecipients),
+        eventType: 'TIMEOFF_REJECTED',
+        title: `${employeeName}'s time off was rejected`,
+        message: `${request.policy.name} · ${dateRange} · no further action needed`,
+        linkUrl: '/time-off',
       });
     }
 
@@ -822,15 +782,13 @@ export const timeoffRouter = router({
       const employeeName = `${request.employee.firstName} ${request.employee.lastName}`;
       const dateRange = formatDateRange(updated.startDate, updated.endDate);
       if (recipients.size > 0) {
-        await ctx.db.notification.createMany({
-          data: Array.from(recipients).map(rid => ({
-            companyId: ctx.user.companyId,
-            employeeId: rid,
-            type: 'TIMEOFF_REQUEST',
-            title: `${employeeName} updated their time off request`,
-            message: `${request.policy.name} · ${dateRange} · needs your approval again`,
-            linkUrl: '/time-off',
-          })),
+        await notifyService.send({
+          companyId: ctx.user.companyId,
+          recipients: Array.from(recipients),
+          eventType: 'TIMEOFF_REQUEST',
+          title: `${employeeName} updated their time off request`,
+          message: `${request.policy.name} · ${dateRange} · needs your approval again`,
+          linkUrl: '/time-off',
         });
       }
 

@@ -56,6 +56,9 @@ function makeCtx(overrides?: Record<string, unknown>) {
 // They will FAIL until Task 3 fixes are applied (the current router has schema bugs).
 
 vi.mock('@/lib/db', () => ({ prisma: db }));
+vi.mock('@/lib/notify-service', () => ({
+  notifyService: { send: vi.fn().mockResolvedValue(undefined) },
+}));
 vi.mock('@/server/trpc', async () => {
   const { initTRPC, TRPCError } = await import('@trpc/server');
   const t = initTRPC.context<{ session: any; db: any; user: any }>().create();

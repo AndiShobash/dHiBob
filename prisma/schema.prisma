@@ -103,6 +103,7 @@ model Employee {
   coursesCreated         Course[]          @relation("CourseCreator")
   enrollments            Enrollment[]
   notifications          Notification[]  @relation("EmployeeNotifications")
+  notificationPrefs      NotificationPreference[] @relation("EmployeeNotificationPrefs")
   expenseClaims          ExpenseClaim[]  @relation("EmployeeExpenses")
   customTableRows        CustomTableRow[]
   ticketsCreated         Ticket[]        @relation("TicketCreator")
@@ -709,6 +710,7 @@ model Notification {
   title       String
   message     String?
   linkUrl     String?                        // e.g. /time-off, /onboarding, /surveys
+  channel     String?
   read        Boolean   @default(false)
   createdAt   DateTime  @default(now())
   company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -841,5 +843,19 @@ model ITLicenseAssignment {
   employee    Employee  @relation("LicenseAssignments", fields: [employeeId], references: [id], onDelete: Cascade)
   @@unique([licenseId, employeeId])
   @@index([licenseId])
+  @@index([employeeId])
+}
+
+model NotificationPreference {
+  id          String   @id @default(cuid())
+  employeeId  String
+  eventType   String
+  inApp       Boolean  @default(true)
+  email       Boolean  @default(true)
+  slack       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  employee    Employee @relation("EmployeeNotificationPrefs", fields: [employeeId], references: [id], onDelete: Cascade)
+  @@unique([employeeId, eventType])
   @@index([employeeId])
 }

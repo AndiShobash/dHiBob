@@ -4,6 +4,7 @@ import { Bell, Calendar, CheckSquare, ClipboardList, Megaphone, Check } from "lu
 import { trpc } from "../../lib/trpc";
 import { Button } from "../ui/button";
 import { useRouter } from "next/navigation";
+import { useNotificationSSE } from "../../lib/hooks/use-notification-sse";
 
 const TYPE_CONFIG: Record<string, { icon: typeof Bell; color: string; bg: string }> = {
   TIMEOFF_APPROVED:  { icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
@@ -29,6 +30,7 @@ function timeAgo(date: Date | string): string {
 export function NotificationsPopover() {
   const router = useRouter();
   const utils = trpc.useUtils();
+  useNotificationSSE(); // Real-time SSE updates
   const { data: notifications } = trpc.notifications.list.useQuery();
   const { data: unreadCount } = trpc.notifications.unreadCount.useQuery();
   const markRead = trpc.notifications.markRead.useMutation({
