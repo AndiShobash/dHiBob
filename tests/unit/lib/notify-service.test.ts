@@ -163,6 +163,54 @@ describe('notifyService', () => {
     );
   });
 
+  it('fans out to multiple recipients', async () => {
+    // Return two employees
+    mockFindMany.mockImplementation((args: any) => {
+      if (args?.where?.eventType) {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve([
+        { id: 'emp-1', email: 'alice@acme.tech', firstName: 'Alice', lastName: 'Smith' },
+        { id: 'emp-2', email: 'bob@acme.tech', firstName: 'Bob', lastName: 'Jones' },
+      ]);
+    });
+    mockCreate.mockResolvedValue({
+      id: 'notif-x', companyId: 'co-1', employeeId: 'emp-x', type: 'TIMEOFF_REQUEST',
+      title: 'Test', message: null, linkUrl: null, channel: 'IN_APP', read: false, createdAt: new Date(),
+    });
+
+    const { notifyService } = await import('@/lib/notify-service');
+    await notifyService.send({
+      companyId: 'co-1',
+      recipients: ['emp-1', 'emp-2'],
+      eventType: 'TIMEOFF_REQUEST',
+      title: 'Multi-recipient test',
+    });
+
+    // Each recipient gets in-app, email, and Slack (6 total tasks: 2 in-app + 2 email + 2 slack)
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(mockSendEmail).toHaveBeenCalledTimes(2);
+    expect(mockSendSlackDM).toHaveBeenCalledTimes(2);
+    expect(mockPush).toHaveBeenCalledTimes(2);
+  });
+
+  it('filters employee lookup by companyId', async () => {
+    const { notifyService } = await import('@/lib/notify-service');
+    await notifyService.send({
+      companyId: 'co-1',
+      recipients: ['emp-1'],
+      eventType: 'TIMEOFF_REQUEST',
+      title: 'Test',
+    });
+
+    // The employee findMany should include companyId filter
+    const empCall = mockFindMany.mock.calls.find(
+      (call: any[]) => call[0]?.select?.email !== undefined
+    );
+    expect(empCall).toBeDefined();
+    expect(empCall![0].where.companyId).toBe('co-1');
+  });
+
   it('handles errors on one channel without blocking others', async () => {
     mockCreate.mockRejectedValue(new Error('DB error'));
 

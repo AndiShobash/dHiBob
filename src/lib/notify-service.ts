@@ -44,9 +44,9 @@ export async function send(payload: NotifyPayload): Promise<void> {
   });
   const prefMap = new Map(prefRows.map(p => [p.employeeId, { inApp: p.inApp, email: p.email, slack: p.slack }]));
 
-  // 2. Batch-fetch employee details for email/Slack channels
+  // 2. Batch-fetch employee details for email/Slack channels (scoped to company)
   const employees = await prisma.employee.findMany({
-    where: { id: { in: payload.recipients } },
+    where: { id: { in: payload.recipients }, companyId: payload.companyId },
     select: { id: true, email: true, firstName: true, lastName: true },
   });
   const empMap = new Map(employees.map(e => [e.id, e]));

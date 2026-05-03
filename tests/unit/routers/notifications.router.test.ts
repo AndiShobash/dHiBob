@@ -21,14 +21,14 @@ vi.mock('@/lib/db', () => ({ prisma: db }));
 // Import router
 import { notificationsRouter } from '@/server/routers/notifications';
 
-function makeCtx(overrides: Partial<{ employeeId: string; companyId: string }> = {}) {
+function makeCtx(overrides: Partial<{ employeeId: string; companyId: string; role: string }> = {}) {
   return {
     session: {
       user: {
         id: 'user-1',
         employeeId: overrides.employeeId ?? 'emp-1',
         companyId: overrides.companyId ?? 'co-1',
-        role: 'ADMIN',
+        role: overrides.role ?? 'ADMIN',
         email: 'admin@acme.tech',
       },
     },
@@ -37,7 +37,7 @@ function makeCtx(overrides: Partial<{ employeeId: string; companyId: string }> =
       id: 'user-1',
       employeeId: overrides.employeeId ?? 'emp-1',
       companyId: overrides.companyId ?? 'co-1',
-      role: 'ADMIN',
+      role: overrides.role ?? 'ADMIN',
       email: 'admin@acme.tech',
     },
   };
@@ -112,13 +112,19 @@ describe('notifications router — preferences', () => {
     );
   });
 
-  it('markRead updates a notification to read', async () => {
-    db.notification.update.mockResolvedValue({ id: 'n1', read: true });
+  it('markRead verifies ownership by filtering on employeeId', async () => {
+    db.notification.updateMany.mockResolvedValue({ count: 1 });
 
     const router = notificationsRouter.createCaller(makeCtx());
-    const result = await router.markRead({ id: 'n1' });
+    await router.markRead({ id: 'n1' });
 
-    expect(result.read).toBe(true);
+    // Must filter by both id AND employeeId to prevent cross-user access
+    expect(db.notification.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'n1', employeeId: 'emp-1' },
+        data: { read: true },
+      }),
+    );
   });
 
   it('markAllRead updates all unread for the user', async () => {
@@ -134,5 +140,41 @@ describe('notifications router — preferences', () => {
         data: { read: true },
       }),
     );
+  });
+
+  it('create rejects non-admin users', async () => {
+    const router = notificationsRouter.createCaller(makeCtx({ role: 'EMPLOYEE' }));
+    await expect(
+      router.create({
+        employeeId: 'emp-2',
+        type: 'TIMEOFF_REQUEST',
+        title: 'Test',
+      })
+    ).rejects.toThrow();
+  });
+
+  it('create allows admin users', async () => {
+    db.notification.create.mockResolvedValue({ id: 'n1', type: 'TIMEOFF_REQUEST', title: 'Test' });
+
+    const router = notificationsRouter.createCaller(makeCtx({ role: 'ADMIN' }));
+    const result = await router.create({
+      employeeId: 'emp-2',
+      type: 'TIMEOFF_REQUEST',
+      title: 'Test',
+    });
+
+    expect(result).toEqual(expect.objectContaining({ id: 'n1' }));
+  });
+
+  it('upsertPreference rejects invalid eventType', async () => {
+    const router = notificationsRouter.createCaller(makeCtx());
+    await expect(
+      router.upsertPreference({
+        eventType: 'INVALID_TYPE',
+        inApp: true,
+        email: true,
+        slack: true,
+      })
+    ).rejects.toThrow();
   });
 });

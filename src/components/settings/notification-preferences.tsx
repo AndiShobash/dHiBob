@@ -4,8 +4,11 @@ import { useState, useEffect } from "react";
 import { trpc } from "../../lib/trpc";
 import { Bell, Mail, MessageSquare, RotateCcw } from "lucide-react";
 import { Button } from "../ui/button";
+import { NOTIFICATION_EVENT_TYPES } from "@/server/routers/notifications";
 
-const EVENT_TYPES = [
+type EventType = (typeof NOTIFICATION_EVENT_TYPES)[number];
+
+const EVENT_TYPES: readonly { key: EventType; label: string }[] = [
   { key: "TIMEOFF_REQUEST", label: "Time-off requests" },
   { key: "TIMEOFF_APPROVED", label: "Time-off approved" },
   { key: "TIMEOFF_REJECTED", label: "Time-off rejected" },
@@ -52,7 +55,7 @@ export function NotificationPreferences() {
     return prefMap[eventType] ?? DEFAULT_PREF;
   }
 
-  function toggleChannel(eventType: string, channel: keyof PrefState) {
+  function toggleChannel(eventType: EventType, channel: keyof PrefState) {
     const current = getPref(eventType);
     const updated = { ...current, [channel]: !current[channel] };
     setPrefMap(prev => ({ ...prev, [eventType]: updated }));

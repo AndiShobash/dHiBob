@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
 
 export const NOTIFICATION_EVENT_TYPES = [
@@ -13,6 +14,8 @@ export const NOTIFICATION_EVENT_TYPES = [
   'HR_ANNOUNCEMENT',
   'SYSTEM',
 ] as const;
+
+const eventTypeSchema = z.enum(NOTIFICATION_EVENT_TYPES);
 
 export const notificationsRouter = router({
   // Get notifications for current user
@@ -31,12 +34,12 @@ export const notificationsRouter = router({
     });
   }),
 
-  // Mark one as read
+  // Mark one as read (verifies ownership via employeeId)
   markRead: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.notification.update({
-        where: { id: input.id },
+      return ctx.db.notification.updateMany({
+        where: { id: input.id, employeeId: ctx.user.employeeId },
         data: { read: true },
       });
     }),
@@ -49,7 +52,7 @@ export const notificationsRouter = router({
     });
   }),
 
-  // Create notification (used by other routers/actions)
+  // Create notification (restricted to admin/internal use)
   create: protectedProcedure
     .input(z.object({
       employeeId: z.string(),
@@ -59,6 +62,9 @@ export const notificationsRouter = router({
       linkUrl: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'ADMIN') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can create notifications' });
+      }
       return ctx.db.notification.create({
         data: {
           companyId: ctx.user.companyId,
@@ -80,7 +86,7 @@ export const notificationsRouter = router({
   // Upsert a single preference (create or update)
   upsertPreference: protectedProcedure
     .input(z.object({
-      eventType: z.string(),
+      eventType: eventTypeSchema,
       inApp: z.boolean(),
       email: z.boolean(),
       slack: z.boolean(),
