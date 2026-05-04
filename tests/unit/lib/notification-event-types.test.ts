@@ -14,7 +14,7 @@ describe('notification event types — architectural boundary', () => {
     expect(Array.isArray(NOTIFICATION_EVENT_TYPES)).toBe(true);
     expect(NOTIFICATION_EVENT_TYPES).toContain('TIMEOFF_REQUEST');
     expect(NOTIFICATION_EVENT_TYPES).toContain('SYSTEM');
-    expect(NOTIFICATION_EVENT_TYPES.length).toBe(10);
+    expect(NOTIFICATION_EVENT_TYPES.length).toBe(11);
   });
 
   it('notification-preferences.tsx does NOT import from @/server/', () => {

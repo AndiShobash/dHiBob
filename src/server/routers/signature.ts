@@ -112,8 +112,13 @@ export const signatureRouter = router({
       let signedPdfKey: string | null = null;
       if (record.document.filePath) {
         try {
-          const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
+          const uploadDir = path.resolve(process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'));
           const pdfFullPath = path.resolve(uploadDir, record.document.filePath);
+          // Path traversal guard — ensure resolved path stays inside upload directory
+          const relative = path.relative(uploadDir, pdfFullPath);
+          if (relative.startsWith('..') || path.isAbsolute(relative)) {
+            throw new Error('Path traversal attempt detected');
+          }
           const pdfBytes = await fs.readFile(pdfFullPath);
 
           const stampedBytes = await stampSignature(
