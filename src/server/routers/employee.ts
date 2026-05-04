@@ -517,15 +517,6 @@ export const employeeRouter = router({
         }
       }
 
-      const result = await sendForSignature({
-        documentName: doc.name,
-        documentKey: doc.filePath,
-        documentBase64,
-        signerEmail: input.signerEmail,
-        signerName: input.signerName,
-        callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/docusign/callback`,
-      });
-
       // Update signature status on the document
       await ctx.db.document.update({
         where: { id: doc.id },
@@ -545,6 +536,15 @@ export const employeeRouter = router({
           linkUrl: '/documents',
         });
       }
+
+      const result = await sendForSignature({
+        documentName: doc.name,
+        documentKey: doc.filePath,
+        documentBase64,
+        signerEmail: input.signerEmail,
+        signerName: input.signerName,
+        callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/docusign/callback`,
+      });
 
       return result;
     }),
