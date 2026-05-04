@@ -72,7 +72,7 @@ export const signatureRouter = router({
     .input(
       z.object({
         signatureRecordId: z.string(),
-        signatureImageBase64: z.string(),
+        signatureImageBase64: z.string().max(500_000, 'Signature image exceeds maximum size'),
       }),
     )
     .mutation(async ({ ctx, input }) => {

@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Eraser, Undo2 } from "lucide-react";
+import { Eraser } from "lucide-react";
 
 interface SignaturePadProps {
   /** Called with PNG data URL whenever the signature changes */
@@ -70,6 +70,7 @@ function DrawPad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
+  const hasStrokesRef = useRef(false);
   const [hasStrokes, setHasStrokes] = useState(false);
 
   const getPos = (e: React.MouseEvent | React.TouchEvent) => {
@@ -79,6 +80,19 @@ function DrawPad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
       return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
     }
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const getPressure = (e: React.MouseEvent | React.TouchEvent): number => {
+    if ("touches" in e) {
+      const touch = e.touches[0];
+      if (touch && typeof (touch as any).force === "number" && (touch as any).force > 0) {
+        return (touch as any).force;
+      }
+    }
+    if ("pressure" in e && typeof (e as any).pressure === "number" && (e as any).pressure > 0) {
+      return (e as any).pressure;
+    }
+    return 0.5; // default pressure
   };
 
   const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
@@ -92,9 +106,11 @@ function DrawPad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
     e.preventDefault();
     const ctx = canvasRef.current.getContext("2d")!;
     const point = getPos(e);
+    const pressure = getPressure(e);
 
     ctx.strokeStyle = "#1a1a1a";
-    ctx.lineWidth = 2.5;
+    // Pressure-sensitive line width: thicker on press, thinner on lift
+    ctx.lineWidth = 1 + pressure * 3;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
@@ -106,13 +122,15 @@ function DrawPad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
     ctx.stroke();
 
     lastPoint.current = point;
+    hasStrokesRef.current = true;
     setHasStrokes(true);
   };
 
   const endDraw = () => {
     isDrawing.current = false;
     lastPoint.current = null;
-    if (canvasRef.current && hasStrokes) {
+    // Use ref instead of state to avoid stale closure on first stroke
+    if (canvasRef.current && hasStrokesRef.current) {
       onChange(canvasRef.current.toDataURL("image/png"));
     }
   };
@@ -121,6 +139,7 @@ function DrawPad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
     if (!canvasRef.current) return;
     const ctx = canvasRef.current.getContext("2d")!;
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    hasStrokesRef.current = false;
     setHasStrokes(false);
     onChange(null);
   };

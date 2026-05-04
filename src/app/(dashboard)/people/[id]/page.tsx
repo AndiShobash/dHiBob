@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mail, MapPin, FileText, Plus, Camera, Trash2, X } from "lucide-react";
+import { Mail, MapPin, FileText, Plus, Camera, Trash2, X, PenTool } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
@@ -829,6 +829,18 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
   const updatePersonalInfo = trpc.employee.updatePersonalInfo.useMutation({ onSuccess: invalidate });
   const updateWorkInfo = trpc.employee.updateWorkInfo.useMutation({ onSuccess: invalidate });
 
+  // Signature request: list company documents and allow requesting signatures
+  const { data: companyDocs } = trpc.document.list.useQuery({});
+  const requestSignature = trpc.signature.requestSignature.useMutation();
+  const [sigDocId, setSigDocId] = useState('');
+  const handleRequestSignature = () => {
+    if (!sigDocId) return;
+    requestSignature.mutate(
+      { documentId: sigDocId, signerId: params.id },
+      { onSuccess: () => setSigDocId('') },
+    );
+  };
+
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1129,6 +1141,38 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               } : undefined} />}
               {canSeeFiles && <DocumentField label="CV Old" value={personalInfo.cvOld} folder={docsFolder} onSave={isAdmin ? pi('cvOld') : undefined} />}
             </div>
+            {isAdmin && (
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-charcoal-800">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Request Signature</p>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={sigDocId}
+                    onChange={e => setSigDocId(e.target.value)}
+                    className="flex-1 text-sm border border-gray-300 dark:border-charcoal-600 rounded-md px-3 py-1.5 bg-white dark:bg-charcoal-800"
+                  >
+                    <option value="">Select a document...</option>
+                    {(companyDocs ?? [])
+                      .filter((d: any) => d.type === 'CONTRACT' && d.signatureStatus !== 'SIGNED')
+                      .map((d: any) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                  </select>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="gap-1"
+                    disabled={!sigDocId || requestSignature.isPending}
+                    onClick={handleRequestSignature}
+                  >
+                    <PenTool size={14} />
+                    Request Signature
+                  </Button>
+                </div>
+                {requestSignature.error && (
+                  <p className="text-sm text-red-500 mt-1">{requestSignature.error.message}</p>
+                )}
+              </div>
+            )}
           </SectionCard>
 
           <SectionCard

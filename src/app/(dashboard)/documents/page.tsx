@@ -258,10 +258,14 @@ export default function DocumentsPage() {
   );
 }
 
-/** Small component that fetches the signed PDF URL and shows a download link */
+/** Small component that fetches the signed PDF URL via the access-controlled tRPC procedure */
 function ViewSignedButton({ documentId }: { documentId: string }) {
   const { data: records } = trpc.signature.getByDocument.useQuery({ documentId });
   const signedRecord = records?.find(r => r.status === 'SIGNED');
+  const getSignedPdf = trpc.signature.getSignedPdf.useQuery(
+    { signatureRecordId: signedRecord?.id ?? '' },
+    { enabled: !!signedRecord?.id },
+  );
 
   if (!signedRecord) return null;
 
@@ -271,11 +275,11 @@ function ViewSignedButton({ documentId }: { documentId: string }) {
       size="sm"
       className="gap-1 text-xs text-green-600"
       onClick={() => {
-        if (signedRecord) {
-          // Use the API to get the download URL
-          window.open(`/api/files/download?path=${encodeURIComponent(signedRecord.signedPdfPath || '')}`, '_blank');
+        if (getSignedPdf.data?.url) {
+          window.open(getSignedPdf.data.url, '_blank');
         }
       }}
+      disabled={!getSignedPdf.data?.url}
     >
       <CheckCircle size={12} /> View Signed
     </Button>
