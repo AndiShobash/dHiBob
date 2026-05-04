@@ -6,6 +6,7 @@ import { WebClient } from "@slack/web-api";
 
 const slackToken = process.env.SLACK_BOT_TOKEN;
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const slackTestEmail = process.env.SLACK_TEST_EMAIL;
 
 const slack = slackToken ? new WebClient(slackToken) : null;
 
@@ -45,6 +46,8 @@ function escapeSlackLinkPath(s: string): string {
 
 export async function sendSlackDM(recipient: SlackRecipient, payload: SlackPayload): Promise<void> {
   if (!slack) return;
+  // Dev safety: when SLACK_TEST_EMAIL is set, only send to that email
+  if (slackTestEmail && recipient.email !== slackTestEmail) return;
   try {
     const lookup = await slack.users.lookupByEmail({ email: recipient.email });
     if (!lookup.ok || !lookup.user?.id) return;
