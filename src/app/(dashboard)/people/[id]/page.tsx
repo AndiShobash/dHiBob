@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mail, MapPin, FileText, Plus, Camera, Trash2, X, PenTool } from "lucide-react";
+import { Mail, MapPin, FileText, Plus, Camera, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
@@ -447,49 +447,6 @@ function EmployeeITSection({ employeeId }: { employeeId: string }) {
   );
 }
 
-function SendForSignatureInline({
-  documentName, documentKey, signerName, signerEmail, onDone,
-}: {
-  documentName: string; documentKey: string; signerName: string; signerEmail: string; onDone: () => void;
-}) {
-  const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
-
-  const handleSend = async () => {
-    setSending(true);
-    try {
-      const res = await fetch('/api/docusign/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentName, documentKey, signerName, signerEmail }),
-      });
-      const data = await res.json();
-      setResult(data.status === 'sent' ? `Sent to ${signerEmail} for signature` : (data.message || 'Sent'));
-      setTimeout(onDone, 2000);
-    } catch {
-      setResult('Failed to send');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <div className="ml-5 mt-1 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-md text-xs">
-      <p className="mb-1.5">Send <span className="font-medium">{documentName}</span> to <span className="font-medium">{signerName}</span> ({signerEmail}) for signature?</p>
-      {result ? (
-        <p className="text-emerald-600 dark:text-emerald-400 font-medium">{result}</p>
-      ) : (
-        <div className="flex gap-2">
-          <button onClick={handleSend} disabled={sending} className="px-2 py-1 bg-amber-500 text-white rounded text-xs hover:bg-amber-600 disabled:opacity-50">
-            {sending ? 'Sending…' : 'Send for Signature'}
-          </button>
-          <button onClick={onDone} className="px-2 py-1 text-gray-500 hover:text-gray-700 text-xs">Cancel</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function docEntryHref(entry: DocEntry): string {
   if (entry.key) return `/api/files/redirect?key=${encodeURIComponent(entry.key)}`;
   if (entry.url) return entry.url;
@@ -502,7 +459,6 @@ function DocumentField({
   onSave,
   folder = 'profile_docs',
   mode = 'multi',
-  signable,
 }: {
   label: string;
   value?: string | null;
@@ -510,12 +466,9 @@ function DocumentField({
   folder?: string;
   /** "multi" = unlimited uploads, appends to list. "single" = one file, upload replaces. */
   mode?: 'single' | 'multi';
-  /** If provided, shows a ✍ icon per file to send for e-signature to this person. */
-  signable?: { employeeId: string; employeeName: string; employeeEmail: string } | null;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [signingIdx, setSigningIdx] = useState<number | null>(null);
 
   const entries = parseDocEntries(value);
 
@@ -579,16 +532,6 @@ function DocumentField({
                 <FileText size={14} className="shrink-0" />
                 <span className="truncate">{entry.name}</span>
               </a>
-              {signable && entry.key && (
-                <button
-                  type="button"
-                  onClick={() => setSigningIdx(signingIdx === i ? null : i)}
-                  className="opacity-0 group-hover:opacity-100 text-amber-500 hover:text-amber-600 transition-opacity shrink-0"
-                  title={`Send to ${signable.employeeName} for signature`}
-                >
-                  <PenTool size={12} />
-                </button>
-              )}
               {onSave && (
                 <button
                   type="button"
@@ -598,15 +541,6 @@ function DocumentField({
                 >
                   <X size={12} />
                 </button>
-              )}
-              {signingIdx === i && signable && (
-                <SendForSignatureInline
-                  documentName={entry.name}
-                  documentKey={entry.key!}
-                  signerName={signable.employeeName}
-                  signerEmail={signable.employeeEmail}
-                  onDone={() => setSigningIdx(null)}
-                />
               )}
             </div>
           ))
@@ -1490,7 +1424,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                             </span>
                           </td>
                           <td className="py-3 pr-6 min-w-[160px]">
-                            <DocumentField label="" value={entry.contractDoc || null} folder={docsFolder} onSave={isAdmin ? saveSalaryField(idx, 'contractDoc') : undefined} signable={isAdmin ? { employeeId: employee.id, employeeName: `${employee.firstName} ${employee.lastName}`, employeeEmail: employee.email } : null} />
+                            <DocumentField label="" value={entry.contractDoc || null} folder={docsFolder} onSave={isAdmin ? saveSalaryField(idx, 'contractDoc') : undefined} />
                           </td>
                           <td className="py-3 pr-6 min-w-[120px]">
                             <DropdownBadgeField label="" value={entry.salaryCurrency || ''} options={CURRENCY_OPTIONS} onSave={isAdmin ? saveSalaryField(idx, 'salaryCurrency') : undefined} />

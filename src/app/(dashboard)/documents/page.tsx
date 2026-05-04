@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Upload, FileText, File, Image, Download, Loader2, AlertCircle, PenTool } from "lucide-react";
+import { Search, Upload, FileText, File, Image, Download, Loader2, AlertCircle, PenTool, CheckCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { UploadModal } from "@/components/documents/upload-modal";
+import { SignatureDialog } from "@/components/documents/signature-dialog";
 import { format } from "date-fns";
 
 const SIG_BADGE: Record<string, { variant: "success" | "warning" | "default" | "destructive"; label: string }> = {
@@ -21,13 +22,28 @@ const SIG_BADGE: Record<string, { variant: "success" | "warning" | "default" | "
 export default function DocumentsPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [search, setSearch] = useState("");
+
+  // Request signature state
   const [signDoc, setSignDoc] = useState<{ id: string; name: string } | null>(null);
-  const [signerEmail, setSignerEmail] = useState("");
-  const [signerName, setSignerName] = useState("");
+  const [selectedSignerId, setSelectedSignerId] = useState("");
+
+  // Sign dialog state
+  const [signingRecord, setSigningRecord] = useState<{
+    id: string;
+    documentName: string;
+    requesterName: string;
+  } | null>(null);
+
   const { data: documents, isLoading, error, refetch } = trpc.document.list.useQuery({});
-  const { data: docuSignStatus } = trpc.employee.isDocuSignConfigured.useQuery();
-  const sendMutation = trpc.employee.sendForSignature.useMutation({
-    onSuccess: () => { refetch(); setSignDoc(null); setSignerEmail(""); setSignerName(""); },
+  const { data: pendingSignatures, refetch: refetchPending } = trpc.signature.getPending.useQuery();
+  const { data: employees } = trpc.employee.list.useQuery({ limit: 500 });
+
+  const requestMutation = trpc.signature.requestSignature.useMutation({
+    onSuccess: () => {
+      refetch();
+      setSignDoc(null);
+      setSelectedSignerId("");
+    },
   });
 
   const formatSize = (bytes: number) => {
@@ -41,13 +57,12 @@ export default function DocumentsPage() {
   const getIcon = (name: string, mimeType: string) => {
     const ext = name.split('.').pop()?.toLowerCase();
     const mime = mimeType.toLowerCase();
-    
     if (ext === 'pdf' || mime.includes('pdf')) return FileText;
     if (['jpg', 'jpeg', 'png', 'webp'].includes(ext || '') || mime.startsWith('image/')) return Image;
     return File;
   };
 
-  const filteredDocuments = documents?.filter(d => 
+  const filteredDocuments = documents?.filter(d =>
     d.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -60,14 +75,55 @@ export default function DocumentsPage() {
           Upload
         </Button>
       </div>
-      
+
+      {/* Pending Signatures Section */}
+      {pendingSignatures && pendingSignatures.length > 0 && (
+        <Card className="border-amber-200 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/10">
+          <CardContent className="p-4">
+            <h2 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-3 flex items-center gap-2">
+              <PenTool size={16} />
+              Documents Awaiting Your Signature ({pendingSignatures.length})
+            </h2>
+            <div className="space-y-2">
+              {pendingSignatures.map((rec) => (
+                <div
+                  key={rec.id}
+                  className="flex items-center justify-between bg-white dark:bg-charcoal-800 rounded-md p-3 border border-amber-100 dark:border-amber-800"
+                >
+                  <div>
+                    <p className="font-medium text-sm">{rec.document.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Requested by {rec.requester.firstName} {rec.requester.lastName} &middot;{" "}
+                      {format(new Date(rec.requestedAt), "MMM dd, yyyy")}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="gap-1"
+                    onClick={() =>
+                      setSigningRecord({
+                        id: rec.id,
+                        documentName: rec.document.name,
+                        requesterName: `${rec.requester.firstName} ${rec.requester.lastName}`,
+                      })
+                    }
+                  >
+                    <PenTool size={14} /> Sign Now
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="relative max-w-sm">
         <label htmlFor="search-documents" className="sr-only">Search documents</label>
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} aria-hidden="true" />
-        <Input 
+        <Input
           id="search-documents"
-          placeholder="Search documents..." 
-          className="pl-10" 
+          placeholder="Search documents..."
+          className="pl-10"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -102,7 +158,7 @@ export default function DocumentsPage() {
                     <div>
                       <p className="font-medium">{d.name}</p>
                       <p className="text-sm text-gray-500 dark:text-gray-300">
-                        {d.type} · {formatSize(d.fileSize)} · Updated {format(new Date(d.createdAt), 'MMM dd')}
+                        {d.type} &middot; {formatSize(d.fileSize)} &middot; Updated {format(new Date(d.createdAt), 'MMM dd')}
                       </p>
                     </div>
                   </div>
@@ -111,6 +167,9 @@ export default function DocumentsPage() {
                       <Badge variant={SIG_BADGE[d.signatureStatus].variant}>
                         {SIG_BADGE[d.signatureStatus].label}
                       </Badge>
+                    )}
+                    {d.signatureStatus === 'SIGNED' && (
+                      <ViewSignedButton documentId={d.id} />
                     )}
                     <Badge variant="outline" className="capitalize">{d.folder}</Badge>
                     {d.type === 'CONTRACT' && d.signatureStatus !== 'SIGNED' && d.signatureStatus !== 'PENDING_SIGNATURE' && (
@@ -140,46 +199,85 @@ export default function DocumentsPage() {
         onSuccess={refetch}
       />
 
-      {/* Send for Signature dialog */}
+      {/* Send for Signature dialog — employee picker (replaces DocuSign email form) */}
       <Dialog open={!!signDoc} onOpenChange={(open) => { if (!open) setSignDoc(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Send for Signature</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-500 dark:text-gray-300 mb-2">
-            Send <span className="font-medium text-gray-700 dark:text-gray-300">{signDoc?.name}</span> for e-signature via DocuSign.
+            Send <span className="font-medium text-gray-700 dark:text-gray-300">{signDoc?.name}</span> to an employee for e-signature.
           </p>
-          {!docuSignStatus?.configured && (
-            <div className="text-xs bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-md p-3 mb-2 text-amber-800 dark:text-amber-300">
-              DocuSign is not configured yet. The signature request will be tracked in the system but won't actually send until an admin sets the DocuSign API keys in the server environment.
-            </div>
-          )}
           <form onSubmit={e => {
             e.preventDefault();
-            if (!signDoc) return;
-            sendMutation.mutate({ documentId: signDoc.id, signerEmail, signerName });
+            if (!signDoc || !selectedSignerId) return;
+            requestMutation.mutate({ documentId: signDoc.id, signerId: selectedSignerId });
           }} className="space-y-3">
             <div>
-              <label className="block text-sm font-medium mb-1">Signer Name</label>
-              <Input value={signerName} onChange={e => setSignerName(e.target.value)} required placeholder="e.g. Andi Shobash" />
+              <label className="block text-sm font-medium mb-1">Select Signer</label>
+              <select
+                value={selectedSignerId}
+                onChange={e => setSelectedSignerId(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 dark:border-charcoal-600 rounded-md bg-white dark:bg-charcoal-900 text-sm"
+              >
+                <option value="">Choose an employee...</option>
+                {(employees?.employees ?? []).map((emp: any) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.firstName} {emp.lastName} ({emp.email})
+                  </option>
+                ))}
+              </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Signer Email</label>
-              <Input type="email" value={signerEmail} onChange={e => setSignerEmail(e.target.value)} required placeholder="e.g. andi@develeap.com" />
-            </div>
-            {sendMutation.error && (
-              <p className="text-sm text-red-500">{sendMutation.error.message}</p>
+            {requestMutation.error && (
+              <p className="text-sm text-red-500">{requestMutation.error.message}</p>
             )}
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setSignDoc(null)}>Cancel</Button>
-              <Button type="submit" disabled={sendMutation.isPending} className="gap-1">
+              <Button type="submit" disabled={requestMutation.isPending || !selectedSignerId} className="gap-1">
                 <PenTool size={14} />
-                {sendMutation.isPending ? 'Sending...' : 'Send'}
+                {requestMutation.isPending ? 'Sending...' : 'Send'}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Signature capture dialog */}
+      <SignatureDialog
+        open={!!signingRecord}
+        onOpenChange={(open) => { if (!open) setSigningRecord(null); }}
+        signatureRecord={signingRecord}
+        onComplete={() => {
+          setSigningRecord(null);
+          refetch();
+          refetchPending();
+        }}
+      />
     </div>
+  );
+}
+
+/** Small component that fetches the signed PDF URL and shows a download link */
+function ViewSignedButton({ documentId }: { documentId: string }) {
+  const { data: records } = trpc.signature.getByDocument.useQuery({ documentId });
+  const signedRecord = records?.find(r => r.status === 'SIGNED');
+
+  if (!signedRecord) return null;
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="gap-1 text-xs text-green-600"
+      onClick={() => {
+        if (signedRecord) {
+          // Use the API to get the download URL
+          window.open(`/api/files/download?path=${encodeURIComponent(signedRecord.signedPdfPath || '')}`, '_blank');
+        }
+      }}
+    >
+      <CheckCircle size={12} /> View Signed
+    </Button>
   );
 }

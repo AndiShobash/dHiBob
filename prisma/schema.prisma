@@ -52,6 +52,7 @@ model Company {
   expenseClaims      ExpenseClaim[]
   customTables       CustomTableDefinition[]
   payRuns            PayRun[]
+  signatureRecords   SignatureRecord[]
   @@index([domain])
 }
 
@@ -105,6 +106,8 @@ model Employee {
   notifications          Notification[]  @relation("EmployeeNotifications")
   notificationPrefs      NotificationPreference[] @relation("EmployeeNotificationPrefs")
   expenseClaims          ExpenseClaim[]  @relation("EmployeeExpenses")
+  signaturesSigner       SignatureRecord[] @relation("SignatureRecordSigner")
+  signaturesRequester    SignatureRecord[] @relation("SignatureRecordRequester")
   customTableRows        CustomTableRow[]
   ticketsCreated         Ticket[]        @relation("TicketCreator")
   ticketsAssigned        Ticket[]        @relation("TicketAssignee")
@@ -456,8 +459,9 @@ model Document {
   signatureStatus String?
   expiresAt       DateTime?
   createdAt       DateTime @default(now())
-  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee   Employee?          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  company    Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signatures SignatureRecord[]
   @@index([employeeId])
   @@index([companyId])
   @@index([type])
@@ -858,4 +862,31 @@ model NotificationPreference {
   employee    Employee @relation("EmployeeNotificationPrefs", fields: [employeeId], references: [id], onDelete: Cascade)
   @@unique([employeeId, eventType])
   @@index([employeeId])
+}
+
+model SignatureRecord {
+  id              String    @id @default(cuid())
+  documentId      String
+  signerId        String
+  signerName      String
+  signerEmail     String
+  status          String    @default("PENDING") // PENDING | SIGNED | DECLINED
+  signatureImage  String?                       // storage key for the PNG
+  signedPdfPath   String?                       // storage key for the stamped PDF
+  requestedAt     DateTime  @default(now())
+  signedAt        DateTime?
+  declinedAt      DateTime?
+  declineReason   String?
+  requestedBy     String                        // employee ID who sent the request
+  companyId       String
+
+  document  Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  signer    Employee @relation("SignatureRecordSigner", fields: [signerId], references: [id], onDelete: Cascade)
+  requester Employee @relation("SignatureRecordRequester", fields: [requestedBy], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([signerId])
+  @@index([companyId])
+  @@index([status])
 }
