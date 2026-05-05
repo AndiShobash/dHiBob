@@ -93,6 +93,7 @@ vi.mock('@/lib/trpc', () => ({
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'emp-test-1' }),
   useRouter: () => ({ back: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 import { trpc } from '@/lib/trpc'

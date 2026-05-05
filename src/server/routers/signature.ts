@@ -77,7 +77,7 @@ export const signatureRouter = router({
         eventType: 'DOCUMENT_PENDING_SIGNATURE',
         title: `Document "${doc.name}" requires your signature`,
         message: 'Please review and sign the document on your profile.',
-        linkUrl: `/people/${signer.id}`,
+        linkUrl: `/people/${signer.id}?tab=work`,
       });
 
       return record;
@@ -190,7 +190,7 @@ export const signatureRouter = router({
         eventType: 'DOCUMENT_SIGNED',
         title: `Document "${record.document.name}" has been signed`,
         message: `${record.signerName} has signed the document.`,
-        linkUrl: `/people/${record.signerId}`,
+        linkUrl: `/people/${record.signerId}?tab=work`,
       });
 
       return updated;
@@ -244,7 +244,7 @@ export const signatureRouter = router({
         eventType: 'DOCUMENT_DECLINED',
         title: `Document "${record.document.name}" was declined`,
         message: `${record.signerName} declined to sign.${input.reason ? ` Reason: ${input.reason}` : ''}`,
-        linkUrl: `/people/${record.signerId}`,
+        linkUrl: `/people/${record.signerId}?tab=work`,
       });
 
       return updated;

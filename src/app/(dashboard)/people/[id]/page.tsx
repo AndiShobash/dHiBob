@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -808,6 +809,7 @@ function ManagerPicker({ label, currentManagerId, currentManagerName, onSave }: 
 }
 
 export default function EmployeeProfilePage({ params }: { params: { id: string } }) {
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const role = session?.user.role;
   const isSuperAdmin = role === 'SUPER_ADMIN';
@@ -1094,7 +1096,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
       </Card>
 
       {/* 7-tab layout */}
-      <Tabs defaultValue="profile">
+      <Tabs defaultValue={searchParams.get('tab') || 'profile'}>
         <TabsList className="bg-transparent border-b border-gray-200 dark:border-charcoal-800 rounded-none h-auto p-0 w-full justify-start gap-1">
           <TabsTrigger value="profile" className={tabTriggerClass}>Profile</TabsTrigger>
           {canSeeSensitive && <TabsTrigger value="work" className={tabTriggerClass}>Work</TabsTrigger>}
