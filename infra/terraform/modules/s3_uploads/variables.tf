@@ -15,6 +15,12 @@ variable "backup_retention_days" {
   default     = 14
 }
 
+variable "cors_allowed_origins" {
+  description = "Origins allowed to make cross-origin GET requests (e.g. for PDF viewing)."
+  type        = list(string)
+  default     = []
+}
+
 variable "tags" {
   description = "Tags to apply to the bucket."
   type        = map(string)
