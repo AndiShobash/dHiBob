@@ -9,6 +9,8 @@ data "aws_iam_policy_document" "s3_rw" {
     actions = [
       "s3:ListBucket",
       "s3:GetBucketLocation",
+      "s3:PutBucketCors",
+      "s3:GetBucketCors",
     ]
     resources = [var.bucket_arn]
   }
