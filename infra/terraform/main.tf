@@ -50,8 +50,9 @@ resource "aws_eip" "app" {
 # ---------------------------------------------------------------------------
 
 module "s3" {
-  source      = "./modules/s3_uploads"
-  bucket_name = "${var.project}-prod-uploads"
+  source               = "./modules/s3_uploads"
+  bucket_name          = "${var.project}-prod-uploads"
+  cors_allowed_origins = var.cors_allowed_origins
 }
 
 # ---------------------------------------------------------------------------

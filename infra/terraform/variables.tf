@@ -67,3 +67,9 @@ variable "repo_branch" {
   type        = string
   default     = "main"
 }
+
+variable "cors_allowed_origins" {
+  description = "Origins allowed to make cross-origin GET requests to the S3 uploads bucket (for PDF viewer)."
+  type        = list(string)
+  default     = []
+}
