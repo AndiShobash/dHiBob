@@ -51,14 +51,14 @@ export const signatureRouter = router({
         data: { signatureStatus: 'PENDING_SIGNATURE' },
       });
 
-      // Notify the signer
+      // Notify the signer — link to their own profile Work tab
       await notifyService.send({
         companyId: ctx.user.companyId,
         recipients: [signer.id],
         eventType: 'DOCUMENT_PENDING_SIGNATURE',
         title: `Document "${doc.name}" requires your signature`,
-        message: 'Please review and sign the document.',
-        linkUrl: '/documents',
+        message: 'Please review and sign the document on your profile.',
+        linkUrl: `/people/${signer.id}`,
       });
 
       return record;
@@ -160,14 +160,14 @@ export const signatureRouter = router({
         data: { signatureStatus: 'SIGNED' },
       });
 
-      // Notify the requester
+      // Notify the requester — link to the signer's profile
       await notifyService.send({
         companyId: ctx.user.companyId,
         recipients: [record.requestedBy],
         eventType: 'DOCUMENT_SIGNED',
         title: `Document "${record.document.name}" has been signed`,
         message: `${record.signerName} has signed the document.`,
-        linkUrl: '/documents',
+        linkUrl: `/people/${record.signerId}`,
       });
 
       return updated;
@@ -214,14 +214,14 @@ export const signatureRouter = router({
         data: { signatureStatus: 'DECLINED' },
       });
 
-      // Notify the requester
+      // Notify the requester — link to the signer's profile
       await notifyService.send({
         companyId: ctx.user.companyId,
         recipients: [record.requestedBy],
         eventType: 'DOCUMENT_DECLINED',
         title: `Document "${record.document.name}" was declined`,
         message: `${record.signerName} declined to sign.${input.reason ? ` Reason: ${input.reason}` : ''}`,
-        linkUrl: '/documents',
+        linkUrl: `/people/${record.signerId}`,
       });
 
       return updated;

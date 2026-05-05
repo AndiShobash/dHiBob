@@ -59,7 +59,7 @@ export const documentRouter = router({
           eventType: 'DOCUMENT_SIGNED',
           title: `Document "${doc.name}" has been signed`,
           message: 'Your document has been signed successfully.',
-          linkUrl: '/documents',
+          linkUrl: `/people/${doc.employeeId}`,
         });
       }
 
