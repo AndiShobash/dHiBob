@@ -71,5 +71,5 @@ variable "repo_branch" {
 variable "cors_allowed_origins" {
   description = "Origins allowed to make cross-origin GET requests to the S3 uploads bucket (for PDF viewer)."
   type        = list(string)
-  default     = []
+  default     = ["https://3-221-137-207.nip.io"]
 }
