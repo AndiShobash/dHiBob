@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('@/lib/storage', () => ({
   storage: {
     uploadFile: vi.fn().mockResolvedValue('signatures/test-sig.png'),
+    readFile: vi.fn().mockResolvedValue(Buffer.from('fake-pdf-bytes')),
     getDownloadUrl: vi.fn().mockResolvedValue('/api/files/download?path=contracts/signed.pdf'),
     deleteFile: vi.fn().mockResolvedValue(undefined),
   },

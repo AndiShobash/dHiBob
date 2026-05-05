@@ -5,6 +5,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export interface StorageProvider {
   uploadFile(file: Buffer, fileName: string, folder: string): Promise<string>;
+  readFile(filePath: string): Promise<Buffer>;
   getDownloadUrl(filePath: string): Promise<string>;
   deleteFile(filePath: string): Promise<void>;
 }
@@ -55,6 +56,12 @@ export class LocalStorageProvider implements StorageProvider {
 
     await fs.writeFile(filePath, file);
     return path.relative(this.uploadDir, filePath);
+  }
+
+  async readFile(filePath: string): Promise<Buffer> {
+    const fullPath = path.resolve(this.uploadDir, filePath);
+    this.ensureInUploadDir(fullPath);
+    return fs.readFile(fullPath);
   }
 
   async getDownloadUrl(filePath: string): Promise<string> {
@@ -116,6 +123,18 @@ export class S3StorageProvider implements StorageProvider {
     }));
 
     return key;
+  }
+
+  async readFile(filePath: string): Promise<Buffer> {
+    const response = await this.client.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: filePath }),
+    );
+    const stream = response.Body as any;
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
   }
 
   async getDownloadUrl(filePath: string): Promise<string> {
