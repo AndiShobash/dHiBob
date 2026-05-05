@@ -829,17 +829,10 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
   const updatePersonalInfo = trpc.employee.updatePersonalInfo.useMutation({ onSuccess: invalidate });
   const updateWorkInfo = trpc.employee.updateWorkInfo.useMutation({ onSuccess: invalidate });
 
-  // Signature request: list company documents and allow requesting signatures
+  // Signature request helpers
   const { data: companyDocs } = trpc.document.list.useQuery({});
+  const createDoc = trpc.document.createForSignature.useMutation();
   const requestSignature = trpc.signature.requestSignature.useMutation();
-  const [sigDocId, setSigDocId] = useState('');
-  const handleRequestSignature = () => {
-    if (!sigDocId) return;
-    requestSignature.mutate(
-      { documentId: sigDocId, signerId: params.id },
-      { onSuccess: () => setSigDocId('') },
-    );
-  };
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1141,38 +1134,6 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               } : undefined} />}
               {canSeeFiles && <DocumentField label="CV Old" value={personalInfo.cvOld} folder={docsFolder} onSave={isAdmin ? pi('cvOld') : undefined} />}
             </div>
-            {isAdmin && (
-              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-charcoal-800">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Request Signature</p>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={sigDocId}
-                    onChange={e => setSigDocId(e.target.value)}
-                    className="flex-1 text-sm border border-gray-300 dark:border-charcoal-600 rounded-md px-3 py-1.5 bg-white dark:bg-charcoal-800"
-                  >
-                    <option value="">Select a document...</option>
-                    {(companyDocs ?? [])
-                      .filter((d: any) => d.type === 'CONTRACT' && d.signatureStatus !== 'SIGNED')
-                      .map((d: any) => (
-                        <option key={d.id} value={d.id}>{d.name}</option>
-                      ))}
-                  </select>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="gap-1"
-                    disabled={!sigDocId || requestSignature.isPending}
-                    onClick={handleRequestSignature}
-                  >
-                    <PenTool size={14} />
-                    Request Signature
-                  </Button>
-                </div>
-                {requestSignature.error && (
-                  <p className="text-sm text-red-500 mt-1">{requestSignature.error.message}</p>
-                )}
-              </div>
-            )}
           </SectionCard>
 
           <SectionCard
@@ -1468,7 +1429,38 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                             </span>
                           </td>
                           <td className="py-3 pr-6 min-w-[160px]">
-                            <DocumentField label="" value={entry.contractDoc || null} folder={docsFolder} onSave={isAdmin ? saveSalaryField(idx, 'contractDoc') : undefined} />
+                            <div className="flex items-center gap-1">
+                              <DocumentField label="" value={entry.contractDoc || null} folder={docsFolder} onSave={isAdmin ? saveSalaryField(idx, 'contractDoc') : undefined} />
+                              {isAdmin && entry.contractDoc && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    // Find or create a Document record for this contract, then request signature
+                                    const docs = companyDocs ?? [];
+                                    let doc = docs.find((d: any) => d.filePath === entry.contractDoc);
+                                    if (!doc) {
+                                      // Create a document record for this contract
+                                      doc = await createDoc.mutateAsync({
+                                        name: `Contract - ${employee.firstName} ${employee.lastName}`,
+                                        filePath: entry.contractDoc!,
+                                        employeeId: params.id,
+                                        type: 'CONTRACT',
+                                        folder: docsFolder,
+                                      });
+                                    }
+                                    if (doc?.id) {
+                                      requestSignature.mutate(
+                                        { documentId: doc.id, signerId: params.id },
+                                      );
+                                    }
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-primary-500 transition-colors"
+                                  title="Send for signature"
+                                >
+                                  <PenTool size={13} />
+                                </button>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3 pr-6 min-w-[120px]">
                             <DropdownBadgeField label="" value={entry.salaryCurrency || ''} options={CURRENCY_OPTIONS} onSave={isAdmin ? saveSalaryField(idx, 'salaryCurrency') : undefined} />

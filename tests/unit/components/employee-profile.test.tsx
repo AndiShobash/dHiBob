@@ -56,6 +56,9 @@ vi.mock('@/lib/trpc', () => ({
       list: {
         useQuery: vi.fn(() => ({ data: [] })),
       },
+      createForSignature: {
+        useMutation: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+      },
       listByEmployee: {
         useQuery: vi.fn(() => ({ data: [] })),
       },
@@ -554,23 +557,24 @@ describe('Employee profile page', () => {
     expect(screen.getByText('ISC2')).toBeInTheDocument()
   })
 
-  // R1: Profile page should have a Request Signature button for contract documents
-  it('R1: shows Request Signature button on profile documents section for admin', () => {
-    const mockEmployeeWithDocs = {
+  // R1: Compensation History shows pen icon for sending contract docs for signature
+  it('R1: shows pen icon next to contract documents in Compensation History for admin', async () => {
+    const mockWithSalary = {
       ...mockEmployee,
-      personalInfo: JSON.stringify({
-        documents: JSON.stringify([
-          { name: 'Employment Contract.pdf', key: 'contracts/emp-contract.pdf' },
-        ]),
+      workInfo: JSON.stringify({
+        salaryHistory: [
+          { effectiveDate: '2024-01-01', contractType: 'Full-time', salaryType: 'Base Salary', salaryAmount: '10000', salaryCurrency: 'USD', contractDoc: 'contracts/contract.pdf', note: '' },
+        ],
       }),
     }
     vi.mocked(trpc.employee.getById.useQuery).mockReturnValue({
-      data: mockEmployeeWithDocs,
+      data: mockWithSalary,
       isLoading: false,
       error: null,
     } as any)
     render(<EmployeeProfilePage params={{ id: 'emp-test-1' }} />)
-    // The profile page should have a "Request Signature" button
-    expect(screen.getByRole('button', { name: /Request Signature/i })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Work' }))
+    // Should have a "Send for signature" button (pen icon)
+    expect(screen.getByTitle('Send for signature')).toBeInTheDocument()
   })
 })
