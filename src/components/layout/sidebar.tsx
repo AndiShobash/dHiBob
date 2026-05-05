@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { Menu, X, Home, Users, UserCheck, UserMinus, Calendar, TrendingUp, Briefcase, BookOpen, BarChart3, FileText, Settings, Network, ClipboardList, LayoutDashboard, Ticket, Monitor, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const HR_ONLY_HREFS = new Set(['/hiring', '/analytics', '/reports']);
+const HR_ONLY_HREFS = new Set(['/analytics', '/reports']);
 const IT_ALLOWED_HREFS = new Set(['/onboarding', '/offboarding']);
 const IT_SECTION_HREFS = new Set(['/it-assets', '/it-licenses']);
 
@@ -17,15 +17,12 @@ const navigationItems = [
   { label: "Onboarding", href: "/onboarding", icon: UserCheck },
   { label: "Offboarding", href: "/offboarding", icon: UserMinus },
   { label: "Time Off", href: "/time-off", icon: Calendar },
-  { label: "Performance", href: "/performance", icon: TrendingUp },
-  { label: "Hiring", href: "/hiring", icon: Briefcase },
   { label: "Learning", href: "/learning", icon: BookOpen },
   { label: "Surveys", href: "/surveys", icon: BarChart3 },
   { label: "Analytics", href: "/analytics", icon: TrendingUp },
   { label: "Reports", href: "/reports", icon: ClipboardList },
   { label: "Expenses", href: "/expenses", icon: FileText },
   { label: "HR Portal", href: "/hr-portal", icon: LayoutDashboard },
-  { label: "Documents", href: "/documents", icon: FileText },
   { label: "IT Tickets", href: "/it-tickets", icon: Ticket },
   { label: "IT Assets", href: "/it-assets", icon: Monitor },
   { label: "IT Licenses", href: "/it-licenses", icon: Key },

@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { useSession } from "next-auth/react";
 import { profileDocsFolder, avatarsFolder } from "@/lib/people-folder";
 import { currencySymbol, convertCurrency, type ExchangeRates } from "@/lib/currency";
+import { SignaturePad } from "@/components/documents/signature-pad";
 
 function statusVariant(status: string): "success" | "warning" | "secondary" | "destructive" {
   if (status === 'ACTIVE') return 'success';
@@ -833,6 +834,10 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
   const { data: companyDocs } = trpc.document.list.useQuery({});
   const createDoc = trpc.document.createForSignature.useMutation();
   const requestSignature = trpc.signature.requestSignature.useMutation();
+  const { data: pendingSignatures, refetch: refetchPending } = trpc.signature.getPending.useQuery();
+  const signMutation = trpc.signature.sign.useMutation({ onSuccess: () => { refetchPending(); invalidate(); } });
+  const declineMutation = trpc.signature.decline.useMutation({ onSuccess: () => { refetchPending(); invalidate(); } });
+  const [signingRecord, setSigningRecord] = useState<{ id: string; documentName: string } | null>(null);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1380,6 +1385,83 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
               </div>
             )}
           </SectionCard>
+          )}
+
+          {/* Pending Signatures — shown to the employee viewing their own profile */}
+          {isSelf && pendingSignatures && pendingSignatures.length > 0 && (
+            <SectionCard title="">
+              <div className="border border-amber-200 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/10 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-3 flex items-center gap-2">
+                  <PenTool size={16} />
+                  Documents Awaiting Your Signature ({pendingSignatures.length})
+                </h3>
+                <div className="space-y-2">
+                  {pendingSignatures.map((rec: any) => (
+                    <div key={rec.id} className="flex items-center justify-between bg-white dark:bg-charcoal-800 rounded-md p-3 border border-amber-100 dark:border-amber-800">
+                      <div>
+                        <p className="font-medium text-sm">{rec.document.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Requested {rec.requestedAt ? new Date(rec.requestedAt).toLocaleDateString() : ''}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSigningRecord({ id: rec.id, documentName: rec.document.name })}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
+                        >
+                          <PenTool size={14} /> Sign
+                        </button>
+                        <button
+                          onClick={() => declineMutation.mutate({ signatureRecordId: rec.id })}
+                          className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-charcoal-600 rounded-md hover:bg-gray-50 dark:hover:bg-charcoal-700 transition-colors"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </SectionCard>
+          )}
+
+          {/* Signing modal */}
+          {signingRecord && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSigningRecord(null)}>
+              <div className="bg-white dark:bg-charcoal-800 rounded-lg shadow-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-semibold mb-1">Sign Document</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{signingRecord.documentName}</p>
+                <SignaturePad onChange={(dataUrl) => {
+                  if (dataUrl) {
+                    (window as any).__pendingSignatureDataUrl = dataUrl;
+                  } else {
+                    delete (window as any).__pendingSignatureDataUrl;
+                  }
+                }} />
+                <div className="flex justify-end gap-2 mt-4">
+                  <button
+                    onClick={() => setSigningRecord(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-charcoal-600 rounded-md hover:bg-gray-50 dark:hover:bg-charcoal-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      const dataUrl = (window as any).__pendingSignatureDataUrl;
+                      if (!dataUrl) return;
+                      signMutation.mutate(
+                        { signatureRecordId: signingRecord.id, signatureImageBase64: dataUrl },
+                        { onSuccess: () => { setSigningRecord(null); delete (window as any).__pendingSignatureDataUrl; } },
+                      );
+                    }}
+                    className="px-4 py-2 text-sm font-medium bg-primary-500 text-white rounded-md hover:bg-primary-600 disabled:opacity-50"
+                    disabled={signMutation.isPending}
+                  >
+                    {signMutation.isPending ? 'Signing...' : 'Confirm & Sign'}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Compensation History table */}

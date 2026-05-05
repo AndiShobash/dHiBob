@@ -48,6 +48,15 @@ vi.mock('@/lib/trpc', () => ({
       requestSignature: {
         useMutation: vi.fn(() => ({ mutateAsync: vi.fn(), mutate: vi.fn(), isPending: false })),
       },
+      getPending: {
+        useQuery: vi.fn(() => ({ data: [], refetch: vi.fn() })),
+      },
+      sign: {
+        useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+      },
+      decline: {
+        useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+      },
       getByDocument: {
         useQuery: vi.fn(() => ({ data: [] })),
       },
