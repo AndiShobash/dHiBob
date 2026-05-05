@@ -1512,7 +1512,29 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                                 const doc = fileKey ? (companyDocs ?? []).find((d: any) => d.filePath === fileKey) : null;
                                 const status = doc?.signatureStatus;
                                 if (status === 'SIGNED') {
-                                  return <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Signed</span>;
+                                  return (
+                                    <span className="ml-1 inline-flex items-center gap-1">
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Signed</span>
+                                      <button
+                                        type="button"
+                                        className="text-[10px] font-medium text-primary-500 hover:text-primary-600 hover:underline"
+                                        onClick={async () => {
+                                          try {
+                                            const records = await utils.signature.getByDocument.fetch({ documentId: doc!.id });
+                                            const signed = records.find((r: any) => r.status === 'SIGNED' && r.signedPdfPath);
+                                            if (signed) {
+                                              const result = await utils.signature.getSignedPdf.fetch({ signatureRecordId: signed.id });
+                                              window.open(result.url, '_blank');
+                                            }
+                                          } catch {
+                                            alert('Could not load signed document');
+                                          }
+                                        }}
+                                      >
+                                        View
+                                      </button>
+                                    </span>
+                                  );
                                 }
                                 if (status === 'PENDING_SIGNATURE') {
                                   return <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Pending</span>;

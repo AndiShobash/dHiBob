@@ -82,6 +82,10 @@ vi.mock('@/lib/trpc', () => ({
       employee: {
         getById: { invalidate: vi.fn() },
       },
+      signature: {
+        getByDocument: { fetch: vi.fn().mockResolvedValue([]) },
+        getSignedPdf: { fetch: vi.fn().mockResolvedValue({ url: '/signed.pdf' }) },
+      },
     }),
   },
 }))
