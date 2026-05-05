@@ -4,11 +4,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Search, Upload, FileText, File, Image, Download, Loader2, AlertCircle, PenTool, CheckCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { UploadModal } from "@/components/documents/upload-modal";
 import { SignatureDialog } from "@/components/documents/signature-dialog";
+import { PlacementDialog } from "@/components/documents/placement-dialog";
 import { format } from "date-fns";
 
 const SIG_BADGE: Record<string, { variant: "success" | "warning" | "default" | "destructive"; label: string }> = {
@@ -25,26 +25,17 @@ export default function DocumentsPage() {
 
   // Request signature state
   const [signDoc, setSignDoc] = useState<{ id: string; name: string } | null>(null);
-  const [selectedSignerId, setSelectedSignerId] = useState("");
 
   // Sign dialog state
   const [signingRecord, setSigningRecord] = useState<{
     id: string;
     documentName: string;
     requesterName: string;
+    placements?: string | null;
   } | null>(null);
 
   const { data: documents, isLoading, error, refetch } = trpc.document.list.useQuery({});
   const { data: pendingSignatures, refetch: refetchPending } = trpc.signature.getPending.useQuery();
-  const { data: employees } = trpc.employee.list.useQuery({ limit: 500 });
-
-  const requestMutation = trpc.signature.requestSignature.useMutation({
-    onSuccess: () => {
-      refetch();
-      setSignDoc(null);
-      setSelectedSignerId("");
-    },
-  });
 
   const formatSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -105,6 +96,7 @@ export default function DocumentsPage() {
                         id: rec.id,
                         documentName: rec.document.name,
                         requesterName: `${rec.requester.firstName} ${rec.requester.lastName}`,
+                        placements: (rec as any).placements || null,
                       })
                     }
                   >
@@ -199,49 +191,14 @@ export default function DocumentsPage() {
         onSuccess={refetch}
       />
 
-      {/* Send for Signature dialog — employee picker (replaces DocuSign email form) */}
-      <Dialog open={!!signDoc} onOpenChange={(open) => { if (!open) setSignDoc(null); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Send for Signature</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-gray-500 dark:text-gray-300 mb-2">
-            Send <span className="font-medium text-gray-700 dark:text-gray-300">{signDoc?.name}</span> to an employee for e-signature.
-          </p>
-          <form onSubmit={e => {
-            e.preventDefault();
-            if (!signDoc || !selectedSignerId) return;
-            requestMutation.mutate({ documentId: signDoc.id, signerId: selectedSignerId });
-          }} className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium mb-1">Select Signer</label>
-              <select
-                value={selectedSignerId}
-                onChange={e => setSelectedSignerId(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-gray-300 dark:border-charcoal-600 rounded-md bg-white dark:bg-charcoal-900 text-sm"
-              >
-                <option value="">Choose an employee...</option>
-                {(employees?.employees ?? []).map((emp: any) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.firstName} {emp.lastName} ({emp.email})
-                  </option>
-                ))}
-              </select>
-            </div>
-            {requestMutation.error && (
-              <p className="text-sm text-red-500">{requestMutation.error.message}</p>
-            )}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setSignDoc(null)}>Cancel</Button>
-              <Button type="submit" disabled={requestMutation.isPending || !selectedSignerId} className="gap-1">
-                <PenTool size={14} />
-                {requestMutation.isPending ? 'Sending...' : 'Send'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Send for Signature — PlacementDialog with employee picker + PDF placement */}
+      <PlacementDialog
+        open={!!signDoc}
+        onOpenChange={(open) => { if (!open) setSignDoc(null); }}
+        documentId={signDoc?.id || ""}
+        documentName={signDoc?.name || ""}
+        onComplete={() => { setSignDoc(null); refetch(); }}
+      />
 
       {/* Signature capture dialog */}
       <SignatureDialog

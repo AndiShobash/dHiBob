@@ -10,7 +10,6 @@ interface PdfViewerProps {
   pdfUrl: string;
   placements?: SignaturePlacement[];
   onPlacementAdd?: (placement: SignaturePlacement) => void;
-  onPlacementUpdate?: (index: number, placement: SignaturePlacement) => void;
   onPlacementRemove?: (index: number) => void;
   editable?: boolean;
   signatureImageUrl?: string;

@@ -60,6 +60,9 @@ vi.mock('@/lib/trpc', () => ({
       getByDocument: {
         useQuery: vi.fn(() => ({ data: [] })),
       },
+      getPdfUrl: {
+        useQuery: vi.fn(() => ({ data: { url: '/api/files/download?path=test.pdf' }, isLoading: false })),
+      },
     },
     document: {
       list: {
@@ -70,6 +73,9 @@ vi.mock('@/lib/trpc', () => ({
       },
       listByEmployee: {
         useQuery: vi.fn(() => ({ data: [] })),
+      },
+      getDocumentPdfUrl: {
+        useQuery: vi.fn(() => ({ data: { url: '/api/files/download?path=test.pdf' }, isLoading: false })),
       },
     },
     useContext: () => ({
