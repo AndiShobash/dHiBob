@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SignaturePad } from "./signature-pad";
+import { PdfViewer } from "./pdf-viewer";
 import { trpc } from "@/lib/trpc";
 import { PenTool, XCircle, Loader2, CheckCircle } from "lucide-react";
+import type { SignaturePlacement } from "@/types/signature";
 
 interface SignatureDialogProps {
   open: boolean;
@@ -19,6 +21,7 @@ interface SignatureDialogProps {
     id: string;
     documentName: string;
     requesterName: string;
+    placements?: string | null;
   } | null;
   onComplete: () => void;
 }
@@ -33,6 +36,24 @@ export function SignatureDialog({
   const [step, setStep] = useState<"capture" | "confirm" | "decline">("capture");
   const [declineReason, setDeclineReason] = useState("");
   const [done, setDone] = useState<"signed" | "declined" | null>(null);
+
+  const placements = useMemo<SignaturePlacement[]>(() => {
+    if (!signatureRecord?.placements) return [];
+    try {
+      const parsed = JSON.parse(signatureRecord.placements);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [signatureRecord?.placements]);
+
+  const hasPlacements = placements.length > 0;
+
+  // Fetch PDF URL when we have placements
+  const pdfUrlQuery = trpc.signature.getPdfUrl.useQuery(
+    { signatureRecordId: signatureRecord?.id ?? "" },
+    { enabled: !!signatureRecord?.id && hasPlacements },
+  );
 
   const signMutation = trpc.signature.sign.useMutation({
     onSuccess: () => {
@@ -72,7 +93,7 @@ export function SignatureDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className={hasPlacements ? "max-w-4xl max-h-[90vh] overflow-y-auto" : "max-w-lg"}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PenTool size={18} />
@@ -105,10 +126,31 @@ export function SignatureDialog({
           </div>
         )}
 
-        {/* Capture step */}
+        {/* Main content when not done */}
         {!done && step === "capture" && (
           <>
-            <SignaturePad onChange={setSignatureDataUrl} />
+            {/* PDF viewer with placements (when available) */}
+            {hasPlacements && pdfUrlQuery.data?.url && (
+              <div className="border rounded-md p-2 bg-gray-50 dark:bg-charcoal-900">
+                <PdfViewer
+                  pdfUrl={pdfUrlQuery.data.url}
+                  placements={placements}
+                  editable={false}
+                  signatureImageUrl={signatureDataUrl || undefined}
+                />
+              </div>
+            )}
+
+            {/* Signature capture */}
+            <div>
+              <p className="text-sm text-gray-500 mb-2">
+                {hasPlacements
+                  ? "Draw or type your signature below. It will appear at the marked positions above."
+                  : "Draw or type your signature below."}
+              </p>
+              <SignaturePad onChange={setSignatureDataUrl} />
+            </div>
+
             <div className="flex justify-between pt-2">
               <Button
                 type="button"

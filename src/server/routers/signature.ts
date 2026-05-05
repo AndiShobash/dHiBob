@@ -4,6 +4,7 @@ import { router, protectedProcedure } from '../trpc';
 import { notifyService } from '@/lib/notify-service';
 import { stampSignature } from '@/lib/signature-stamper';
 import { storage as storageProvider } from '@/lib/storage';
+import type { SignaturePlacement } from '@/types/signature';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -17,6 +18,7 @@ export const signatureRouter = router({
       z.object({
         documentId: z.string(),
         signerId: z.string(),
+        placements: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -34,6 +36,24 @@ export const signatureRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Signer employee not found' });
       }
 
+      // Validate placements JSON if provided
+      let validatedPlacements: string | undefined;
+      if (input.placements) {
+        try {
+          const parsed = JSON.parse(input.placements);
+          if (!Array.isArray(parsed)) throw new Error('Not an array');
+          for (const p of parsed) {
+            if (typeof p.pageIndex !== 'number' || typeof p.x !== 'number' ||
+                typeof p.y !== 'number' || typeof p.width !== 'number' || typeof p.height !== 'number') {
+              throw new Error('Invalid placement');
+            }
+          }
+          validatedPlacements = input.placements;
+        } catch {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid placements JSON' });
+        }
+      }
+
       const record = await ctx.db.signatureRecord.create({
         data: {
           documentId: doc.id,
@@ -41,6 +61,7 @@ export const signatureRouter = router({
           signerName: `${signer.firstName} ${signer.lastName}`,
           signerEmail: signer.email,
           status: 'PENDING',
+          placements: validatedPlacements ?? null,
           requestedBy: ctx.user.employeeId!,
           companyId: ctx.user.companyId,
         },
@@ -108,6 +129,16 @@ export const signatureRouter = router({
         'signatures',
       );
 
+      // Parse placements from the record if available
+      let placements: SignaturePlacement[] | undefined;
+      if (record.placements) {
+        try {
+          placements = JSON.parse(record.placements);
+        } catch {
+          // Ignore parse errors for corrupted data — use default position
+        }
+      }
+
       // Try to stamp the PDF
       let signedPdfKey: string | null = null;
       if (record.document.filePath) {
@@ -127,6 +158,7 @@ export const signatureRouter = router({
             {
               signerName: record.signerName,
               signedAt: now,
+              ...(placements && placements.length > 0 ? { placements } : {}),
             },
           );
 
@@ -262,6 +294,23 @@ export const signatureRouter = router({
         },
         orderBy: { requestedAt: 'desc' },
       });
+    }),
+
+  /**
+   * Get download URL for the original PDF of a signature record's document.
+   */
+  getPdfUrl: protectedProcedure
+    .input(z.object({ signatureRecordId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const record = await ctx.db.signatureRecord.findFirst({
+        where: { id: input.signatureRecordId, companyId: ctx.user.companyId },
+        include: { document: true },
+      });
+      if (!record?.document?.filePath) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Document not found' });
+      }
+      const url = await storageProvider.getDownloadUrl(record.document.filePath);
+      return { url };
     }),
 
   /**

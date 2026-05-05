@@ -299,6 +299,137 @@ describe('signatureRouter', () => {
     });
   });
 
+  describe('requestSignature with placements', () => {
+    it('S-12: stores placements JSON when provided', async () => {
+      const db = makeDb();
+      const doc = makeDocument();
+      const signer = makeEmployee();
+      db.document.findFirst.mockResolvedValue(doc);
+      db.employee.findFirst.mockResolvedValue(signer);
+      db.signatureRecord.create.mockResolvedValue(
+        makeSignatureRecord({ placements: '[{"pageIndex":0,"x":100,"y":200,"width":150,"height":50}]' }),
+      );
+      db.document.update.mockResolvedValue({ ...doc, signatureStatus: 'PENDING_SIGNATURE' });
+
+      const ctx = makeCtx({ db });
+      const result = await caller(ctx).signature.requestSignature({
+        documentId: 'doc-1',
+        signerId: 'emp-signer',
+        placements: JSON.stringify([{ pageIndex: 0, x: 100, y: 200, width: 150, height: 50 }]),
+      });
+
+      expect(db.signatureRecord.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            placements: expect.stringContaining('"pageIndex":0'),
+          }),
+        }),
+      );
+    });
+
+    it('S-13: works without placements (backward compat)', async () => {
+      const db = makeDb();
+      const doc = makeDocument();
+      const signer = makeEmployee();
+      db.document.findFirst.mockResolvedValue(doc);
+      db.employee.findFirst.mockResolvedValue(signer);
+      db.signatureRecord.create.mockResolvedValue(makeSignatureRecord());
+      db.document.update.mockResolvedValue({ ...doc, signatureStatus: 'PENDING_SIGNATURE' });
+
+      const ctx = makeCtx({ db });
+      await caller(ctx).signature.requestSignature({
+        documentId: 'doc-1',
+        signerId: 'emp-signer',
+      });
+
+      expect(db.signatureRecord.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            documentId: 'doc-1',
+            signerId: 'emp-signer',
+          }),
+        }),
+      );
+    });
+
+    it('S-14: rejects invalid placements JSON', async () => {
+      const db = makeDb();
+      db.document.findFirst.mockResolvedValue(makeDocument());
+      db.employee.findFirst.mockResolvedValue(makeEmployee());
+      const ctx = makeCtx({ db });
+
+      await expect(
+        caller(ctx).signature.requestSignature({
+          documentId: 'doc-1',
+          signerId: 'emp-signer',
+          placements: 'not-valid-json',
+        }),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('sign with placements', () => {
+    it('S-15: passes placements to stampSignature when record has them', async () => {
+      const { stampSignature: mockStamp } = await import('@/lib/signature-stamper');
+      const db = makeDb();
+      const placements = JSON.stringify([
+        { pageIndex: 0, x: 100, y: 200, width: 150, height: 50 },
+      ]);
+      const record = makeSignatureRecord({ placements });
+      db.signatureRecord.findFirst.mockResolvedValue(record);
+      db.signatureRecord.update.mockResolvedValue({ ...record, status: 'SIGNED' });
+      db.document.update.mockResolvedValue({ ...record.document, signatureStatus: 'SIGNED' });
+
+      const ctx = makeCtx({ db, user: { employeeId: 'emp-signer' } });
+      await caller(ctx).signature.sign({
+        signatureRecordId: 'sig-1',
+        signatureImageBase64: 'data:image/png;base64,iVBORw0KGgo=',
+      });
+
+      expect(mockStamp).toHaveBeenCalledWith(
+        expect.any(Uint8Array),
+        expect.any(Uint8Array),
+        expect.objectContaining({
+          placements: [{ pageIndex: 0, x: 100, y: 200, width: 150, height: 50 }],
+        }),
+      );
+    });
+
+    it('S-16: uses default stamping when record has no placements', async () => {
+      const { stampSignature: mockStamp } = await import('@/lib/signature-stamper');
+      (mockStamp as any).mockClear();
+      const db = makeDb();
+      const record = makeSignatureRecord({ placements: null });
+      db.signatureRecord.findFirst.mockResolvedValue(record);
+      db.signatureRecord.update.mockResolvedValue({ ...record, status: 'SIGNED' });
+      db.document.update.mockResolvedValue({ ...record.document, signatureStatus: 'SIGNED' });
+
+      const ctx = makeCtx({ db, user: { employeeId: 'emp-signer' } });
+      await caller(ctx).signature.sign({
+        signatureRecordId: 'sig-1',
+        signatureImageBase64: 'data:image/png;base64,iVBORw0KGgo=',
+      });
+
+      // Should NOT pass placements — let stampSignature use defaults
+      const callArgs = (mockStamp as any).mock.calls[(mockStamp as any).mock.calls.length - 1];
+      expect(callArgs[2]).not.toHaveProperty('placements');
+    });
+  });
+
+  describe('getPdfUrl', () => {
+    it('S-17: returns download URL for a signature record document', async () => {
+      const db = makeDb();
+      db.signatureRecord.findFirst.mockResolvedValue(
+        makeSignatureRecord({ document: makeDocument({ filePath: 'contracts/test.pdf' }) }),
+      );
+
+      const ctx = makeCtx({ db });
+      const result = await caller(ctx).signature.getPdfUrl({ signatureRecordId: 'sig-1' });
+      expect(result.url).toBeDefined();
+      expect(typeof result.url).toBe('string');
+    });
+  });
+
   describe('getSignedPdf', () => {
     it('S-10: returns download URL for signed PDF', async () => {
       const db = makeDb();

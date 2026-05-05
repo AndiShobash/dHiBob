@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
 import { notifyService } from '@/lib/notify-service';
 
@@ -41,6 +42,20 @@ export const documentRouter = router({
           mimeType: 'application/pdf',
         },
       });
+    }),
+
+  getDocumentPdfUrl: protectedProcedure
+    .input(z.object({ documentId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const doc = await ctx.db.document.findFirst({
+        where: { id: input.documentId, companyId: ctx.user.companyId },
+      });
+      if (!doc?.filePath) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Document not found' });
+      }
+      const { storage } = await import('@/lib/storage');
+      const url = await storage.getDownloadUrl(doc.filePath);
+      return { url };
     }),
 
   sign: protectedProcedure

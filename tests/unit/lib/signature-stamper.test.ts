@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { stampSignature } from '@/lib/signature-stamper';
 import { PDFDocument } from 'pdf-lib';
+import type { SignaturePlacement } from '@/types/signature';
 
 // Create a minimal valid PDF for testing
 async function createMinimalPdf(): Promise<Uint8Array> {
@@ -90,5 +91,78 @@ describe('stampSignature', () => {
         pageIndex: 5,
       }),
     ).rejects.toThrow('Page index 5 out of range');
+  });
+
+  it('stamps at multiple placements when provided', async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage([612, 792]);
+    doc.addPage([612, 792]);
+    const pdf = await doc.save();
+    const png = createMinimalPng();
+
+    const placements: SignaturePlacement[] = [
+      { pageIndex: 0, x: 100, y: 100, width: 150, height: 50 },
+      { pageIndex: 1, x: 200, y: 200, width: 150, height: 50 },
+    ];
+
+    const result = await stampSignature(pdf, png, {
+      signerName: 'Multi Signer',
+      signedAt: new Date('2026-05-01'),
+      placements,
+    });
+
+    expect(result).toBeInstanceOf(Uint8Array);
+    expect(result.length).toBeGreaterThan(pdf.length);
+
+    // Verify the result is a valid PDF
+    const header = new TextDecoder().decode(result.slice(0, 5));
+    expect(header).toBe('%PDF-');
+  });
+
+  it('uses explicit coordinates when provided (no placements array)', async () => {
+    const pdf = await createMinimalPdf();
+    const png = createMinimalPng();
+
+    const result = await stampSignature(pdf, png, {
+      signerName: 'Explicit Coords',
+      signedAt: new Date('2026-05-01'),
+      pageIndex: 0,
+      x: 50,
+      y: 300,
+      width: 100,
+    });
+
+    expect(result).toBeInstanceOf(Uint8Array);
+    expect(result.length).toBeGreaterThan(pdf.length);
+  });
+
+  it('falls back to default position when no placements and no explicit coords', async () => {
+    const pdf = await createMinimalPdf();
+    const png = createMinimalPng();
+
+    const result = await stampSignature(pdf, png, {
+      signerName: 'Default Position',
+      signedAt: new Date('2026-05-01'),
+    });
+
+    expect(result).toBeInstanceOf(Uint8Array);
+    expect(result.length).toBeGreaterThan(pdf.length);
+  });
+
+  it('throws for out-of-range pageIndex in placements array', async () => {
+    const pdf = await createMinimalPdf();
+    const png = createMinimalPng();
+
+    const placements: SignaturePlacement[] = [
+      { pageIndex: 99, x: 100, y: 100, width: 150, height: 50 },
+    ];
+
+    await expect(
+      stampSignature(pdf, png, {
+        signerName: 'Bad Placement',
+        signedAt: new Date(),
+        placements,
+      }),
+    ).rejects.toThrow('Page index 99 out of range');
   });
 });

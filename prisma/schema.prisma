@@ -877,6 +877,7 @@ model SignatureRecord {
   signedAt        DateTime?
   declinedAt      DateTime?
   declineReason   String?
+  placements      String?                       // JSON: SignaturePlacement[] — null for legacy records
   requestedBy     String                        // employee ID who sent the request
   companyId       String
 
