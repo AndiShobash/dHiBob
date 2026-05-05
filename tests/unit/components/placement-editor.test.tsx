@@ -19,6 +19,12 @@ vi.mock('pdfjs-dist', () => {
   };
 });
 
+// Mock fetch for PDF loading
+vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+  ok: true,
+  arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+}));
+
 // Mock trpc
 vi.mock('@/lib/trpc', () => ({
   trpc: {

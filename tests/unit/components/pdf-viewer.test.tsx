@@ -20,6 +20,13 @@ vi.mock('pdfjs-dist', () => {
 
 import { PdfViewer } from '@/components/documents/pdf-viewer';
 
+// Mock fetch for PDF loading — PdfViewer fetches with credentials then passes data to pdfjs
+const mockFetch = vi.fn().mockResolvedValue({
+  ok: true,
+  arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+});
+vi.stubGlobal('fetch', mockFetch);
+
 describe('PdfViewer', () => {
   it('PV-1: renders loading state initially', () => {
     render(<PdfViewer pdfUrl="/test.pdf" />);

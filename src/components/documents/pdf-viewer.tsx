@@ -53,7 +53,14 @@ export function PdfViewer({
           pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.mjs`;
         }
 
-        const loadingTask = pdfjsLib.getDocument(pdfUrl);
+        // Fetch PDF with credentials (cookies) since the API route requires auth,
+        // then pass the data directly to pdfjs-dist
+        const response = await fetch(pdfUrl, { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
         const doc = await loadingTask.promise;
         if (cancelled) return;
 
