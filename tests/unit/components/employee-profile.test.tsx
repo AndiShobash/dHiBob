@@ -578,7 +578,7 @@ describe('Employee profile page', () => {
       ...mockEmployee,
       workInfo: JSON.stringify({
         salaryHistory: [
-          { effectiveDate: '2024-01-01', contractType: 'Full-time', salaryType: 'Base Salary', salaryAmount: '10000', salaryCurrency: 'USD', contractDoc: 'contracts/contract.pdf', note: '' },
+          { effectiveDate: '2024-01-01', contractType: 'Full-time', salaryType: 'Base Salary', salaryAmount: '10000', salaryCurrency: 'USD', contractDoc: JSON.stringify([{ name: 'contract.pdf', key: 'contracts/contract.pdf' }]), note: '' },
         ],
       }),
     }

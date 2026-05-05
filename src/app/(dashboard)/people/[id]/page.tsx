@@ -1506,7 +1506,10 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                             <div className="flex items-center gap-1">
                               <DocumentField label="" value={entry.contractDoc || null} folder={docsFolder} onSave={isAdmin ? saveSalaryField(idx, 'contractDoc') : undefined} />
                               {entry.contractDoc && (() => {
-                                const doc = (companyDocs ?? []).find((d: any) => d.filePath === entry.contractDoc);
+                                const docEntries = parseDocEntries(entry.contractDoc);
+                                const fileKey = docEntries[0]?.key;
+                                const fileName = docEntries[0]?.name || `Contract - ${employee.firstName} ${employee.lastName}`;
+                                const doc = fileKey ? (companyDocs ?? []).find((d: any) => d.filePath === fileKey) : null;
                                 const status = doc?.signatureStatus;
                                 if (status === 'SIGNED') {
                                   return <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Signed</span>;
@@ -1514,7 +1517,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                                 if (status === 'PENDING_SIGNATURE') {
                                   return <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Pending</span>;
                                 }
-                                if (isAdmin) {
+                                if (isAdmin && fileKey) {
                                   return (
                                     <button
                                       type="button"
@@ -1522,8 +1525,8 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                                         let docRecord = doc;
                                         if (!docRecord) {
                                           docRecord = await createDoc.mutateAsync({
-                                            name: `Contract - ${employee.firstName} ${employee.lastName}`,
-                                            filePath: entry.contractDoc!,
+                                            name: fileName,
+                                            filePath: fileKey,
                                             employeeId: params.id,
                                             type: 'CONTRACT',
                                             folder: docsFolder,
@@ -1531,7 +1534,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                                         }
                                         if (docRecord?.id) {
                                           setPlacementDocId(docRecord.id);
-                                          setPlacementDocName(docRecord.name || `Contract - ${employee.firstName} ${employee.lastName}`);
+                                          setPlacementDocName(docRecord.name || fileName);
                                         }
                                       }}
                                       className="p-1 text-gray-400 hover:text-primary-500 transition-colors"
