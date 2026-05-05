@@ -108,8 +108,7 @@ function DrawPad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
     const point = getPos(e);
     const pressure = getPressure(e);
 
-    const isDark = document.documentElement.classList.contains("dark");
-    ctx.strokeStyle = isDark ? "#ffffff" : "#1a1a1a";
+    ctx.strokeStyle = "#1a1a1a";
     // Pressure-sensitive line width: thicker on press, thinner on lift
     ctx.lineWidth = 1 + pressure * 3;
     ctx.lineCap = "round";
@@ -161,7 +160,7 @@ function DrawPad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
       <div className="relative border-2 border-dashed border-gray-300 dark:border-charcoal-600 rounded-lg bg-white dark:bg-charcoal-900 overflow-hidden">
         <canvas
           ref={canvasRef}
-          className="w-full cursor-crosshair touch-none"
+          className="w-full cursor-crosshair touch-none dark:invert"
           style={{ height: 150 }}
           onMouseDown={startDraw}
           onMouseMove={draw}
@@ -204,8 +203,7 @@ function TypePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
 
     const font = FONTS[selectedFont];
     ctx.font = `40px ${font.css}`;
-    const isDark = document.documentElement.classList.contains("dark");
-    ctx.fillStyle = isDark ? "#ffffff" : "#1a1a1a";
+    ctx.fillStyle = "#1a1a1a";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(text, canvas.width / 2, canvas.height / 2);
