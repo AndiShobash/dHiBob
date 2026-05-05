@@ -1513,35 +1513,45 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                           <td className="py-3 pr-6 min-w-[160px]">
                             <div className="flex items-center gap-1">
                               <DocumentField label="" value={entry.contractDoc || null} folder={docsFolder} onSave={isAdmin ? saveSalaryField(idx, 'contractDoc') : undefined} />
-                              {isAdmin && entry.contractDoc && (
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    // Find or create a Document record for this contract, then request signature
-                                    const docs = companyDocs ?? [];
-                                    let doc = docs.find((d: any) => d.filePath === entry.contractDoc);
-                                    if (!doc) {
-                                      // Create a document record for this contract
-                                      doc = await createDoc.mutateAsync({
-                                        name: `Contract - ${employee.firstName} ${employee.lastName}`,
-                                        filePath: entry.contractDoc!,
-                                        employeeId: params.id,
-                                        type: 'CONTRACT',
-                                        folder: docsFolder,
-                                      });
-                                    }
-                                    if (doc?.id) {
-                                      requestSignature.mutate(
-                                        { documentId: doc.id, signerId: params.id },
-                                      );
-                                    }
-                                  }}
-                                  className="p-1 text-gray-400 hover:text-primary-500 transition-colors"
-                                  title="Send for signature"
-                                >
-                                  <PenTool size={13} />
-                                </button>
-                              )}
+                              {entry.contractDoc && (() => {
+                                const doc = (companyDocs ?? []).find((d: any) => d.filePath === entry.contractDoc);
+                                const status = doc?.signatureStatus;
+                                if (status === 'SIGNED') {
+                                  return <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Signed</span>;
+                                }
+                                if (status === 'PENDING_SIGNATURE') {
+                                  return <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Pending</span>;
+                                }
+                                if (isAdmin) {
+                                  return (
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        let docRecord = doc;
+                                        if (!docRecord) {
+                                          docRecord = await createDoc.mutateAsync({
+                                            name: `Contract - ${employee.firstName} ${employee.lastName}`,
+                                            filePath: entry.contractDoc!,
+                                            employeeId: params.id,
+                                            type: 'CONTRACT',
+                                            folder: docsFolder,
+                                          });
+                                        }
+                                        if (docRecord?.id) {
+                                          requestSignature.mutate(
+                                            { documentId: docRecord.id, signerId: params.id },
+                                          );
+                                        }
+                                      }}
+                                      className="p-1 text-gray-400 hover:text-primary-500 transition-colors"
+                                      title="Send for signature"
+                                    >
+                                      <PenTool size={13} />
+                                    </button>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
                           </td>
                           <td className="py-3 pr-6 min-w-[120px]">

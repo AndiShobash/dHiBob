@@ -108,7 +108,8 @@ function DrawPad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
     const point = getPos(e);
     const pressure = getPressure(e);
 
-    ctx.strokeStyle = "#1a1a1a";
+    const isDark = document.documentElement.classList.contains("dark");
+    ctx.strokeStyle = isDark ? "#ffffff" : "#1a1a1a";
     // Pressure-sensitive line width: thicker on press, thinner on lift
     ctx.lineWidth = 1 + pressure * 3;
     ctx.lineCap = "round";
@@ -203,7 +204,8 @@ function TypePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
 
     const font = FONTS[selectedFont];
     ctx.font = `40px ${font.css}`;
-    ctx.fillStyle = "#1a1a1a";
+    const isDark = document.documentElement.classList.contains("dark");
+    ctx.fillStyle = isDark ? "#ffffff" : "#1a1a1a";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(text, canvas.width / 2, canvas.height / 2);
