@@ -25,6 +25,11 @@ output "s3_secret_access_key" {
   sensitive   = true
 }
 
+output "github_actions_role_arn" {
+  description = "IAM role ARN for GitHub Actions OIDC (no secrets needed in GitHub)."
+  value       = aws_iam_role.github_actions.arn
+}
+
 output "ecr_repo_url" {
   description = "ECR repository URL for Docker images."
   value       = aws_ecr_repository.app.repository_url

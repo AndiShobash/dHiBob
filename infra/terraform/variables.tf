@@ -68,6 +68,12 @@ variable "repo_branch" {
   default     = "main"
 }
 
+variable "github_repo" {
+  description = "GitHub repo in owner/name format for OIDC trust (e.g. DoriKafri/dHiBob)."
+  type        = string
+  default     = "DoriKafri/dHiBob"
+}
+
 variable "cors_allowed_origins" {
   description = "Origins allowed to make cross-origin GET requests to the S3 uploads bucket (for PDF viewer)."
   type        = list(string)

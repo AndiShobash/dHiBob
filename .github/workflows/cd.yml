@@ -7,6 +7,10 @@ on:
     types: [completed]
     branches: [main]
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -14,18 +18,19 @@ jobs:
 
     env:
       SG_ID: sg-07ea36c7bf5e59f5c
-      ECR_REPO: 695296766764.dkr.ecr.us-east-1.amazonaws.com/dhibob
 
     steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
       - name: Get runner IP
         id: ip
         run: echo "ip=$(curl -s https://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
 
       - name: Open SSH for runner IP
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: us-east-1
         run: |
           aws ec2 authorize-security-group-ingress \
             --group-id "$SG_ID" \
@@ -48,18 +53,12 @@ jobs:
             docker pull 695296766764.dkr.ecr.us-east-1.amazonaws.com/dhibob:latest
             docker tag 695296766764.dkr.ecr.us-east-1.amazonaws.com/dhibob:latest dhibob-app:local
 
-            # Restart with new image
             docker compose -f docker-compose.prod.yml up -d
             docker image prune -f
-
             echo "Deploy done."
 
       - name: Revoke SSH for runner IP
         if: always()
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: us-east-1
         run: |
           aws ec2 revoke-security-group-ingress \
             --group-id "$SG_ID" \
