@@ -433,7 +433,7 @@ export default function PerformancePage() {
             <div className="text-center py-12 text-gray-500 dark:text-gray-300">
               <Target size={48} className="mx-auto mb-4 opacity-30" />
               <p className="text-lg font-medium">No goals yet.</p>
-              <p className="text-sm">Click "New Goal" to create one.</p>
+              <p className="text-sm">Click &quot;New Goal&quot; to create one.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -449,7 +449,7 @@ export default function PerformancePage() {
             <div className="text-center py-12 text-gray-500 dark:text-gray-300">
               <Star size={48} className="mx-auto mb-4 opacity-30" />
               <p className="text-lg font-medium">No review cycles yet.</p>
-              <p className="text-sm">Click "New Cycle" to create one.</p>
+              <p className="text-sm">Click &quot;New Cycle&quot; to create one.</p>
             </div>
           ) : (
             <div className="space-y-3">

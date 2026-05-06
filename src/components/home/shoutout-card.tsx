@@ -59,7 +59,7 @@ export function ShoutoutCard({ data }: ShoutoutCardProps) {
           </div>
           <div className="mt-3 p-4 bg-orange/5 dark:bg-orange/10 rounded-xl border-l-4 border-orange">
             <p className="text-sm text-charcoal-700 dark:text-charcoal-200 leading-relaxed italic">
-              "{content}"
+              &quot;{content}&quot;
             </p>
           </div>
           <div className="mt-4 flex items-center gap-4 text-charcoal-500 dark:text-charcoal-400">

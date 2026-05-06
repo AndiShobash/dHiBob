@@ -131,7 +131,7 @@ export default function HrPortalPage() {
         <div className="text-center py-16 text-gray-500 dark:text-gray-300">
           <Megaphone size={48} className="mx-auto mb-4 opacity-30" />
           <p className="text-lg font-medium">No items in the HR Portal yet.</p>
-          {isHr && <p className="text-sm mt-1">Click "Add Item" to start adding links, announcements, and documents.</p>}
+          {isHr && <p className="text-sm mt-1">Click &quot;Add Item&quot; to start adding links, announcements, and documents.</p>}
         </div>
       )}
 

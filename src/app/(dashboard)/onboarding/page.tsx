@@ -82,7 +82,7 @@ export default function OnboardingPage() {
           {pendingHires.length === 0 && activeHires.length === 0 && (
             <div className="text-center py-12 text-gray-500 dark:text-gray-300">
               <p>No employees currently being onboarded.</p>
-              <p className="text-sm mt-1">Click "New Hire" to start onboarding someone.</p>
+              <p className="text-sm mt-1">Click &quot;New Hire&quot; to start onboarding someone.</p>
             </div>
           )}
         </>
@@ -135,7 +135,7 @@ export default function OnboardingPage() {
               <Input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} required />
             </div>
             <p className="text-xs text-gray-400">
-              The new hire will appear in onboarding with a checklist. Their employee profile will be created automatically when the "Contract" task is marked as Done.
+              The new hire will appear in onboarding with a checklist. Their employee profile will be created automatically when the &quot;Contract&quot; task is marked as Done.
             </p>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>

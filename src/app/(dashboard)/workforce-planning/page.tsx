@@ -172,7 +172,7 @@ export default function WorkforcePlanningPage() {
           {positionsLoading ? (
             <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />)}</div>
           ) : !positions || positions.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-300 text-center py-8">No positions created yet. Click "New Position" to add one.</p>
+            <p className="text-gray-500 dark:text-gray-300 text-center py-8">No positions created yet. Click &quot;New Position&quot; to add one.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
