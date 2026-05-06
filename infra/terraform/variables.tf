@@ -71,7 +71,7 @@ variable "repo_branch" {
 variable "github_repo" {
   description = "GitHub repo in owner/name format for OIDC trust (e.g. DoriKafri/dHiBob)."
   type        = string
-  default     = "DoriKafri/dHiBob"
+  default     = "AndiShobash/dHiBob"
 }
 
 variable "cors_allowed_origins" {
