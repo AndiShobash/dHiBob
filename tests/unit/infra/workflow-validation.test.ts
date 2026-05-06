@@ -144,14 +144,15 @@ describe('CI workflow (.github/workflows/ci.yml)', () => {
 });
 
 describe('CD workflow (.github/workflows/cd.yml)', () => {
-  // T-08: CD workflow deploys only on push to main
-  it('T-08: triggers only on push to main', () => {
+  // T-08: CD workflow deploys only after CI passes on main
+  it('T-08: triggers on workflow_run after CI on main', () => {
     const raw = fs.readFileSync(CD_PATH, 'utf-8');
     const parsed = yaml.load(raw) as any;
     const triggers = parsed.on || parsed[true];
-    expect(triggers).toHaveProperty('push');
-    const pushBranches = triggers.push?.branches || [];
-    expect(pushBranches).toContain('main');
+    expect(triggers).toHaveProperty('workflow_run');
+    expect(triggers.workflow_run.workflows).toContain('CI');
+    expect(triggers.workflow_run.types).toContain('completed');
+    expect(triggers.workflow_run.branches).toContain('main');
   });
 
   // T-09: CD workflow references required secrets for SSH deployment
