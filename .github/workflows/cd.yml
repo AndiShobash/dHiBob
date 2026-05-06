@@ -40,6 +40,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/dhibob
+            git pull --ff-only origin main
             bash deploy.sh
 
       - name: Revoke SSH for runner IP
