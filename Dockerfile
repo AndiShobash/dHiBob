@@ -27,10 +27,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/next.config.js ./
-COPY --from=builder /app/uploads ./uploads
+RUN mkdir -p uploads
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
