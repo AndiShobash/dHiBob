@@ -12,7 +12,7 @@ resource "aws_security_group" "this" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.admin_cidr]
+    cidr_blocks = var.ci_ssh_enabled ? ["0.0.0.0/0"] : [var.admin_cidr]
   }
 
   ingress {
