@@ -199,13 +199,6 @@ export function TreeView({ rootId, employees, expandedIds, onToggleExpand, highl
     });
   }, [layout]);
 
-  if (!layout) {
-    return <div className="h-full flex items-center justify-center text-gray-400">No employees to display</div>;
-  }
-
-  const nodes = layout.descendants();
-  const links = layout.links();
-
   // Compute per-node group color: each direct child of root gets a palette color,
   // all their descendants inherit it. Root itself gets a neutral color.
   const groupColorMap = useMemo(() => {
@@ -223,6 +216,13 @@ export function TreeView({ rootId, employees, expandedIds, onToggleExpand, highl
     });
     return map;
   }, [layout]);
+
+  if (!layout) {
+    return <div className="h-full flex items-center justify-center text-gray-400">No employees to display</div>;
+  }
+
+  const nodes = layout.descendants();
+  const links = layout.links();
 
   return (
     <div

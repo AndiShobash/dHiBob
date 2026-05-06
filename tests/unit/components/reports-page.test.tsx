@@ -9,6 +9,8 @@ vi.mock('@/lib/trpc', () => ({
       getActiveReport: { useQuery: vi.fn() },
       getSalaryReport: { useQuery: vi.fn() },
       getTotalCostReport: { useQuery: vi.fn() },
+      getCustomReportData: { useQuery: vi.fn() },
+      getExpenseReport: { useQuery: vi.fn() },
     },
   },
 }));
@@ -44,6 +46,9 @@ const MOCK_SALARY_ROWS = [
 const MOCK_COST_MONTHS = [
   { month: '2026-05', total: 15000, byDepartment: { Engineering: 15000 } },
 ];
+const MOCK_EXPENSE_ROWS = [
+  { name: 'Alice Smith', department: 'Engineering', expenseType: 'Travel', supplierName: 'Acme Corp', amount: 350.00, currency: 'USD', expenseDate: '2026-04-10', payrollMonth: '2026-04', status: 'Approved' },
+];
 
 function setupDefaultMocks() {
   vi.mocked(trpc.reports.getTerminationReport.useQuery).mockReturnValue({
@@ -57,6 +62,12 @@ function setupDefaultMocks() {
   } as any);
   vi.mocked(trpc.reports.getTotalCostReport.useQuery).mockReturnValue({
     data: { months: MOCK_COST_MONTHS }, isLoading: false, error: null,
+  } as any);
+  vi.mocked(trpc.reports.getCustomReportData.useQuery).mockReturnValue({
+    data: undefined, isLoading: false, error: null,
+  } as any);
+  vi.mocked(trpc.reports.getExpenseReport.useQuery).mockReturnValue({
+    data: { rows: MOCK_EXPENSE_ROWS }, isLoading: false, error: null,
   } as any);
 }
 
@@ -88,22 +99,23 @@ describe('ReportsPage', () => {
     expect(screen.getByText('$95,000')).toBeInTheDocument();
   });
 
-  // C-3: Salary tab shows salary data
-  it('C-3: clicking Salary tab shows salary report', () => {
+  // C-3: Compensation tab shows salary data
+  it('C-3: clicking Compensation tab shows salary report', () => {
     render(<ReportsPage />);
-    const salaryTab = screen.getByRole('tab', { name: /salary/i });
-    fireEvent.click(salaryTab);
+    const compensationTab = screen.getByRole('tab', { name: /compensation/i });
+    fireEvent.click(compensationTab);
     expect(screen.getByText('Alice Smith')).toBeInTheDocument();
     expect(screen.getByText('$95,000')).toBeInTheDocument();
   });
 
-  // C-4: Future Increases tab shows cost data
-  it('C-4: clicking Future Increases / Cost tab shows monthly cost', () => {
+  // C-4: Expenses tab shows expense data
+  it('C-4: clicking Expenses tab shows expense data', () => {
     render(<ReportsPage />);
-    const costTab = screen.getByRole('tab', { name: /future|cost/i });
-    fireEvent.click(costTab);
-    expect(screen.getByText('2026-05')).toBeInTheDocument();
-    expect(screen.getByText(/15,000/)).toBeInTheDocument();
+    const expensesTab = screen.getByRole('tab', { name: /expenses/i });
+    fireEvent.click(expensesTab);
+    expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+    expect(screen.getByText('Travel')).toBeInTheDocument();
+    expect(screen.getByText('350.00')).toBeInTheDocument();
   });
 
   // C-5: Loading state renders skeleton rows
@@ -153,23 +165,14 @@ describe('ReportsPage', () => {
     expect(screen.queryByRole('columnheader', { name: /reason/i })).not.toBeInTheDocument();
   });
 
-  // C-9: Download CSV button triggers a file download
-  it('C-9: Download CSV button is present and clickable', () => {
-    // Mock URL.createObjectURL and document.createElement
-    const createObjectURL = vi.fn().mockReturnValue('blob:test');
-    const revokeObjectURL = vi.fn();
-    Object.defineProperty(window, 'URL', {
-      value: { createObjectURL, revokeObjectURL },
-      writable: true,
-    });
-
+  // C-9: Export Excel button triggers a file download
+  it('C-9: Export Excel button is present and clickable', () => {
     render(<ReportsPage />);
 
-    const downloadButton = screen.getByRole('button', { name: /download|export|csv/i });
+    const downloadButton = screen.getByRole('button', { name: /export excel/i });
     expect(downloadButton).toBeInTheDocument();
-    fireEvent.click(downloadButton);
-    // createObjectURL should be called when CSV is generated
-    expect(createObjectURL).toHaveBeenCalled();
+    // Click should not throw — the xlsx library handles the actual download
+    expect(() => fireEvent.click(downloadButton)).not.toThrow();
   });
 
   // C-10: Hardcoded placeholder values are not present

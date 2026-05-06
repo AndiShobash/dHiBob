@@ -167,7 +167,7 @@ export const employeeRouter = router({
     const currentWorkInfo = JSON.parse(current.workInfo || '{}');
     const oldJobTitle = currentWorkInfo.jobTitle;
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // eslint-disable-next-line no-unused-vars
     const { department, site, jobTitle, salary, manager, companyId: _cid, ...scalarData } = updateData;
     
     const updated = await ctx.db.employee.update({
