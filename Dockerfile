@@ -1,31 +1,39 @@
-FROM node:20-alpine
-
-# Prisma requires OpenSSL on Alpine; netcat-openbsd provides nc -z for the entrypoint wait loop
-RUN apk add --no-cache openssl netcat-openbsd
-
+# ---- Dependencies ----
+FROM node:20-alpine AS deps
+RUN apk add --no-cache openssl
 WORKDIR /app
-
-# Install dependencies
 COPY package*.json ./
 RUN npm ci
 
-# Copy source
+# ---- Builder ----
+FROM node:20-alpine AS builder
+RUN apk add --no-cache openssl
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Generate Prisma client
 RUN npx prisma generate
-
-# Build Next.js. Bump Node's heap ceiling so the build completes on
-# memory-tight hosts (t3.micro w/ swap). Default is ~500 MB which OOMs
-# during type-checking on this codebase.
 ENV NODE_OPTIONS=--max-old-space-size=2048
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Expose port
-EXPOSE 3000
+# ---- Runner ----
+FROM node:20-alpine AS runner
+RUN apk add --no-cache openssl netcat-openbsd
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Entrypoint: push schema, seed, start
+# Copy only what's needed to run
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/next.config.js ./
+COPY --from=builder /app/uploads ./uploads
+
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
+EXPOSE 3000
 ENTRYPOINT ["/docker-entrypoint.sh"]

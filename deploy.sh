@@ -11,9 +11,9 @@ date
 cd "$APP_DIR"
 git pull --ff-only origin main
 
-# 2. Rebuild containers (only rebuilds layers that changed)
-docker builder prune -f --filter "until=72h"
-docker compose -f "$COMPOSE_FILE" build --no-cache app
+# 2. Rebuild containers (uses layer cache — only rebuilds what changed)
+docker builder prune --keep-storage 5GB -f
+docker compose -f "$COMPOSE_FILE" build app
 
 # 3. Apply database migrations
 docker compose -f "$COMPOSE_FILE" run --rm app npx prisma migrate deploy
