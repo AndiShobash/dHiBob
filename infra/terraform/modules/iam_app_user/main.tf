@@ -26,47 +26,21 @@ data "aws_iam_policy_document" "s3_rw" {
   }
 }
 
-data "aws_iam_policy_document" "sg_cd" {
-  count = var.security_group_id != "" ? 1 : 0
-
-  statement {
-    sid = "CDSecurityGroupIngress"
-    actions = [
-      "ec2:AuthorizeSecurityGroupIngress",
-      "ec2:RevokeSecurityGroupIngress",
-    ]
-    resources = ["arn:aws:ec2:*:*:security-group/${var.security_group_id}"]
-  }
-}
-
-resource "aws_iam_user_policy" "sg_cd" {
-  count  = var.security_group_id != "" ? 1 : 0
-  name   = "${var.user_name}-sg-cd"
-  user   = aws_iam_user.this.name
-  policy = data.aws_iam_policy_document.sg_cd[0].json
-}
-
 data "aws_iam_policy_document" "ecr" {
   count = var.ecr_repo_arn != "" ? 1 : 0
 
   statement {
-    sid = "ECRAuth"
-    actions = [
-      "ecr:GetAuthorizationToken",
-    ]
+    sid       = "ECRAuth"
+    actions   = ["ecr:GetAuthorizationToken"]
     resources = ["*"]
   }
 
   statement {
-    sid = "ECRPushPull"
+    sid = "ECRPull"
     actions = [
       "ecr:BatchCheckLayerAvailability",
       "ecr:BatchGetImage",
-      "ecr:CompleteLayerUpload",
       "ecr:GetDownloadUrlForLayer",
-      "ecr:InitiateLayerUpload",
-      "ecr:PutImage",
-      "ecr:UploadLayerPart",
     ]
     resources = [var.ecr_repo_arn]
   }

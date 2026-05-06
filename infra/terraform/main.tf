@@ -162,9 +162,10 @@ resource "aws_iam_role_policy" "github_actions" {
 # ---------------------------------------------------------------------------
 
 module "iam_app" {
-  source     = "./modules/iam_app_user"
-  user_name  = "${var.project}-app-s3"
-  bucket_arn = module.s3.bucket_arn
+  source       = "./modules/iam_app_user"
+  user_name    = "${var.project}-app-s3"
+  bucket_arn   = module.s3.bucket_arn
+  ecr_repo_arn = aws_ecr_repository.app.arn
 }
 
 # ---------------------------------------------------------------------------
