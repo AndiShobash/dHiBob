@@ -39,7 +39,23 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            bash ~/deploy.sh
+            # Pull latest code (for docker-compose.prod.yml, .env, prisma migrations)
+            cd ~/dhibob
+            git pull --ff-only origin main
+
+            # Log in to GHCR and pull pre-built image
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ghcr.io/dorikafri/dhibob:latest
+
+            # Tag it as local so docker-compose uses it
+            docker tag ghcr.io/dorikafri/dhibob:latest dhibob-app:local
+
+            # Apply DB migrations and restart
+            docker compose -f docker-compose.prod.yml run --rm app npx prisma db push
+            docker compose -f docker-compose.prod.yml up -d
+            docker image prune -f
+
+            echo "Deploy done."
 
       - name: Revoke SSH for runner IP
         if: always()
