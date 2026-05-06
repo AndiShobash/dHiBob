@@ -25,6 +25,11 @@ output "s3_secret_access_key" {
   sensitive   = true
 }
 
+output "ecr_repo_url" {
+  description = "ECR repository URL for Docker images."
+  value       = aws_ecr_repository.app.repository_url
+}
+
 output "security_group_id" {
   description = "EC2 security group ID (needed for GitHub Actions CD secret EC2_SG_ID)."
   value       = module.ec2_app.security_group_id

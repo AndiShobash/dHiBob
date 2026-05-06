@@ -56,6 +56,36 @@ module "s3" {
 }
 
 # ---------------------------------------------------------------------------
+# ECR — container registry for CI-built Docker images
+# ---------------------------------------------------------------------------
+
+resource "aws_ecr_repository" "app" {
+  name                 = var.project
+  image_tag_mutability = "MUTABLE"
+  force_delete         = true
+
+  image_scanning_configuration {
+    scan_on_push = false
+  }
+}
+
+resource "aws_ecr_lifecycle_policy" "app" {
+  repository = aws_ecr_repository.app.name
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 5 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 5
+      }
+      action = { type = "expire" }
+    }]
+  })
+}
+
+# ---------------------------------------------------------------------------
 # IAM user the app container uses for S3 (sandbox blocks instance profiles)
 # ---------------------------------------------------------------------------
 
@@ -63,6 +93,7 @@ module "iam_app" {
   source            = "./modules/iam_app_user"
   user_name         = "${var.project}-app-s3"
   bucket_arn        = module.s3.bucket_arn
+  ecr_repo_arn      = aws_ecr_repository.app.arn
   security_group_id = module.ec2_app.security_group_id
 }
 

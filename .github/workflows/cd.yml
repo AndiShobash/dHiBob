@@ -14,6 +14,7 @@ jobs:
 
     env:
       SG_ID: sg-07ea36c7bf5e59f5c
+      ECR_REPO: 695296766764.dkr.ecr.us-east-1.amazonaws.com/dhibob
 
     steps:
       - name: Get runner IP
@@ -39,19 +40,15 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Pull latest code (for docker-compose.prod.yml, .env, prisma migrations)
             cd ~/dhibob
             git pull --ff-only origin main
 
-            # Log in to GHCR and pull pre-built image
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ghcr.io/dorikafri/dhibob:latest
+            # Pull pre-built image from ECR
+            aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 695296766764.dkr.ecr.us-east-1.amazonaws.com
+            docker pull 695296766764.dkr.ecr.us-east-1.amazonaws.com/dhibob:latest
+            docker tag 695296766764.dkr.ecr.us-east-1.amazonaws.com/dhibob:latest dhibob-app:local
 
-            # Tag it as local so docker-compose uses it
-            docker tag ghcr.io/dorikafri/dhibob:latest dhibob-app:local
-
-            # Apply DB migrations and restart
-            docker compose -f docker-compose.prod.yml run --rm app npx prisma db push
+            # Restart with new image
             docker compose -f docker-compose.prod.yml up -d
             docker image prune -f
 

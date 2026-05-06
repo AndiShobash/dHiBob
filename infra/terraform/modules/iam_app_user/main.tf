@@ -46,6 +46,39 @@ resource "aws_iam_user_policy" "sg_cd" {
   policy = data.aws_iam_policy_document.sg_cd[0].json
 }
 
+data "aws_iam_policy_document" "ecr" {
+  count = var.ecr_repo_arn != "" ? 1 : 0
+
+  statement {
+    sid = "ECRAuth"
+    actions = [
+      "ecr:GetAuthorizationToken",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "ECRPushPull"
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:BatchGetImage",
+      "ecr:CompleteLayerUpload",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:InitiateLayerUpload",
+      "ecr:PutImage",
+      "ecr:UploadLayerPart",
+    ]
+    resources = [var.ecr_repo_arn]
+  }
+}
+
+resource "aws_iam_user_policy" "ecr" {
+  count  = var.ecr_repo_arn != "" ? 1 : 0
+  name   = "${var.user_name}-ecr"
+  user   = aws_iam_user.this.name
+  policy = data.aws_iam_policy_document.ecr[0].json
+}
+
 resource "aws_iam_user_policy" "s3_rw" {
   name   = "${var.user_name}-s3"
   user   = aws_iam_user.this.name
