@@ -23,7 +23,7 @@ jobs:
           AWS_DEFAULT_REGION: us-east-1
         run: |
           aws ec2 authorize-security-group-ingress \
-            --group-id ${{ secrets.EC2_SG_ID }} \
+            --group-id sg-07ea36c7bf5e59f5c \
             --protocol tcp --port 22 \
             --cidr ${{ steps.ip.outputs.ip }}/32 \
             --tag-specifications 'ResourceType=security-group-rule,Tags=[{Key=Name,Value=github-actions-cd}]'
@@ -46,6 +46,6 @@ jobs:
           AWS_DEFAULT_REGION: us-east-1
         run: |
           aws ec2 revoke-security-group-ingress \
-            --group-id ${{ secrets.EC2_SG_ID }} \
+            --group-id sg-07ea36c7bf5e59f5c \
             --protocol tcp --port 22 \
             --cidr ${{ steps.ip.outputs.ip }}/32
