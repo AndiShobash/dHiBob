@@ -107,7 +107,6 @@ module "ec2_app" {
   key_pair_name     = var.key_pair_name
   instance_type     = var.instance_type
   ebs_size_gb       = var.ebs_size_gb
-  ci_ssh_enabled    = var.ci_ssh_enabled
   user_data         = local.cloud_init
   eip_allocation_id = aws_eip.app.id
 }

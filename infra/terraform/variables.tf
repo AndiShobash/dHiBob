@@ -68,12 +68,6 @@ variable "repo_branch" {
   default     = "main"
 }
 
-variable "ci_ssh_enabled" {
-  description = "Allow SSH from anywhere (for GitHub Actions CD). The instance is still protected by the SSH key."
-  type        = bool
-  default     = true
-}
-
 variable "cors_allowed_origins" {
   description = "Origins allowed to make cross-origin GET requests to the S3 uploads bucket (for PDF viewer)."
   type        = list(string)

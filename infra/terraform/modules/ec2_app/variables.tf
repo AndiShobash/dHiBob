@@ -18,12 +18,6 @@ variable "admin_cidr" {
   type        = string
 }
 
-variable "ci_ssh_enabled" {
-  description = "Allow SSH from anywhere (for GitHub Actions CD). The instance is still protected by the SSH key."
-  type        = bool
-  default     = false
-}
-
 variable "key_pair_name" {
   description = "Existing EC2 key pair name."
   type        = string
