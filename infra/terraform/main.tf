@@ -158,14 +158,60 @@ resource "aws_iam_role_policy" "github_actions" {
 }
 
 # ---------------------------------------------------------------------------
+# IAM role for EC2 instance (ECR pull access)
+# ---------------------------------------------------------------------------
+
+resource "aws_iam_role" "ec2_app" {
+  name = "${var.project}-ec2-app"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "ec2_ecr_pull" {
+  name = "${var.project}-ec2-ecr-pull"
+  role = aws_iam_role.ec2_app.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ECRAuth"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Sid    = "ECRPull"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+        ]
+        Resource = [aws_ecr_repository.app.arn]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_instance_profile" "ec2_app" {
+  name = "${var.project}-ec2-app"
+  role = aws_iam_role.ec2_app.name
+}
+
+# ---------------------------------------------------------------------------
 # IAM user the app container uses for S3 (sandbox blocks instance profiles)
 # ---------------------------------------------------------------------------
 
 module "iam_app" {
-  source       = "./modules/iam_app_user"
-  user_name    = "${var.project}-app-s3"
-  bucket_arn   = module.s3.bucket_arn
-  ecr_repo_arn = aws_ecr_repository.app.arn
+  source     = "./modules/iam_app_user"
+  user_name  = "${var.project}-app-s3"
+  bucket_arn = module.s3.bucket_arn
 }
 
 # ---------------------------------------------------------------------------
@@ -209,9 +255,10 @@ module "ec2_app" {
   admin_cidr        = var.admin_cidr
   key_pair_name     = var.key_pair_name
   instance_type     = var.instance_type
-  ebs_size_gb       = var.ebs_size_gb
-  user_data         = local.cloud_init
-  eip_allocation_id = aws_eip.app.id
+  ebs_size_gb          = var.ebs_size_gb
+  iam_instance_profile = aws_iam_instance_profile.ec2_app.name
+  user_data            = local.cloud_init
+  eip_allocation_id    = aws_eip.app.id
 }
 
 # ---------------------------------------------------------------------------

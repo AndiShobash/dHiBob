@@ -45,6 +45,12 @@ variable "eip_allocation_id" {
   type        = string
 }
 
+variable "iam_instance_profile" {
+  description = "IAM instance profile name to attach to the EC2."
+  type        = string
+  default     = ""
+}
+
 variable "tags" {
   description = "Tags applied to the SG and instance."
   type        = map(string)

@@ -48,12 +48,7 @@ jobs:
             cd ~/dhibob
             git pull --ff-only origin main
 
-            # Load S3 keys from .env (same IAM user has ECR pull access)
-            export AWS_ACCESS_KEY_ID=$(grep ^S3_ACCESS_KEY_ID .env | cut -d= -f2)
-            export AWS_SECRET_ACCESS_KEY=$(grep ^S3_SECRET_ACCESS_KEY .env | cut -d= -f2)
-            export AWS_DEFAULT_REGION=us-east-1
-
-            # Pull pre-built image from ECR
+            # Pull pre-built image from ECR (EC2 instance profile has pull access)
             aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 695296766764.dkr.ecr.us-east-1.amazonaws.com
             docker pull 695296766764.dkr.ecr.us-east-1.amazonaws.com/dhibob:latest
             docker tag 695296766764.dkr.ecr.us-east-1.amazonaws.com/dhibob:latest dhibob-app:local

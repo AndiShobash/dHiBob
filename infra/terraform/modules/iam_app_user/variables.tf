@@ -8,12 +8,6 @@ variable "bucket_arn" {
   type        = string
 }
 
-variable "ecr_repo_arn" {
-  description = "ECR repository ARN for push/pull permissions."
-  type        = string
-  default     = ""
-}
-
 variable "tags" {
   description = "Tags to apply to the IAM user."
   type        = map(string)

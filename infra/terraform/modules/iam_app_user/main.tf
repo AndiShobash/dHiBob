@@ -26,33 +26,6 @@ data "aws_iam_policy_document" "s3_rw" {
   }
 }
 
-data "aws_iam_policy_document" "ecr" {
-  count = var.ecr_repo_arn != "" ? 1 : 0
-
-  statement {
-    sid       = "ECRAuth"
-    actions   = ["ecr:GetAuthorizationToken"]
-    resources = ["*"]
-  }
-
-  statement {
-    sid = "ECRPull"
-    actions = [
-      "ecr:BatchCheckLayerAvailability",
-      "ecr:BatchGetImage",
-      "ecr:GetDownloadUrlForLayer",
-    ]
-    resources = [var.ecr_repo_arn]
-  }
-}
-
-resource "aws_iam_user_policy" "ecr" {
-  count  = var.ecr_repo_arn != "" ? 1 : 0
-  name   = "${var.user_name}-ecr"
-  user   = aws_iam_user.this.name
-  policy = data.aws_iam_policy_document.ecr[0].json
-}
-
 resource "aws_iam_user_policy" "s3_rw" {
   name   = "${var.user_name}-s3"
   user   = aws_iam_user.this.name
