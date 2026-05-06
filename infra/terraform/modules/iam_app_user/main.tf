@@ -26,6 +26,26 @@ data "aws_iam_policy_document" "s3_rw" {
   }
 }
 
+data "aws_iam_policy_document" "sg_cd" {
+  count = var.security_group_id != "" ? 1 : 0
+
+  statement {
+    sid = "CDSecurityGroupIngress"
+    actions = [
+      "ec2:AuthorizeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupIngress",
+    ]
+    resources = ["arn:aws:ec2:*:*:security-group/${var.security_group_id}"]
+  }
+}
+
+resource "aws_iam_user_policy" "sg_cd" {
+  count  = var.security_group_id != "" ? 1 : 0
+  name   = "${var.user_name}-sg-cd"
+  user   = aws_iam_user.this.name
+  policy = data.aws_iam_policy_document.sg_cd[0].json
+}
+
 resource "aws_iam_user_policy" "s3_rw" {
   name   = "${var.user_name}-s3"
   user   = aws_iam_user.this.name

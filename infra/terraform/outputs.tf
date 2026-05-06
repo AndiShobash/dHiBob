@@ -25,6 +25,11 @@ output "s3_secret_access_key" {
   sensitive   = true
 }
 
+output "security_group_id" {
+  description = "EC2 security group ID (needed for GitHub Actions CD secret EC2_SG_ID)."
+  value       = module.ec2_app.security_group_id
+}
+
 output "nameservers" {
   description = "When use_route53=true: NS records for the hosted zone. Point your registrar at these."
   value       = var.use_route53 ? module.dns[0].nameservers : []

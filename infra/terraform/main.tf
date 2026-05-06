@@ -60,9 +60,10 @@ module "s3" {
 # ---------------------------------------------------------------------------
 
 module "iam_app" {
-  source     = "./modules/iam_app_user"
-  user_name  = "${var.project}-app-s3"
-  bucket_arn = module.s3.bucket_arn
+  source            = "./modules/iam_app_user"
+  user_name         = "${var.project}-app-s3"
+  bucket_arn        = module.s3.bucket_arn
+  security_group_id = module.ec2_app.security_group_id
 }
 
 # ---------------------------------------------------------------------------
