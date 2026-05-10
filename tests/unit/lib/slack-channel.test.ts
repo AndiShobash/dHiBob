@@ -45,7 +45,7 @@ describe('slack channel', () => {
 
     const msg = mockPostMessage.mock.calls[0][0];
     expect(msg.text).toContain('https://app.test.com/time-off');
-    expect(msg.text).toContain('View in DHiBob');
+    expect(msg.text).toContain('View in Dpeople');
   });
 
   it('does not send when user lookup fails', async () => {
@@ -109,7 +109,7 @@ describe('slack channel', () => {
     // inside the Slack link markup (which uses < > for link syntax)
     expect(msg.text).not.toContain('<script>');
     // The escaped URL should still be present in a valid Slack link
-    expect(msg.text).toContain('View in DHiBob');
+    expect(msg.text).toContain('View in Dpeople');
   });
 
   it('preserves ampersands in linkPath (does not break URL query params)', async () => {
