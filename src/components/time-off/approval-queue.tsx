@@ -87,6 +87,7 @@ export default function ApprovalQueue({ onMutationSuccess }: ApprovalQueueProps)
   const approveMutation = trpc.timeoff.approve.useMutation({ onSuccess: handleSuccess });
   const rejectMutation = trpc.timeoff.reject.useMutation({ onSuccess: handleSuccess });
   const unapproveMutation = trpc.timeoff.unapprove.useMutation({ onSuccess: handleSuccess });
+  const unrejectMutation = trpc.timeoff.unreject.useMutation({ onSuccess: handleSuccess });
 
   if (isLoading) return <p className="text-sm text-gray-400">Loading pending requests...</p>;
   if (!data?.length) {
@@ -130,9 +131,20 @@ export default function ApprovalQueue({ onMutationSuccess }: ApprovalQueueProps)
                     variant="outline"
                     className="gap-1 text-gray-600"
                     onClick={() => unapproveMutation.mutate({ requestId: req.id })}
-                    disabled={unapproveMutation.isPending || approveMutation.isPending || rejectMutation.isPending}
+                    disabled={unapproveMutation.isPending || approveMutation.isPending || rejectMutation.isPending || unrejectMutation.isPending}
                   >
                     <Undo2 size={14} /> Undo my approval
+                  </Button>
+                )}
+                {req.canUndoRejection && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 text-amber-600 border-amber-200 dark:border-charcoal-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                    onClick={() => unrejectMutation.mutate({ requestId: req.id })}
+                    disabled={unrejectMutation.isPending || approveMutation.isPending || rejectMutation.isPending || unapproveMutation.isPending}
+                  >
+                    <Undo2 size={14} /> Undo my rejection
                   </Button>
                 )}
                 {canAct && (

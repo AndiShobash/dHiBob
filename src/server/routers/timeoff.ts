@@ -604,6 +604,63 @@ export const timeoffRouter = router({
     });
   }),
 
+  // Undo a previous rejection made by the current user. Reverts the rejected slot back
+  // to PENDING and drops the overall status back to PENDING so other approvers can act.
+  unreject: protectedProcedure.input(approveRejectSchema).mutation(async ({ ctx, input }) => {
+    const request = await ctx.db.timeOffRequest.findUnique({
+      where: { id: input.requestId },
+      include: { employee: true, policy: true },
+    });
+    if (!request) throw new TRPCError({ code: 'NOT_FOUND', message: 'Request not found' });
+    if (request.employee.companyId !== ctx.user.companyId) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have access to this request' });
+    }
+    if (request.status !== 'REJECTED') {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'Request is not rejected' });
+    }
+
+    const actor = ctx.user.employeeId;
+    if (!actor) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'No employee linked to your user' });
+    }
+
+    const data: Record<string, unknown> = {};
+    let reverted = false;
+
+    if (request.hrApprovedBy === actor && request.hrStatus === 'REJECTED') {
+      data.hrStatus = 'PENDING';
+      data.hrApprovedBy = null;
+      data.hrApprovedAt = null;
+      reverted = true;
+    }
+    if (request.teamLeaderApprovedBy === actor && request.teamLeaderStatus === 'REJECTED') {
+      data.teamLeaderStatus = 'PENDING';
+      data.teamLeaderApprovedBy = null;
+      data.teamLeaderApprovedAt = null;
+      reverted = true;
+    }
+    if (request.groupLeaderApprovedBy === actor && request.groupLeaderStatus === 'REJECTED') {
+      data.groupLeaderStatus = 'PENDING';
+      data.groupLeaderApprovedBy = null;
+      data.groupLeaderApprovedAt = null;
+      reverted = true;
+    }
+    if (!reverted) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'You have no rejections to undo on this request' });
+    }
+
+    // Drop overall status back to PENDING
+    data.status = 'PENDING';
+    data.reviewedBy = null;
+    data.reviewedAt = null;
+
+    return ctx.db.timeOffRequest.update({
+      where: { id: input.requestId },
+      data,
+      include: { employee: true, policy: true },
+    });
+  }),
+
   // Returns requests pending overall approval where the current user is one of the approvers
   // (HR, direct manager, or skip-level manager). The request stays visible while at least one
   // slot is still pending so approvers can see who else needs to act — it disappears only once
@@ -613,7 +670,7 @@ export const timeoffRouter = router({
     const isHrRole = ['HR', 'ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role);
 
     const where: any = {
-      status: 'PENDING',
+      status: { in: ['PENDING', 'REJECTED'] },
       employee: { companyId: ctx.user.companyId },
     };
     // Non-HR users only see requests where they're a team/group leader;
@@ -626,6 +683,10 @@ export const timeoffRouter = router({
         // Fallback for legacy requests with null snapshots
         { teamLeaderId: null, employee: { managerId: actorEmployeeId } },
         { groupLeaderId: null, employee: { manager: { managerId: actorEmployeeId } } },
+        // Include rejected requests where this user was the rejector
+        { status: 'REJECTED', hrApprovedBy: actorEmployeeId, hrStatus: 'REJECTED' },
+        { status: 'REJECTED', teamLeaderApprovedBy: actorEmployeeId, teamLeaderStatus: 'REJECTED' },
+        { status: 'REJECTED', groupLeaderApprovedBy: actorEmployeeId, groupLeaderStatus: 'REJECTED' },
       ];
     }
 
@@ -692,6 +753,11 @@ export const timeoffRouter = router({
           (r.hrApprovedBy === actorEmployeeId && r.hrStatus === 'APPROVED') ||
           (r.teamLeaderApprovedBy === actorEmployeeId && r.teamLeaderStatus === 'APPROVED') ||
           (r.groupLeaderApprovedBy === actorEmployeeId && r.groupLeaderStatus === 'APPROVED')
+        ),
+        canUndoRejection: !!actorEmployeeId && r.status === 'REJECTED' && (
+          (r.hrApprovedBy === actorEmployeeId && r.hrStatus === 'REJECTED') ||
+          (r.teamLeaderApprovedBy === actorEmployeeId && r.teamLeaderStatus === 'REJECTED') ||
+          (r.groupLeaderApprovedBy === actorEmployeeId && r.groupLeaderStatus === 'REJECTED')
         ),
       };
     });
