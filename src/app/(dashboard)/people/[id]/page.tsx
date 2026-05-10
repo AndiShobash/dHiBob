@@ -1622,7 +1622,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
         {canSeeSensitive && <TabsContent value="assets" className="mt-6 space-y-4">
           {/* Budget summary */}
           {(() => {
-            const budgetAmount = parseFloat(workInfo.assetBudget || '0') || 0;
+            const budgetAmount = parseFloat(workInfo.assetBudget || '2000') || 0;
             const budgetCcy = workInfo.assetBudgetCurrency || 'ILS';
             // Convert every asset's cost to the budget currency, then sum
             const totalSpent = assets.reduce((sum: number, a: any) => {
@@ -1637,7 +1637,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
             return (
               <SectionCard title="Equipment Budget" subtitle="One-time budget for office and home equipment purchases">
                 <div className="grid grid-cols-4 gap-4 mb-4">
-                  <F label="Budget Amount" value={workInfo.assetBudget || ''} onSave={wi('assetBudget')} />
+                  <F label="Budget Amount" value={workInfo.assetBudget || '2000'} onSave={wi('assetBudget')} />
                   <DropdownBadgeField label="Currency" value={budgetCcy} options={['ILS', 'USD', 'EUR', 'GBP', 'PLN']} onSave={isAdmin ? (val) => { const fn = wi('assetBudgetCurrency'); if (fn) fn(val); } : undefined} />
                   <FieldCell label="Total Spent" value={totalSpent > 0 ? `${sym}${totalSpent.toLocaleString()}` : '—'} />
                   <FieldCell
