@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { Menu, X, Home, Users, UserCheck, UserMinus, Calendar, TrendingUp, Briefcase, BookOpen, BarChart3, FileText, Settings, Network, ClipboardList, LayoutDashboard, Ticket, Monitor, Key } from "lucide-react";
+import { Menu, X, Home, Users, UserCheck, UserMinus, Calendar, TrendingUp, Briefcase, BarChart3, FileText, Settings, Network, ClipboardList, LayoutDashboard, Ticket, Monitor, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const HR_ONLY_HREFS = new Set(['/analytics', '/reports']);
@@ -17,7 +17,6 @@ const navigationItems = [
   { label: "Onboarding", href: "/onboarding", icon: UserCheck },
   { label: "Offboarding", href: "/offboarding", icon: UserMinus },
   { label: "Time Off", href: "/time-off", icon: Calendar },
-  { label: "Learning", href: "/learning", icon: BookOpen },
   { label: "Surveys", href: "/surveys", icon: BarChart3 },
   { label: "Analytics", href: "/analytics", icon: TrendingUp },
   { label: "Reports", href: "/reports", icon: ClipboardList },
