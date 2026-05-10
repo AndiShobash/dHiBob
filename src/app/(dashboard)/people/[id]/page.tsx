@@ -424,22 +424,33 @@ function EmployeeITSection({ employeeId }: { employeeId: string }) {
         ) : !licenseAssignments?.length ? (
           <p className="text-sm text-gray-400">No licenses assigned.</p>
         ) : (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {licenseAssignments.map((la: any) => {
               const l = la.license;
-              const catColors: Record<string, string> = {
-                AI: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30',
-                Communication: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30',
-                Development: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30',
-                Identity: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30',
-                Security: 'bg-red-100 text-red-700 dark:bg-red-900/30',
+              const catConfig: Record<string, { bg: string; border: string; icon: string; accent: string }> = {
+                AI: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800', icon: 'bg-emerald-500', accent: 'text-emerald-600 dark:text-emerald-400' },
+                Communication: { bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-200 dark:border-purple-800', icon: 'bg-purple-500', accent: 'text-purple-600 dark:text-purple-400' },
+                Development: { bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-800', icon: 'bg-amber-500', accent: 'text-amber-600 dark:text-amber-400' },
+                Identity: { bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', icon: 'bg-blue-500', accent: 'text-blue-600 dark:text-blue-400' },
+                Security: { bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-200 dark:border-red-800', icon: 'bg-red-500', accent: 'text-red-600 dark:text-red-400' },
+                General: { bg: 'bg-gray-50 dark:bg-charcoal-800/50', border: 'border-gray-200 dark:border-charcoal-700', icon: 'bg-gray-500', accent: 'text-gray-600 dark:text-gray-400' },
               };
+              const c = catConfig[l.category] || catConfig.General;
+              const isReserved = la.status === 'RESERVED';
               return (
-                <div key={la.id} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-charcoal-900 border border-gray-200 dark:border-charcoal-700 rounded-lg">
-                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${catColors[l.category] || 'bg-gray-100 text-gray-600'}`}>{l.category}</span>
-                  <div>
-                    <p className="text-sm font-medium">{l.item}</p>
-                    {l.planName && <p className="text-[10px] text-gray-400">{l.planName}</p>}
+                <div key={la.id} className={`relative rounded-xl border p-4 ${c.bg} ${c.border} transition-shadow hover:shadow-md`}>
+                  {isReserved && (
+                    <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">Reserved</span>
+                  )}
+                  <div className="flex items-start gap-3">
+                    <div className={`w-9 h-9 rounded-lg ${c.icon} flex items-center justify-center shrink-0`}>
+                      <span className="text-white font-bold text-sm">{l.item.charAt(0)}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{l.item}</p>
+                      {l.planName && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{l.planName}</p>}
+                      <p className={`text-[10px] font-medium mt-1 ${c.accent}`}>{l.category}</p>
+                    </div>
                   </div>
                 </div>
               );
