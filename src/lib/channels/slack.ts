@@ -54,7 +54,7 @@ export async function sendSlackDM(recipient: SlackRecipient, payload: SlackPaylo
     const safeSubject = escapeSlackMrkdwn(payload.subject);
     const safeBody = escapeSlackMrkdwn(payload.body);
     const safeLinkPath = payload.linkPath ? escapeSlackLinkPath(payload.linkPath) : undefined;
-    const link = safeLinkPath ? ` <${appUrl}${safeLinkPath}|View in DHiBob>` : "";
+    const link = safeLinkPath ? ` <${appUrl}${safeLinkPath}|View in Dpeople>` : "";
     await slack.chat.postMessage({
       channel: lookup.user.id,
       text: `*${safeSubject}*\n${safeBody}${link}`,

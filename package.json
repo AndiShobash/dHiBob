@@ -1,7 +1,7 @@
 {
   "name": "dhibob",
   "version": "1.0.0",
-  "description": "DHiBob - Modern HR Platform",
+  "description": "Dpeople - Modern HR Platform",
   "private": true,
   "scripts": {
     "dev": "next dev",

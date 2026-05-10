@@ -9,7 +9,7 @@ const inter = localFont({
   variable: '--font-inter',
 });
 
-export const metadata: Metadata = { title: "DHiBob | HR Platform", description: "Comprehensive HR management platform" };
+export const metadata: Metadata = { title: "Dpeople | HR Platform", description: "Comprehensive HR management platform" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (<html lang="en"><body className={`${inter.className} antialiased`}><Providers>{children}</Providers></body></html>);

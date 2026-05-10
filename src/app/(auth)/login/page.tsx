@@ -38,7 +38,7 @@ export default function LoginPage() {
           <div className="mx-auto w-12 h-12 bg-gradient-to-br from-primary-500 to-orange-500 rounded-xl flex items-center justify-center mb-4">
             <span className="text-white font-bold text-lg">DB</span>
           </div>
-          <CardTitle className="text-2xl">Welcome to DHiBob</CardTitle>
+          <CardTitle className="text-2xl">Welcome to Dpeople</CardTitle>
           <p className="text-gray-500 dark:text-gray-400">Sign in to your HR platform</p>
         </CardHeader>
         <CardContent>

@@ -42,7 +42,7 @@ export async function sendEmail(recipient: EmailRecipient, payload: EmailPayload
 
 function buildHtml(recipient: EmailRecipient, payload: EmailPayload): string {
   const link = payload.linkPath
-    ? `<p style="margin: 16px 0;"><a href="${escapeHtml(appUrl + payload.linkPath)}" style="background:#E33054; color:#fff; padding:10px 18px; border-radius:6px; text-decoration:none; display:inline-block; font-weight:600;">View in DHiBob</a></p>`
+    ? `<p style="margin: 16px 0;"><a href="${escapeHtml(appUrl + payload.linkPath)}" style="background:#E33054; color:#fff; padding:10px 18px; border-radius:6px; text-decoration:none; display:inline-block; font-weight:600;">View in Dpeople</a></p>`
     : "";
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1f2937;">
@@ -52,7 +52,7 @@ function buildHtml(recipient: EmailRecipient, payload: EmailPayload): string {
       ${link}
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0 16px 0;" />
       <p style="font-size: 12px; color: #9ca3af; margin: 0;">
-        DHiBob &middot; Develeap<br />
+        Dpeople &middot; Develeap<br />
         Notification preferences can be changed in your profile settings.
       </p>
     </div>
