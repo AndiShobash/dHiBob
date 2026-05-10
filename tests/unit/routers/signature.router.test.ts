@@ -81,6 +81,9 @@ function makeSignatureRecord(overrides = {}) {
 // Build a mock Prisma-like db
 function makeDb() {
   return {
+    user: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     document: {
       findFirst: vi.fn(),
       update: vi.fn(),
