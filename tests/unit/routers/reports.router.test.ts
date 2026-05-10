@@ -39,7 +39,11 @@ vi.mock('@/server/trpc', async () => {
     if (!ctx.session?.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
     return next({ ctx: { session: ctx.session, db: ctx.db, user: ctx.session.user } });
   });
-  return { router: t.router, publicProcedure: t.procedure, protectedProcedure: t.procedure.use(isAuthed) };
+  const noOperatorSalary = t.middleware(({ ctx, next }) => {
+    if (ctx.session?.user?.role === 'OPERATOR') throw new TRPCError({ code: 'FORBIDDEN', message: 'Operators cannot access salary data' });
+    return next({ ctx });
+  });
+  return { router: t.router, publicProcedure: t.procedure, protectedProcedure: t.procedure.use(isAuthed), salaryProtectedProcedure: t.procedure.use(isAuthed).use(noOperatorSalary) };
 });
 
 import { reportsRouter } from '@/server/routers/reports';
