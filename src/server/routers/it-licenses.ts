@@ -7,7 +7,7 @@ const LICENSE_TYPES = ['Monthly', 'Yearly', 'Perpetual'] as const;
 const STATUSES = ['Active', 'Inactive', 'Expired'] as const;
 
 function requireIt(role: string) {
-  if (!['SUPER_ADMIN', 'ADMIN', 'IT'].includes(role)) {
+  if (!['SUPER_ADMIN', 'ADMIN', 'OPERATOR', 'IT'].includes(role)) {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'IT/Admin only' });
   }
 }
@@ -99,6 +99,14 @@ export const itLicensesRouter = router({
     .mutation(async ({ ctx, input }) => {
       requireIt(ctx.user.role);
       return ctx.db.iTLicenseAssignment.delete({ where: { id: input.id } });
+    }),
+
+  // Update assignment status (ASSIGNED ↔ RESERVED)
+  updateAssignment: protectedProcedure
+    .input(z.object({ id: z.string(), status: z.enum(['ASSIGNED', 'RESERVED']) }))
+    .mutation(async ({ ctx, input }) => {
+      requireIt(ctx.user.role);
+      return ctx.db.iTLicenseAssignment.update({ where: { id: input.id }, data: { status: input.status } });
     }),
 
   // Summary stats

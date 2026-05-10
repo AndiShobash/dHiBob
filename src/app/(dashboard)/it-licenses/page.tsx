@@ -29,16 +29,17 @@ function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; emplo
   const utils = trpc.useContext();
   const assignMutation = trpc.itLicenses.assign.useMutation({ onSuccess: () => utils.itLicenses.invalidate() });
   const unassignMutation = trpc.itLicenses.unassign.useMutation({ onSuccess: () => utils.itLicenses.invalidate() });
+  const updateAssignmentMutation = trpc.itLicenses.updateAssignment.useMutation({ onSuccess: () => utils.itLicenses.invalidate() });
   const [mSortKey, setMSortKey] = useState<string | null>(null);
   const [mSortDir, setMSortDir] = useState<'asc' | 'desc' | null>(null);
 
   const activeLicenses = licenses.filter((l: any) => l.status === 'Active').sort((a: any, b: any) => a.item.localeCompare(b.item));
 
-  // Build maps for quick lookup: "licenseId:employeeId" → assignmentId
-  const assignmentMap = new Map<string, string>();
+  // Build maps for quick lookup: "licenseId:employeeId" → { id, status }
+  const assignmentMap = new Map<string, { id: string; status: string }>();
   for (const l of activeLicenses) {
     for (const a of (l.assignments ?? [])) {
-      assignmentMap.set(`${l.id}:${a.employeeId}`, a.id);
+      assignmentMap.set(`${l.id}:${a.employeeId}`, { id: a.id, status: a.status || 'ASSIGNED' });
     }
   }
 
@@ -74,10 +75,12 @@ function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; emplo
     else if (mSortKey === '_dept') { av = a._dept; bv = b._dept; }
     else if (mSortKey === '_jobTitle') { av = a._jobTitle; bv = b._jobTitle; }
     else if (mSortKey.startsWith('lic_')) {
-      // Sort by whether employee has this specific license (✓ first or last)
+      // Sort by assignment status: ASSIGNED=2, RESERVED=1, none=0
       const licId = mSortKey.replace('lic_', '');
-      av = assignmentMap.has(`${licId}:${a.id}`) ? 1 : 0;
-      bv = assignmentMap.has(`${licId}:${b.id}`) ? 1 : 0;
+      const aEntry = assignmentMap.get(`${licId}:${a.id}`);
+      const bEntry = assignmentMap.get(`${licId}:${b.id}`);
+      av = aEntry ? (aEntry.status === 'ASSIGNED' ? 2 : 1) : 0;
+      bv = bEntry ? (bEntry.status === 'ASSIGNED' ? 2 : 1) : 0;
       return mSortDir === 'asc' ? bv - av : av - bv; // asc = assigned first
     }
     else { av = ''; bv = ''; }
@@ -89,13 +92,16 @@ function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; emplo
     return <p className="text-sm text-gray-400 py-8 text-center">No active licenses to display.</p>;
   }
 
+  // Three-state toggle: unassigned → assigned(✓) → reserved(R) → unassigned
   function toggleAssignment(licenseId: string, employeeId: string) {
     const key = `${licenseId}:${employeeId}`;
-    const assignmentId = assignmentMap.get(key);
-    if (assignmentId) {
-      unassignMutation.mutate({ id: assignmentId });
-    } else {
+    const entry = assignmentMap.get(key);
+    if (!entry) {
       assignMutation.mutate({ licenseId, employeeId });
+    } else if (entry.status === 'ASSIGNED') {
+      updateAssignmentMutation.mutate({ id: entry.id, status: 'RESERVED' });
+    } else {
+      unassignMutation.mutate({ id: entry.id });
     }
   }
 
@@ -105,7 +111,7 @@ function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; emplo
 
   return (
     <div className="overflow-x-auto border rounded-lg">
-      <p className="px-4 py-2 text-[10px] text-gray-400 dark:text-gray-500 border-b bg-gray-50 dark:bg-charcoal-800">Click a cell to assign/unassign · Click a column header to sort</p>
+      <p className="px-4 py-2 text-[10px] text-gray-400 dark:text-gray-500 border-b bg-gray-50 dark:bg-charcoal-800">Click a cell to cycle: <span className="text-emerald-500">✓ Assigned</span> → <span className="text-amber-500">R Reserved</span> → Unassigned · Click a column header to sort</p>
       <table className="text-xs">
         <thead>
           <tr className="border-b bg-gray-50 dark:bg-charcoal-800">
@@ -131,16 +137,19 @@ function EmployeeLicenseMatrix({ licenses, employees }: { licenses: any[]; emplo
               <td className="px-3 py-1.5 text-gray-500 dark:text-gray-300">{emp._dept}</td>
               <td className="px-3 py-1.5 text-gray-500 dark:text-gray-300">{emp._jobTitle}</td>
               {activeLicenses.map((l: any) => {
-                const has = assignmentMap.has(`${l.id}:${emp.id}`);
+                const entry = assignmentMap.get(`${l.id}:${emp.id}`);
+                const status = entry?.status;
                 return (
                   <td
                     key={l.id}
                     className="px-2 py-1.5 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-charcoal-700 transition-colors"
                     onClick={() => toggleAssignment(l.id, emp.id)}
-                    title={has ? `Remove ${l.item} from ${emp.firstName}` : `Assign ${l.item} to ${emp.firstName}`}
+                    title={!entry ? `Assign ${l.item} to ${emp.firstName}` : status === 'ASSIGNED' ? `Mark as reserved` : `Remove ${l.item} from ${emp.firstName}`}
                   >
-                    {has ? (
+                    {status === 'ASSIGNED' ? (
                       <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 font-bold">✓</span>
+                    ) : status === 'RESERVED' ? (
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 font-bold">R</span>
                     ) : (
                       <span className="text-gray-200 dark:text-charcoal-700 hover:text-gray-400">—</span>
                     )}
@@ -308,9 +317,9 @@ export default function ITLicensesPage() {
               const empList = (employees as any)?.employees ?? [];
               const activeLicenses = (licenses ?? []).filter((l: any) => l.status === 'Active').sort((a: any, b: any) => a.item.localeCompare(b.item));
               if (!empList.length || !activeLicenses.length) return;
-              const assignmentSet = new Set<string>();
+              const assignmentStatusMap = new Map<string, string>();
               for (const l of activeLicenses) {
-                for (const a of (l.assignments ?? [])) assignmentSet.add(`${l.id}:${a.employeeId}`);
+                for (const a of (l.assignments ?? [])) assignmentStatusMap.set(`${l.id}:${a.employeeId}`, a.status || 'ASSIGNED');
               }
               const rows = empList
                 .sort((a: any, b: any) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
@@ -323,7 +332,8 @@ export default function ITLicensesPage() {
                     'Job Title': wi.jobTitle || '',
                   };
                   for (const l of activeLicenses) {
-                    row[l.item] = assignmentSet.has(`${l.id}:${emp.id}`) ? '✓' : '';
+                    const s = assignmentStatusMap.get(`${l.id}:${emp.id}`);
+                    row[l.item] = s === 'ASSIGNED' ? '✓' : s === 'RESERVED' ? 'R' : '';
                   }
                   return row;
                 });

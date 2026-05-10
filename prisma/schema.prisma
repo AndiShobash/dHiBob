@@ -845,6 +845,7 @@ model ITLicenseAssignment {
   id          String   @id @default(cuid())
   licenseId   String
   employeeId  String
+  status      String   @default("ASSIGNED")  // ASSIGNED or RESERVED
   assignedAt  DateTime @default(now())
   license     ITLicense @relation(fields: [licenseId], references: [id], onDelete: Cascade)
   employee    Employee  @relation("LicenseAssignments", fields: [employeeId], references: [id], onDelete: Cascade)
