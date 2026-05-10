@@ -202,8 +202,9 @@ export const signatureRouter = router({
         select: { employeeId: true },
       });
       const hrIds = hrUsers.map((u: any) => u.employeeId).filter((id: string | null): id is string => !!id);
-      // Exclude the requester (already notified above) and the signer
-      const hrRecipients = hrIds.filter(id => id !== record.requestedBy && id !== record.signerId);
+      // Exclude the signer (they know they signed) — requester keeps getting notified
+      // via the first notification above, but other HR users need to know too
+      const hrRecipients = hrIds.filter(id => id !== record.signerId);
       if (hrRecipients.length > 0) {
         await notifyService.send({
           companyId: ctx.user.companyId,
