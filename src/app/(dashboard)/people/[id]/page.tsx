@@ -952,15 +952,16 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
     Array.isArray(workInfo.certifications) ? workInfo.certifications : [];
 
   // Save helpers
-  const pi = (field: string) => isAdmin
+  const canEdit = isAdmin || isSelf;
+  const pi = (field: string) => canEdit
     ? (val: string) => updatePersonalInfo.mutateAsync({ id: params.id, [field]: val } as any)
     : undefined;
-  const wi = (field: string) => isAdmin
+  const wi = (field: string) => canEdit
     ? (val: string) => updateWorkInfo.mutateAsync({ id: params.id, [field]: val } as any)
     : undefined;
 
   // Per-row save helpers for arrays
-  const saveFamilyField = (idx: number, field: string) => isAdmin
+  const saveFamilyField = (idx: number, field: string) => canEdit
     ? (val: string) => {
         const updated = familyDetails.map((m, i) => {
           if (i !== idx) return m;
@@ -1117,24 +1118,24 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
           >
             <div className="grid grid-cols-5 gap-4 mb-4">
               <F label="First Name" value={employee.firstName}
-                onSave={isAdmin ? (val) => updateEmployee.mutateAsync({ id: params.id, firstName: val }) : undefined} />
+                onSave={canEdit ? (val) => updateEmployee.mutateAsync({ id: params.id, firstName: val }) : undefined} />
               <F label="Middle Name" value={middleName} onSave={pi('middleName')} />
               <F label="Last Name" value={employee.lastName}
-                onSave={isAdmin ? (val) => updateEmployee.mutateAsync({ id: params.id, lastName: val }) : undefined} />
+                onSave={canEdit ? (val) => updateEmployee.mutateAsync({ id: params.id, lastName: val }) : undefined} />
               <F label="Work Email" value={employee.email}
                 onSave={isAdmin ? (val) => updateEmployee.mutateAsync({ id: params.id, email: val } as any) : undefined} />
               <F label="Phone Number" value={phone} onSave={pi('phone')} />
             </div>
             <div className="grid grid-cols-5 gap-4 mb-4">
               <DateField label="Date of Birth" value={dateOfBirth} onSave={pi('dateOfBirth')} />
-              <DropdownBadgeField label="Gender" value={gender} options={['Male', 'Female', 'Non-binary', 'Prefer not to say']} onSave={isAdmin ? (val) => { const fn = pi('gender'); if (fn) fn(val); } : undefined} />
+              <DropdownBadgeField label="Gender" value={gender} options={['Male', 'Female', 'Non-binary', 'Prefer not to say']} onSave={canEdit ? (val) => { const fn = pi('gender'); if (fn) fn(val); } : undefined} />
               <F label="Personal Email" value={personalEmail} onSave={pi('personalEmail')} />
               <F label="Allergies/food preference" value={allergies} onSave={pi('allergies')} />
               <F label="Shirt Size" value={shirtSize} onSave={pi('shirtSize')} />
             </div>
             <div className="grid grid-cols-3 gap-4">
-              {canSeeFiles && <DocumentField label="Documents" value={personalInfo.documents} folder={docsFolder} onSave={isAdmin ? pi('documents') : undefined} />}
-              {canSeeFiles && <DocumentField label="CV" value={personalInfo.cv} folder={docsFolder} mode="single" onSave={isAdmin ? async (val) => {
+              {canSeeFiles && <DocumentField label="Documents" value={personalInfo.documents} folder={docsFolder} onSave={canEdit ? pi('documents') : undefined} />}
+              {canSeeFiles && <DocumentField label="CV" value={personalInfo.cv} folder={docsFolder} mode="single" onSave={canEdit ? async (val) => {
                 // Auto-archive: push the current CV into the cvOld array before replacing
                 const currentCvEntries = parseDocEntries(personalInfo.cv);
                 const oldEntries = parseDocEntries(personalInfo.cvOld);
@@ -1145,7 +1146,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                   cvOld: mergedOld.length > 0 ? JSON.stringify(mergedOld) : undefined,
                 } as any);
               } : undefined} />}
-              {canSeeFiles && <DocumentField label="CV Old" value={personalInfo.cvOld} folder={docsFolder} onSave={isAdmin ? pi('cvOld') : undefined} />}
+              {canSeeFiles && <DocumentField label="CV Old" value={personalInfo.cvOld} folder={docsFolder} onSave={canEdit ? pi('cvOld') : undefined} />}
             </div>
           </SectionCard>
 
@@ -1265,7 +1266,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
           </SectionCard>}
 
           {canSeeSensitive && <SectionCard title="Family Details">
-            {familyDetails.length === 0 && !isAdmin && (
+            {familyDetails.length === 0 && !canEdit && (
               <p className="text-sm text-gray-500 dark:text-gray-400">No family members recorded.</p>
             )}
             {familyDetails.map((member, i) => (
@@ -1273,7 +1274,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                 <div className="grid grid-cols-3 gap-4">
                   <F label="Full Name" value={member.fullName || ''} onSave={saveFamilyField(i, 'fullName')} />
                   <F label="Relationship" value={member.relationship || ''} onSave={saveFamilyField(i, 'relationship')} />
-                  {isAdmin && (
+                  {canEdit && (
                     <div className="flex items-end justify-end">
                       <button
                         onClick={() => deleteFamilyMember(i)}
@@ -1285,7 +1286,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                     </div>
                   )}
                 </div>
-                {(member.dateOfBirth || member.note || isAdmin) && (
+                {(member.dateOfBirth || member.note || canEdit) && (
                   <div className="grid grid-cols-3 gap-4 mt-2">
                     <DateField label="Date of Birth" value={member.dateOfBirth || ''} onSave={saveFamilyField(i, 'dateOfBirth')} />
                     <F label="Note" value={member.note || ''} onSave={saveFamilyField(i, 'note')} />
@@ -1293,7 +1294,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                 )}
               </div>
             ))}
-            {isAdmin && (
+            {canEdit && (
               <button
                 onClick={addFamilyMember}
                 className="mt-2 flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600 font-medium"
@@ -1701,7 +1702,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                 label="Bank Management Approval"
                 value={personalInfo.bankApprovalDoc}
                 folder={docsFolder}
-                onSave={isAdmin ? pi('bankApprovalDoc') : undefined}
+                onSave={canEdit ? pi('bankApprovalDoc') : undefined}
               />
             </div>
           </SectionCard>
@@ -1725,7 +1726,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                 label="Pension Document"
                 value={workInfo.pensionDoc}
                 folder={docsFolder}
-                onSave={isAdmin ? wi('pensionDoc') : undefined}
+                onSave={canEdit ? wi('pensionDoc') : undefined}
               />
             </div>
           </SectionCard>
@@ -1746,7 +1747,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                 label="Training Fund Document"
                 value={workInfo.trainingFundDoc}
                 folder={docsFolder}
-                onSave={isAdmin ? wi('trainingFundDoc') : undefined}
+                onSave={canEdit ? wi('trainingFundDoc') : undefined}
               />
             </div>
           </SectionCard>
