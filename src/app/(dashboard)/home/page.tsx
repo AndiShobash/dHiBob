@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { FeedCard } from "@/components/home/feed-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Users, CheckSquare, Calendar, Briefcase, ClipboardList, Cake, Trophy, UserPlus, Bell } from "lucide-react";
+import { Loader2, Users, CheckSquare, Calendar, ClipboardList, Cake, Trophy, UserPlus, Bell } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -68,12 +68,6 @@ export default function HomePage() {
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30"><ClipboardList size={18} className="text-purple-600" /></div>
             <div><p className="text-2xl font-bold">{stats?.activeSurveys ?? '—'}</p><p className="text-[11px] text-gray-500 dark:text-gray-300">Active Surveys</p></div>
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-sm bg-white dark:bg-charcoal-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/workforce-planning')}>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30"><Briefcase size={18} className="text-green-600" /></div>
-            <div><p className="text-2xl font-bold">{stats?.openPositions ?? '—'}</p><p className="text-[11px] text-gray-500 dark:text-gray-300">Open Positions</p></div>
           </CardContent>
         </Card>
       </div>
