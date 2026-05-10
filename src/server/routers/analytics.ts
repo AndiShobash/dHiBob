@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '@/server/trpc';
+import { router, protectedProcedure, salaryProtectedProcedure } from '@/server/trpc';
 import { getExchangeRates, convertCurrency } from '@/lib/currency';
 
 const headcountQuerySchema = z.object({
@@ -226,7 +226,7 @@ export const analyticsRouter = router({
   }),
 
   // Average salary by department / position
-  salaryByDepartment: protectedProcedure.query(async ({ ctx }) => {
+  salaryByDepartment: salaryProtectedProcedure.query(async ({ ctx }) => {
     const employees = await ctx.db.employee.findMany({
       where: { companyId: ctx.user.companyId, status: 'ACTIVE' },
       select: { workInfo: true, department: { select: { name: true } } },
@@ -276,7 +276,7 @@ export const analyticsRouter = router({
   }),
 
   // Future cost forecast (salary increases over next 12 months)
-  futureCostForecast: protectedProcedure.query(async ({ ctx }) => {
+  futureCostForecast: salaryProtectedProcedure.query(async ({ ctx }) => {
     const employees = await ctx.db.employee.findMany({
       where: { companyId: ctx.user.companyId, status: 'ACTIVE' },
       select: { workInfo: true, department: { select: { name: true } } },

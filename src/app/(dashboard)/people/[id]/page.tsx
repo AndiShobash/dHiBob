@@ -813,10 +813,11 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
   const { data: session } = useSession();
   const role = session?.user.role;
   const isSuperAdmin = role === 'SUPER_ADMIN';
-  const isAdmin = isSuperAdmin || role === 'ADMIN' || role === 'HR';
+  const isAdmin = isSuperAdmin || role === 'ADMIN' || role === 'HR' || role === 'OPERATOR';
   const isSelf = session?.user.employeeId === params.id;
   const canEditAvatar = isAdmin || isSelf;
   const canSeeSensitive = isAdmin || isSelf;
+  const canSeeSalary = (isAdmin && role !== 'OPERATOR') || isSelf;
   const canSeeFiles = isAdmin || isSelf; // employees can't see other employees' files
 
   const { data: employee, isLoading, error } = trpc.employee.getById.useQuery(
@@ -1076,6 +1077,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                   >
                     <option value="EMPLOYEE">Employee</option>
                     <option value="IT">IT</option>
+                    <option value="OPERATOR">Operator</option>
                     <option value="ADMIN">Admin</option>
                   </select>
                 )}
@@ -1459,7 +1461,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
           />
 
           {/* Compensation History table */}
-          {canSeeSensitive && (() => {
+          {canSeeSalary && (() => {
             const displayHistory = salaryHistory.length > 0 ? salaryHistory : [{}];
             const sortedHistory = displayHistory
               .map((entry, idx) => ({ entry, idx }))

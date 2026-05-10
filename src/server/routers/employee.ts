@@ -97,7 +97,7 @@ export const employeeRouter = router({
   }),
 
   create: protectedProcedure.input(createEmployeeSchema).mutation(async ({ ctx, input }) => {
-    if (input.companyId !== ctx.user.companyId && ctx.user.role !== 'ADMIN') {
+    if (input.companyId !== ctx.user.companyId && ctx.user.role !== 'ADMIN' && ctx.user.role !== 'OPERATOR') {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have permission to create employees' });
     }
     const existingUser = await ctx.db.user.findUnique({ where: { email: input.email } });
@@ -361,9 +361,9 @@ export const employeeRouter = router({
 
   // Update employee's system role (SUPER_ADMIN/ADMIN only)
   updateRole: protectedProcedure
-    .input(z.object({ employeeId: z.string(), role: z.enum(['EMPLOYEE', 'IT', 'ADMIN', 'SUPER_ADMIN']) }))
+    .input(z.object({ employeeId: z.string(), role: z.enum(['EMPLOYEE', 'IT', 'OPERATOR', 'ADMIN', 'SUPER_ADMIN']) }))
     .mutation(async ({ ctx, input }) => {
-      if (ctx.user.role !== 'SUPER_ADMIN' && ctx.user.role !== 'ADMIN') {
+      if (ctx.user.role !== 'SUPER_ADMIN' && ctx.user.role !== 'ADMIN' && ctx.user.role !== 'OPERATOR') {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can change roles' });
       }
       const employee = await ctx.db.employee.findFirst({ where: { id: input.employeeId, companyId: ctx.user.companyId } });
@@ -411,7 +411,7 @@ export const employeeRouter = router({
 
     const isSelf = ctx.user.employeeId === employee.id;
     const isManager = ctx.user.employeeId === employee.managerId;
-    const isHrOrAdmin = ctx.user.role === 'HR' || ctx.user.role === 'ADMIN';
+    const isHrOrAdmin = ctx.user.role === 'HR' || ctx.user.role === 'ADMIN' || ctx.user.role === 'OPERATOR';
     const canSeeSensitive = isSelf || isManager || isHrOrAdmin;
 
     const [jobRecords, compensationRecords] = await Promise.all([
@@ -459,7 +459,7 @@ export const employeeRouter = router({
   getEmployeeAssets: protectedProcedure
     .input(z.object({ employeeId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const isSelfOrIt = input.employeeId === ctx.user.employeeId || ['SUPER_ADMIN', 'ADMIN', 'IT'].includes(ctx.user.role);
+      const isSelfOrIt = input.employeeId === ctx.user.employeeId || ['SUPER_ADMIN', 'ADMIN', 'OPERATOR', 'IT'].includes(ctx.user.role);
       if (!isSelfOrIt) throw new TRPCError({ code: 'FORBIDDEN' });
       return ctx.db.iTAsset.findMany({
         where: { assigneeId: input.employeeId },
@@ -471,7 +471,7 @@ export const employeeRouter = router({
   getEmployeeLicenses: protectedProcedure
     .input(z.object({ employeeId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const isSelfOrIt = input.employeeId === ctx.user.employeeId || ['SUPER_ADMIN', 'ADMIN', 'IT'].includes(ctx.user.role);
+      const isSelfOrIt = input.employeeId === ctx.user.employeeId || ['SUPER_ADMIN', 'ADMIN', 'OPERATOR', 'IT'].includes(ctx.user.role);
       if (!isSelfOrIt) throw new TRPCError({ code: 'FORBIDDEN' });
       return ctx.db.iTLicenseAssignment.findMany({
         where: { employeeId: input.employeeId },

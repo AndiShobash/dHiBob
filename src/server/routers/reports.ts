@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { router, protectedProcedure } from '@/server/trpc';
+import { router, protectedProcedure, salaryProtectedProcedure } from '@/server/trpc';
 
 // -----------------------------------------------------------------------
 // Shared helpers
@@ -137,7 +137,7 @@ export const reportsRouter = router({
   // ------------------------------------------------------------------
   // 2. Active Employees Report
   // ------------------------------------------------------------------
-  getActiveReport: protectedProcedure
+  getActiveReport: salaryProtectedProcedure
     .input(activeReportSchema)
     .query(async ({ ctx, input }) => {
       const where: any = {
@@ -184,7 +184,7 @@ export const reportsRouter = router({
   // ------------------------------------------------------------------
   // 3. Salary Report (current salaries + future increases per employee)
   // ------------------------------------------------------------------
-  getSalaryReport: protectedProcedure
+  getSalaryReport: salaryProtectedProcedure
     .input(salaryReportSchema)
     .query(async ({ ctx, input }) => {
       const where: any = {
@@ -248,7 +248,7 @@ export const reportsRouter = router({
   // ------------------------------------------------------------------
   // 4. Total Cost Report (monthly aggregation of salary history entries)
   // ------------------------------------------------------------------
-  getTotalCostReport: protectedProcedure
+  getTotalCostReport: salaryProtectedProcedure
     .input(totalCostSchema)
     .query(async ({ ctx, input }) => {
       const where: any = { companyId: ctx.user.companyId };
@@ -299,7 +299,7 @@ export const reportsRouter = router({
     }),
 
   // Custom report — returns all employee data with all parsed fields
-  getCustomReportData: protectedProcedure.query(async ({ ctx }) => {
+  getCustomReportData: salaryProtectedProcedure.query(async ({ ctx }) => {
     const employees = await ctx.db.employee.findMany({
       where: { companyId: ctx.user.companyId },
       include: {

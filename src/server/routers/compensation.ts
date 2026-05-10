@@ -1,8 +1,8 @@
-import { router, protectedProcedure } from '../trpc';
+import { router, salaryProtectedProcedure } from '../trpc';
 import { getCurrentSalary, calculateCompaRatio } from '@/lib/compensation-engine';
 
 export const compensationRouter = router({
-  getStats: protectedProcedure.query(async ({ ctx }) => {
+  getStats: salaryProtectedProcedure.query(async ({ ctx }) => {
     const employees = await ctx.db.employee.findMany({
       where: { companyId: ctx.user.companyId, status: 'ACTIVE' },
       include: { compensationHistory: true }

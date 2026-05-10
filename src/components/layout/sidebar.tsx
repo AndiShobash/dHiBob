@@ -36,11 +36,12 @@ export default function Sidebar() {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
   const role = session?.user?.role;
   const isHrOrAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'HR';
+  const isOperator = role === 'OPERATOR';
   const isIT = role === 'IT';
 
   const visibleItems = navigationItems.filter(item => {
     if (HR_ONLY_HREFS.has(item.href)) return isHrOrAdmin;
-    if (IT_ALLOWED_HREFS.has(item.href)) return isHrOrAdmin || isIT;
+    if (IT_ALLOWED_HREFS.has(item.href)) return isHrOrAdmin || isOperator || isIT;
     if (IT_SECTION_HREFS.has(item.href)) return isIT || role === 'SUPER_ADMIN';
     return true;
   });
