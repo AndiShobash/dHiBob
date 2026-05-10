@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Monitor, Trash2, Pencil, Download, MessageSquare, Send } from "lucide-react";
+import { Plus, Monitor, Trash2, Pencil, Download, MessageSquare, Send, FileText, Upload, X } from "lucide-react";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import * as XLSX from "xlsx";
@@ -86,9 +86,11 @@ export default function ITAssetsPage() {
     { label: 'Status', key: 'status' },
     { label: 'Warranty', key: '_warranty' },
     { label: 'Warranty End', key: 'warrantyEndDate' },
+    { label: 'Cost', key: 'purchaseCost' },
     { label: 'CPU', key: 'cpu' },
     { label: 'RAM', key: 'ram' },
     { label: 'Storage', key: 'storage' },
+    { label: 'File', key: '_file' },
     { label: '', key: '' },
   ];
 
@@ -130,6 +132,10 @@ export default function ITAssetsPage() {
       av = a.warrantyEndDate ? new Date(a.warrantyEndDate).getTime() : 0;
       bv = b.warrantyEndDate ? new Date(b.warrantyEndDate).getTime() : 0;
       return sortDir === 'asc' ? av - bv : bv - av;
+    } else if (sortKey === 'purchaseCost') {
+      av = a.purchaseCost || 0;
+      bv = b.purchaseCost || 0;
+      return sortDir === 'asc' ? av - bv : bv - av;
     } else {
       av = (a[sortKey] || '').toString().toLowerCase();
       bv = (b[sortKey] || '').toString().toLowerCase();
@@ -141,18 +147,49 @@ export default function ITAssetsPage() {
   const editAsset = editId ? assets?.find((a: any) => a.id === editId) : null;
 
   function AssetForm({ onSubmit, defaults, submitLabel }: { onSubmit: (data: any) => void; defaults?: any; submitLabel: string }) {
+    const [fileInfo, setFileInfo] = useState<{ key: string; name: string; size: number } | null>(
+      defaults?.fileKey ? { key: defaults.fileKey, name: defaults.fileName || 'file', size: defaults.fileSize || 0 } : null
+    );
+    const [uploading, setUploading] = useState(false);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      e.target.value = '';
+      setUploading(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('folder', 'it_assets');
+        const res = await fetch('/api/files/upload', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error('Upload failed');
+        const result = await res.json();
+        setFileInfo({ key: result.key, name: result.name, size: result.size });
+      } catch { alert('File upload failed'); }
+      setUploading(false);
+    };
+
     return (
       <form onSubmit={e => {
         e.preventDefault();
         const fd = new FormData(e.target as HTMLFormElement);
         const data: any = {};
         for (const [k, v] of fd.entries()) {
-          if (v === '') continue;
+          if (v === '' || k === 'fileInput') continue;
           if (k === 'purchaseCost') { data[k] = parseFloat(v as string); continue; }
           if (k === 'totalSeats') { data[k] = parseInt(v as string); continue; }
           data[k] = v;
         }
         if (!fd.get('assigneeId')) data.assigneeId = null;
+        if (fileInfo) {
+          data.fileKey = fileInfo.key;
+          data.fileName = fileInfo.name;
+          data.fileSize = fileInfo.size;
+        } else if (defaults?.fileKey) {
+          data.fileKey = null;
+          data.fileName = null;
+          data.fileSize = null;
+        }
         onSubmit(data);
       }} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -198,6 +235,20 @@ export default function ITAssetsPage() {
           </div>
           <div><label className="block text-sm font-medium mb-1">Warranty End Date</label><Input type="date" name="warrantyEndDate" defaultValue={defaults?.warrantyEndDate ? format(new Date(defaults.warrantyEndDate), 'yyyy-MM-dd') : ''} /></div>
         </div>
+        <div className="grid grid-cols-3 gap-4">
+          <div><label className="block text-sm font-medium mb-1">Purchase Cost</label><Input type="number" step="0.01" name="purchaseCost" defaultValue={defaults?.purchaseCost || ''} placeholder="0.00" /></div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Currency</label>
+            <select name="currency" defaultValue={defaults?.currency || 'ILS'} className="w-full border rounded-md px-3 py-2 text-sm bg-white dark:bg-charcoal-800 dark:border-charcoal-600">
+              <option value="ILS">ILS</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="PLN">PLN</option>
+              <option value="GBP">GBP</option>
+            </select>
+          </div>
+          <div><label className="block text-sm font-medium mb-1">Purchase Date</label><Input type="date" name="purchaseDate" defaultValue={defaults?.purchaseDate ? format(new Date(defaults.purchaseDate), 'yyyy-MM-dd') : ''} /></div>
+        </div>
         <div className="grid grid-cols-4 gap-4">
           <div><label className="block text-sm font-medium mb-1">CPU</label><Input name="cpu" defaultValue={defaults?.cpu || ''} placeholder="i7-1165G7" /></div>
           <div><label className="block text-sm font-medium mb-1">RAM</label><Input name="ram" defaultValue={defaults?.ram || ''} placeholder="16" /></div>
@@ -205,6 +256,21 @@ export default function ITAssetsPage() {
           <div><label className="block text-sm font-medium mb-1">GPU</label><Input name="gpu" defaultValue={defaults?.gpu || ''} /></div>
         </div>
         <div><label className="block text-sm font-medium mb-1">Notes</label><Input name="notes" defaultValue={defaults?.notes || ''} /></div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Attachment (Invoice, Receipt, etc.)</label>
+          {fileInfo ? (
+            <div className="flex items-center gap-2 p-2 border rounded-md bg-gray-50 dark:bg-charcoal-800 dark:border-charcoal-600">
+              <FileText size={16} className="text-blue-500 shrink-0" />
+              <span className="text-sm truncate flex-1">{fileInfo.name}</span>
+              <button type="button" onClick={() => setFileInfo(null)} className="p-0.5 text-gray-400 hover:text-red-500"><X size={14} /></button>
+            </div>
+          ) : (
+            <div className="relative">
+              <Input type="file" name="fileInput" onChange={handleFileUpload} disabled={uploading} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" />
+              {uploading && <span className="absolute right-3 top-2 text-xs text-gray-400">Uploading...</span>}
+            </div>
+          )}
+        </div>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => { setCreateOpen(false); setEditId(null); }}>Cancel</Button>
           <Button type="submit">{submitLabel}</Button>
@@ -226,8 +292,9 @@ export default function ITAssetsPage() {
               OS: a.factoryOS || '', Status: a.status,
               Warranty: getWarrantyStatus(a.warrantyEndDate) || '',
               'Warranty End': a.warrantyEndDate ? format(new Date(a.warrantyEndDate), 'yyyy-MM-dd') : '',
+              Cost: a.purchaseCost ? `${a.currency || 'ILS'} ${a.purchaseCost}` : '',
               CPU: a.cpu || '', RAM: a.ram || '', Storage: a.storage || '', GPU: a.gpu || '',
-              Notes: a.notes || '',
+              Notes: a.notes || '', File: a.fileName || '',
             }));
             const ws = XLSX.utils.json_to_sheet(rows);
             const wb = XLSX.utils.book_new();
@@ -328,9 +395,15 @@ export default function ITAssetsPage() {
                     <td className="px-3 py-2">{ws ? <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${WARRANTY_COLORS[ws] || ''}`}>{ws}</span> : '—'}</td>
                   ); })()}
                   <td className="px-3 py-2 text-gray-500 dark:text-gray-300 text-xs">{a.warrantyEndDate ? format(new Date(a.warrantyEndDate), 'MMM d, yyyy') : '—'}</td>
+                  <td className="px-3 py-2 text-gray-500 dark:text-gray-300 text-xs">{a.purchaseCost ? `${a.currency || 'ILS'} ${a.purchaseCost.toLocaleString()}` : '—'}</td>
                   <td className="px-3 py-2 text-gray-500 dark:text-gray-300 text-xs">{a.cpu || '—'}</td>
                   <td className="px-3 py-2 text-gray-500 dark:text-gray-300 text-xs">{a.ram || '—'}</td>
                   <td className="px-3 py-2 text-gray-500 dark:text-gray-300 text-xs">{a.storage || '—'}</td>
+                  <td className="px-3 py-2">{a.fileKey ? (
+                    <a href={`/api/files/download?path=${encodeURIComponent(a.fileKey)}&download=1`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 flex items-center gap-1" title={a.fileName || 'Download'}>
+                      <FileText size={14} /><span className="text-xs truncate max-w-[80px]">{a.fileName || 'File'}</span>
+                    </a>
+                  ) : '—'}</td>
                   <td className="px-3 py-2">
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => setNotesAssetId(notesAssetId === a.id ? null : a.id)} className="p-1 text-blue-400 hover:text-blue-600" title="Notes"><MessageSquare size={14} /></button>
@@ -342,7 +415,7 @@ export default function ITAssetsPage() {
                 {/* Inline notes panel */}
                 {notesAssetId === a.id && (
                   <tr className="bg-gray-50 dark:bg-charcoal-800/50">
-                    <td colSpan={13} className="px-6 py-4">
+                    <td colSpan={15} className="px-6 py-4">
                       <div className="max-w-2xl">
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="text-sm font-semibold flex items-center gap-1.5">

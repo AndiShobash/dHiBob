@@ -7,7 +7,7 @@ const STATUSES = ['Available', 'In Use', 'Repair', 'Retired'] as const;
 const WARRANTY = ['Under warranty', 'Out of warranty'] as const;
 
 function requireIt(role: string) {
-  if (!['SUPER_ADMIN', 'ADMIN', 'IT'].includes(role)) {
+  if (!['SUPER_ADMIN', 'ADMIN', 'OPERATOR', 'IT'].includes(role)) {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'IT/Admin only' });
   }
 }
@@ -52,6 +52,9 @@ export const itAssetsRouter = router({
       purchaseDate: z.coerce.date().optional(),
       purchaseCost: z.number().optional(),
       currency: z.string().default('ILS'),
+      fileKey: z.string().optional(),
+      fileName: z.string().optional(),
+      fileSize: z.number().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       requireIt(ctx.user.role);
@@ -80,6 +83,9 @@ export const itAssetsRouter = router({
       purchaseDate: z.coerce.date().nullable().optional(),
       purchaseCost: z.number().nullable().optional(),
       currency: z.string().optional(),
+      fileKey: z.string().nullable().optional(),
+      fileName: z.string().nullable().optional(),
+      fileSize: z.number().nullable().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       requireIt(ctx.user.role);
