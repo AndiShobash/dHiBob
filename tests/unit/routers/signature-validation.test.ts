@@ -23,6 +23,7 @@ vi.mock('fs/promises', () => ({
 
 function makeDb() {
   return {
+    user: { findMany: vi.fn().mockResolvedValue([]) },
     document: { findFirst: vi.fn(), update: vi.fn() },
     employee: { findFirst: vi.fn() },
     signatureRecord: { create: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn() },
