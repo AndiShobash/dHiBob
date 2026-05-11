@@ -1,7 +1,8 @@
 import { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
-import { compare } from 'bcryptjs';
+import { compare, hash } from 'bcryptjs';
+import crypto from 'crypto';
 import { prisma } from './db';
 import { redisClient } from './redis';
 
@@ -50,12 +51,44 @@ export const authOptions: NextAuthOptions = {
   ],
   pages: { signIn: '/login' },
   callbacks: {
-    async signIn({ user, account }) {
-      // Google sign-in: only allow if the email matches an existing user
+    async signIn({ user, account, profile }) {
       if (account?.provider === 'google') {
         if (!user.email) return false;
         const existing = await prisma.user.findUnique({ where: { email: user.email } });
-        return !!existing;
+        if (existing) return true;
+
+        // Auto-create: match email domain to a company
+        const domain = user.email.split('@')[1];
+        const company = await prisma.company.findUnique({ where: { domain } });
+        if (!company) return false; // domain not registered — reject
+
+        const firstName = (profile as any)?.given_name || user.name?.split(' ')[0] || '';
+        const lastName = (profile as any)?.family_name || user.name?.split(' ').slice(1).join(' ') || '';
+
+        // Create employee + user in a transaction
+        await prisma.$transaction(async (tx) => {
+          const employee = await tx.employee.create({
+            data: {
+              firstName,
+              lastName,
+              displayName: `${firstName} ${lastName}`.trim(),
+              email: user.email!,
+              companyId: company.id,
+              startDate: new Date(),
+              employmentType: 'FULL_TIME',
+              status: 'ACTIVE',
+            },
+          });
+          await tx.user.create({
+            data: {
+              email: user.email!,
+              passwordHash: await hash(crypto.randomBytes(32).toString('hex'), 12),
+              role: 'EMPLOYEE',
+              employeeId: employee.id,
+            },
+          });
+        });
+        return true;
       }
       return true;
     },
