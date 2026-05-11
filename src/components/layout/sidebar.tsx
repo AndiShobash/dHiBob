@@ -56,7 +56,7 @@ export default function Sidebar() {
         <div className="p-6 border-b border-charcoal-700">
           <Link href="/home" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-orange-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">Dp</span>
+              <span className="text-white font-bold text-sm">DP</span>
             </div>
             <span className="font-bold text-lg">Dpeople</span>
           </Link>
