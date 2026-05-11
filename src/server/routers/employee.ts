@@ -93,6 +93,13 @@ export const employeeRouter = router({
     });
     if (!employee) throw new TRPCError({ code: 'NOT_FOUND', message: 'Employee not found' });
     if (employee.companyId !== ctx.user.companyId) throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have access to this employee' });
+    const isSelf = ctx.user.employeeId === input.id;
+    const isAdminRole = ['SUPER_ADMIN', 'ADMIN', 'HR', 'OPERATOR'].includes(ctx.user.role);
+    // Strip sensitive data for non-admin/non-self
+    if (!isSelf && !isAdminRole) {
+      (employee as any).personalInfo = '{}';
+      (employee as any).workInfo = '{}';
+    }
     return employee;
   }),
 
@@ -282,6 +289,9 @@ export const employeeRouter = router({
     const current = await ctx.db.employee.findUnique({ where: { id } });
     if (!current) throw new TRPCError({ code: 'NOT_FOUND', message: 'Employee not found' });
     if (current.companyId !== ctx.user.companyId) throw new TRPCError({ code: 'FORBIDDEN', message: 'Not authorized' });
+    const isSelf = ctx.user.employeeId === id;
+    const isAdminRole = ['SUPER_ADMIN', 'ADMIN', 'HR', 'OPERATOR'].includes(ctx.user.role);
+    if (!isSelf && !isAdminRole) throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only edit your own profile' });
     const currentPersonalInfo = JSON.parse(current.personalInfo || '{}');
     const updated = await ctx.db.employee.update({
       where: { id },
@@ -331,6 +341,14 @@ export const employeeRouter = router({
     const current = await ctx.db.employee.findUnique({ where: { id } });
     if (!current) throw new TRPCError({ code: 'NOT_FOUND', message: 'Employee not found' });
     if (current.companyId !== ctx.user.companyId) throw new TRPCError({ code: 'FORBIDDEN', message: 'Not authorized' });
+    const isSelf = ctx.user.employeeId === id;
+    const isAdminRole = ['SUPER_ADMIN', 'ADMIN', 'HR', 'OPERATOR'].includes(ctx.user.role);
+    if (!isSelf && !isAdminRole) throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only edit your own profile' });
+    // Salary fields are admin-only — strip them for self-edit
+    const ADMIN_ONLY_FIELDS = ['salaryAmount', 'salaryCurrency', 'salaryHistory', 'salaryType', 'contractType', 'assetBudget', 'assetBudgetCurrency', 'terminationDate', 'terminationReason'];
+    if (isSelf && !isAdminRole) {
+      for (const f of ADMIN_ONLY_FIELDS) delete (fields as any)[f];
+    }
     const currentWorkInfo = JSON.parse(current.workInfo || '{}');
     const updated = await ctx.db.employee.update({
       where: { id },

@@ -194,6 +194,9 @@ export const surveysRouter = router({
         where: { id: input.surveyId, companyId: ctx.user.companyId },
       });
       if (!survey) throw new TRPCError({ code: 'NOT_FOUND' });
+      const isAdminRole = ['SUPER_ADMIN', 'ADMIN', 'HR'].includes(ctx.user.role);
+      const isCreator = (survey as any).createdBy === ctx.user.employeeId;
+      if (!isAdminRole && !isCreator) throw new TRPCError({ code: 'FORBIDDEN', message: 'Only HR or the survey creator can view results' });
 
       const responses = await ctx.db.surveyResponse.findMany({
         where: { surveyId: input.surveyId },

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { router, protectedProcedure } from '../trpc';
+import { router, protectedProcedure, hrProtectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 import { notifyService } from '@/lib/notify-service';
 
@@ -89,7 +89,7 @@ export const onboardingRouter = router({
     });
   }),
 
-  createTask: protectedProcedure
+  createTask: hrProtectedProcedure
     .input(z.object({
       employeeId: z.string(),
       title: z.string(),
@@ -172,7 +172,7 @@ export const onboardingRouter = router({
     }),
 
   // Add a new hire — creates employee with PENDING_HIRE status and starts onboarding
-  addNewHire: protectedProcedure
+  addNewHire: hrProtectedProcedure
     .input(z.object({
       firstName: z.string().min(1),
       lastName: z.string().min(1),
@@ -218,7 +218,7 @@ export const onboardingRouter = router({
     }),
 
   // Convert pending hire to active employee (called when Contract task is done)
-  activateHire: protectedProcedure
+  activateHire: hrProtectedProcedure
     .input(z.object({ employeeId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const employee = await ctx.db.employee.findFirst({
@@ -239,7 +239,7 @@ export const onboardingRouter = router({
       });
     }),
 
-  createOffboardingTask: protectedProcedure
+  createOffboardingTask: hrProtectedProcedure
     .input(z.object({
       employeeId: z.string(),
       title: z.string(),
@@ -268,7 +268,7 @@ export const onboardingRouter = router({
     }),
 
   // Start onboarding with default tasks
-  startOnboarding: protectedProcedure
+  startOnboarding: hrProtectedProcedure
     .input(z.object({ employeeId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const employee = await ctx.db.employee.findFirst({
@@ -374,7 +374,7 @@ export const onboardingRouter = router({
 
   // Update task fields (title, notes, dueDate)
   // Delete onboarding task
-  deleteTask: protectedProcedure
+  deleteTask: hrProtectedProcedure
     .input(z.object({ taskId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const task = await ctx.db.onboardingTask.findUnique({
@@ -388,7 +388,7 @@ export const onboardingRouter = router({
     }),
 
   // Delete offboarding task
-  deleteOffboardingTask: protectedProcedure
+  deleteOffboardingTask: hrProtectedProcedure
     .input(z.object({ taskId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const task = await ctx.db.offboardingTask.findUnique({
@@ -517,7 +517,7 @@ export const onboardingRouter = router({
     }),
 
   // NEW: Start offboarding for a terminated employee
-  startOffboarding: protectedProcedure
+  startOffboarding: hrProtectedProcedure
     .input(z.object({ employeeId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const employee = await ctx.db.employee.findFirst({

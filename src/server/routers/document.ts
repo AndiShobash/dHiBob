@@ -10,10 +10,16 @@ export const documentRouter = router({
       folder: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
+      const isAdminRole = ['SUPER_ADMIN', 'ADMIN', 'HR', 'OPERATOR'].includes(ctx.user.role);
+      // Employees can only see their own documents
+      if (input.employeeId && input.employeeId !== ctx.user.employeeId && !isAdminRole) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only view your own documents' });
+      }
       return ctx.db.document.findMany({
         where: {
           companyId: ctx.user.companyId,
           ...(input.employeeId && { employeeId: input.employeeId }),
+          ...(!input.employeeId && !isAdminRole && { employeeId: ctx.user.employeeId }),
           ...(input.folder && { folder: input.folder }),
         },
         orderBy: { createdAt: 'desc' },

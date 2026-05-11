@@ -89,10 +89,11 @@ export const expensesRouter = router({
       });
     }),
 
-  // Approve expense (admin only)
+  // Approve expense (admin/HR only)
   approve: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      if (!['SUPER_ADMIN', 'ADMIN', 'HR'].includes(ctx.user.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'Only HR/Admin can approve expenses' });
       const claim = await ctx.db.expenseClaim.findFirst({ where: { id: input.id, companyId: ctx.user.companyId } });
       if (!claim) throw new TRPCError({ code: 'NOT_FOUND' });
       return ctx.db.expenseClaim.update({
@@ -101,10 +102,11 @@ export const expensesRouter = router({
       });
     }),
 
-  // Reject expense (admin only)
+  // Reject expense (admin/HR only)
   reject: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      if (!['SUPER_ADMIN', 'ADMIN', 'HR'].includes(ctx.user.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'Only HR/Admin can reject expenses' });
       const claim = await ctx.db.expenseClaim.findFirst({ where: { id: input.id, companyId: ctx.user.companyId } });
       if (!claim) throw new TRPCError({ code: 'NOT_FOUND' });
       return ctx.db.expenseClaim.update({
