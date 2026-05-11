@@ -104,9 +104,17 @@ export const authOptions: NextAuthOptions = {
           token.role = dbUser.role;
           token.companyId = dbUser.employee?.companyId ?? '';
           token.employeeId = dbUser.employee?.id;
+          try {
+            const redis = await redisClient();
+            await redis.set(
+              `session:${dbUser.id}`,
+              JSON.stringify({ companyId: dbUser.employee?.companyId, role: dbUser.role }),
+              'EX',
+              SESSION_TTL,
+            );
+          } catch {}
         }
-      }
-      if (user) {
+      } else if (user) {
         token.role = user.role;
         token.companyId = user.companyId;
         token.employeeId = user.employeeId;
