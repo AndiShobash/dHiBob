@@ -1,5 +1,6 @@
 import { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
 import { compare } from 'bcryptjs';
 import { prisma } from './db';
 import { redisClient } from './redis';
@@ -8,6 +9,12 @@ const SESSION_TTL = 30 * 24 * 60 * 60; // 30 days in seconds
 
 export const authOptions: NextAuthOptions = {
   providers: [
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [GoogleProvider({
+          clientId: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        })]
+      : []),
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
@@ -43,7 +50,29 @@ export const authOptions: NextAuthOptions = {
   ],
   pages: { signIn: '/login' },
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ user, account }) {
+      // Google sign-in: only allow if the email matches an existing user
+      if (account?.provider === 'google') {
+        if (!user.email) return false;
+        const existing = await prisma.user.findUnique({ where: { email: user.email } });
+        return !!existing;
+      }
+      return true;
+    },
+    async jwt({ token, user, account }) {
+      // On Google sign-in, look up the user record by email
+      if (account?.provider === 'google' && token.email) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email },
+          include: { employee: { include: { company: true } } },
+        });
+        if (dbUser) {
+          token.sub = dbUser.id;
+          token.role = dbUser.role;
+          token.companyId = dbUser.employee?.companyId ?? '';
+          token.employeeId = dbUser.employee?.id;
+        }
+      }
       if (user) {
         token.role = user.role;
         token.companyId = user.companyId;
