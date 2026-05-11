@@ -4,6 +4,7 @@ import { TRPCError } from '@trpc/server';
 import { getExchangeRates } from '@/lib/currency';
 import { storage } from '@/lib/storage';
 import { notifyService } from '@/lib/notify-service';
+import { encryptPersonalInfo, decryptPersonalInfo } from '@/lib/encryption';
 
 const createEmployeeSchema = z.object({
   firstName: z.string().min(1),
@@ -99,6 +100,12 @@ export const employeeRouter = router({
     if (!isSelf && !isAdminRole) {
       (employee as any).personalInfo = '{}';
       (employee as any).workInfo = '{}';
+    } else {
+      // Decrypt encrypted PII fields before returning
+      try {
+        const pi = JSON.parse(employee.personalInfo || '{}');
+        (employee as any).personalInfo = JSON.stringify(decryptPersonalInfo(pi));
+      } catch {}
     }
     return employee;
   }),
@@ -292,10 +299,11 @@ export const employeeRouter = router({
     const isSelf = ctx.user.employeeId === id;
     const isAdminRole = ['SUPER_ADMIN', 'ADMIN', 'HR', 'OPERATOR'].includes(ctx.user.role);
     if (!isSelf && !isAdminRole) throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only edit your own profile' });
-    const currentPersonalInfo = JSON.parse(current.personalInfo || '{}');
+    const currentPersonalInfo = decryptPersonalInfo(JSON.parse(current.personalInfo || '{}'));
+    const merged = encryptPersonalInfo({ ...currentPersonalInfo, ...fields });
     const updated = await ctx.db.employee.update({
       where: { id },
-      data: { personalInfo: JSON.stringify({ ...currentPersonalInfo, ...fields }) },
+      data: { personalInfo: JSON.stringify(merged) },
     });
     return updated;
   }),
