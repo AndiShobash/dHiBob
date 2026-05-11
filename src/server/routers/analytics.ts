@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure, salaryProtectedProcedure } from '@/server/trpc';
+import { router, hrProtectedProcedure, salaryProtectedProcedure } from '@/server/trpc';
 import { getExchangeRates, convertCurrency } from '@/lib/currency';
 
 const headcountQuerySchema = z.object({
@@ -43,7 +43,7 @@ function* monthRange(start: Date, end: Date): Generator<{
 }
 
 export const analyticsRouter = router({
-  headcount: protectedProcedure.input(headcountQuerySchema).query(async ({ ctx, input }) => {
+  headcount: hrProtectedProcedure.input(headcountQuerySchema).query(async ({ ctx, input }) => {
     const { groupBy, startDate, endDate } = input;
     let where: Record<string, unknown> = { companyId: ctx.user.companyId, status: 'ACTIVE' };
     if (startDate && endDate) {
@@ -97,7 +97,7 @@ export const analyticsRouter = router({
     };
   }),
 
-  attrition: protectedProcedure.input(attritionQuerySchema).query(async ({ ctx, input }) => {
+  attrition: hrProtectedProcedure.input(attritionQuerySchema).query(async ({ ctx, input }) => {
     const { startDate, endDate, groupBy } = input;
     const terminatedEmployees = await ctx.db.employee.findMany({
       where: { companyId: ctx.user.companyId, status: 'TERMINATED', endDate: { gte: startDate, lte: endDate } },
@@ -159,7 +159,7 @@ export const analyticsRouter = router({
     };
   }),
 
-  diversity: protectedProcedure.input(diversityQuerySchema).query(async ({ ctx, input }) => {
+  diversity: hrProtectedProcedure.input(diversityQuerySchema).query(async ({ ctx, input }) => {
     const year = input.year || new Date().getFullYear();
     const yearStart = new Date(year, 0, 1);
     const yearEnd = new Date(year, 11, 31);
@@ -194,7 +194,7 @@ export const analyticsRouter = router({
     };
   }),
 
-  headcountOverTime: protectedProcedure.input(headcountOverTimeQuerySchema).query(async ({ ctx, input }) => {
+  headcountOverTime: hrProtectedProcedure.input(headcountOverTimeQuerySchema).query(async ({ ctx, input }) => {
     const { startDate, endDate } = input;
 
     // Guard: reject ranges exceeding 24 months
@@ -329,7 +329,7 @@ export const analyticsRouter = router({
   }),
 
   // Gender distribution
-  genderDistribution: protectedProcedure.query(async ({ ctx }) => {
+  genderDistribution: hrProtectedProcedure.query(async ({ ctx }) => {
     const employees = await ctx.db.employee.findMany({
       where: { companyId: ctx.user.companyId, status: 'ACTIVE' },
       select: { personalInfo: true, department: { select: { name: true } } },
@@ -360,7 +360,7 @@ export const analyticsRouter = router({
   }),
 
   // Age distribution
-  ageDistribution: protectedProcedure.query(async ({ ctx }) => {
+  ageDistribution: hrProtectedProcedure.query(async ({ ctx }) => {
     const employees = await ctx.db.employee.findMany({
       where: { companyId: ctx.user.companyId, status: 'ACTIVE' },
       select: { personalInfo: true },
@@ -398,7 +398,7 @@ export const analyticsRouter = router({
   }),
 
   // Simple turnover by department — no date input, computes last 12 months server-side
-  turnoverByDepartment: protectedProcedure.query(async ({ ctx }) => {
+  turnoverByDepartment: hrProtectedProcedure.query(async ({ ctx }) => {
     const now = new Date();
     const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
 
@@ -443,7 +443,7 @@ export const analyticsRouter = router({
   }),
 
   // Simple headcount over time — no date input, computes last 12 months server-side
-  headcountTimeline: protectedProcedure.query(async ({ ctx }) => {
+  headcountTimeline: hrProtectedProcedure.query(async ({ ctx }) => {
     const now = new Date();
     const employees = await ctx.db.employee.findMany({
       where: { companyId: ctx.user.companyId },
@@ -468,7 +468,7 @@ export const analyticsRouter = router({
     return months;
   }),
 
-  timeToHire: protectedProcedure.input(timeToHireQuerySchema).query(async ({ ctx, input }) => {
+  timeToHire: hrProtectedProcedure.input(timeToHireQuerySchema).query(async ({ ctx, input }) => {
     const { startDate, endDate } = input;
 
     const candidates = await ctx.db.candidate.findMany({

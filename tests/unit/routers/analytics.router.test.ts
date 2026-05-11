@@ -37,7 +37,11 @@ vi.mock('@/server/trpc', async () => {
     if (ctx.session?.user?.role === 'OPERATOR') throw new TRPCError({ code: 'FORBIDDEN', message: 'Operators cannot access salary data' });
     return next({ ctx });
   });
-  return { router: t.router, publicProcedure: t.procedure, protectedProcedure: t.procedure.use(isAuthed), salaryProtectedProcedure: t.procedure.use(isAuthed).use(noOperatorSalary) };
+  const requireHrAdmin = t.middleware(({ ctx, next }) => {
+    if (!['HR', 'ADMIN', 'SUPER_ADMIN'].includes(ctx.session?.user?.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'HR/Admin access required' });
+    return next({ ctx });
+  });
+  return { router: t.router, publicProcedure: t.procedure, protectedProcedure: t.procedure.use(isAuthed), hrProtectedProcedure: t.procedure.use(isAuthed).use(requireHrAdmin), salaryProtectedProcedure: t.procedure.use(isAuthed).use(noOperatorSalary) };
 });
 
 import { analyticsRouter } from '@/server/routers/analytics';

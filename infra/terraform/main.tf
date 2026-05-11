@@ -215,6 +215,61 @@ module "iam_app" {
 }
 
 # ---------------------------------------------------------------------------
+# Secrets Manager — single secret holding all app-sensitive values.
+# Cloud-init writes generated passwords here on first boot; the deploy
+# script pulls fresh values before every restart.
+# ---------------------------------------------------------------------------
+
+resource "random_password" "postgres" {
+  length  = 24
+  special = false
+}
+
+resource "random_password" "nextauth_secret" {
+  length  = 32
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "app" {
+  name                    = "${var.project}/app-secrets"
+  description             = "Application secrets for ${var.project}"
+  recovery_window_in_days = 7
+}
+
+resource "aws_secretsmanager_secret_version" "app" {
+  secret_id = aws_secretsmanager_secret.app.id
+  secret_string = jsonencode({
+    POSTGRES_PASSWORD    = random_password.postgres.result
+    NEXTAUTH_SECRET      = random_password.nextauth_secret.result
+    S3_ACCESS_KEY_ID     = module.iam_app.access_key_id
+    S3_SECRET_ACCESS_KEY = module.iam_app.secret_access_key
+    RESEND_API_KEY       = ""
+    SLACK_BOT_TOKEN      = ""
+    GOOGLE_CLIENT_ID     = ""
+    GOOGLE_CLIENT_SECRET = ""
+  })
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
+}
+
+# Grant EC2 read access to the secret
+resource "aws_iam_role_policy" "ec2_secrets" {
+  name = "${var.project}-ec2-secrets"
+  role = aws_iam_role.ec2_app.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "SecretsRead"
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue"]
+      Resource = [aws_secretsmanager_secret.app.arn]
+    }]
+  })
+}
+
+# ---------------------------------------------------------------------------
 # Cloud-init script rendered with module outputs + EIP
 # ---------------------------------------------------------------------------
 
@@ -232,14 +287,13 @@ locals {
   )
 
   cloud_init = templatefile("${path.module}/../cloud-init/setup.sh.tftpl", {
-    repo_url             = var.repo_url
-    repo_branch          = var.repo_branch
-    site_domain          = local.site_domain
-    expected_public_ip   = aws_eip.app.public_ip
-    s3_bucket            = module.s3.bucket_name
-    aws_region           = var.aws_region
-    s3_access_key_id     = module.iam_app.access_key_id
-    s3_secret_access_key = module.iam_app.secret_access_key
+    repo_url           = var.repo_url
+    repo_branch        = var.repo_branch
+    site_domain        = local.site_domain
+    expected_public_ip = aws_eip.app.public_ip
+    s3_bucket          = module.s3.bucket_name
+    aws_region         = var.aws_region
+    secret_arn         = aws_secretsmanager_secret.app.arn
   })
 }
 

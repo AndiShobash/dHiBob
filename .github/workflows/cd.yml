@@ -51,6 +51,9 @@ jobs:
             cd ~/dhibob
             git pull --ff-only origin main
 
+            # Refresh .env from Secrets Manager
+            ~/pull-secrets.sh
+
             # Pull pre-built image from ECR (EC2 instance profile has pull access)
             aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 695296766764.dkr.ecr.us-east-1.amazonaws.com
             docker pull 695296766764.dkr.ecr.us-east-1.amazonaws.com/dhibob:latest

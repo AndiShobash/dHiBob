@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { router, protectedProcedure, salaryProtectedProcedure } from '@/server/trpc';
+import { router, hrProtectedProcedure, salaryProtectedProcedure } from '@/server/trpc';
 
 // -----------------------------------------------------------------------
 // Shared helpers
@@ -91,7 +91,7 @@ export const reportsRouter = router({
   // ------------------------------------------------------------------
   // 1. Termination Report
   // ------------------------------------------------------------------
-  getTerminationReport: protectedProcedure
+  getTerminationReport: hrProtectedProcedure
     .input(terminationReportSchema)
     .query(async ({ ctx, input }) => {
       const where: any = {
@@ -365,7 +365,7 @@ export const reportsRouter = router({
   // ------------------------------------------------------------------
   // Expense Reimbursement Report
   // ------------------------------------------------------------------
-  getExpenseReport: protectedProcedure
+  getExpenseReport: hrProtectedProcedure
     .input(z.object({
       department: z.string().optional(),
       status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
