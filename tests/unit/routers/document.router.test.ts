@@ -18,7 +18,7 @@ vi.mock('../../../src/lib/db', () => ({
 describe('Document Router', () => {
   it('should list documents for the current company', async () => {
     const caller = appRouter.createCaller({ 
-      session: { user: { companyId: 'company-1' } },
+      session: { user: { companyId: 'company-1', role: 'ADMIN', employeeId: 'admin-1' } },
       db: prisma
     } as any);
 
@@ -36,7 +36,7 @@ describe('Document Router', () => {
 
   it('should filter documents by employeeId and folder', async () => {
     const caller = appRouter.createCaller({ 
-      session: { user: { companyId: 'company-1' } },
+      session: { user: { companyId: 'company-1', role: 'ADMIN', employeeId: 'admin-1' } },
       db: prisma
     } as any);
 
@@ -56,7 +56,7 @@ describe('Document Router', () => {
 
   it('should sign a document', async () => {
     const caller = appRouter.createCaller({ 
-      session: { user: { companyId: 'company-1' } },
+      session: { user: { companyId: 'company-1', role: 'ADMIN', employeeId: 'admin-1' } },
       db: prisma
     } as any);
 

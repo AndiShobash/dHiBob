@@ -55,7 +55,11 @@ vi.mock('@/server/trpc', async () => {
     if (!ctx.session?.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
     return next({ ctx: { session: ctx.session, db: ctx.db, user: ctx.session.user } });
   });
-  return { router: t.router, publicProcedure: t.procedure, protectedProcedure: t.procedure.use(isAuthed) };
+  const requireHrAdmin = t.middleware(({ ctx, next }) => {
+    if (!['HR', 'ADMIN', 'SUPER_ADMIN'].includes(ctx.session?.user?.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'HR/Admin access required' });
+    return next({ ctx });
+  });
+  return { router: t.router, publicProcedure: t.procedure, protectedProcedure: t.procedure.use(isAuthed), hrProtectedProcedure: t.procedure.use(isAuthed).use(requireHrAdmin) };
 });
 
 function makeCtx(db: any, overrides: Record<string, unknown> = {}) {
