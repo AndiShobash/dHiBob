@@ -4,6 +4,7 @@ import { router, protectedProcedure } from '@/server/trpc';
 import { TRPCError } from '@trpc/server';
 import { calculateBalance } from '@/lib/accrual-engine';
 import { notifyService } from '@/lib/notify-service';
+import { createTimeOffEvent } from '@/lib/channels/google-calendar';
 
 // Find the employeeIds of all HR/ADMIN/SUPER_ADMIN users in a company.
 // Used for deciding who fulfils the HR approval slot on a time-off request.
@@ -304,6 +305,21 @@ export const timeoffRouter = router({
         where: { id: request.id },
         data: { status: 'APPROVED', reviewedBy: ctx.user.employeeId ?? null, reviewedAt: new Date() },
       });
+      // Sync auto-approved time-off to Google Calendar
+      const gcalEventId = await createTimeOffEvent({
+        employeeName: `${employee.firstName} ${employee.lastName}`,
+        policyName: policy.name,
+        startDate,
+        endDate,
+        reason,
+        requestId: request.id,
+      });
+      if (gcalEventId) {
+        await ctx.db.timeOffRequest.update({
+          where: { id: request.id },
+          data: { googleCalendarEventId: gcalEventId },
+        });
+      }
     } else {
       // Notify approvers
       const recipients = new Set<string>();
@@ -412,6 +428,21 @@ export const timeoffRouter = router({
         message: `${request.policy.name} · ${dateRange}`,
         linkUrl: '/time-off',
       });
+      // Sync approved time-off to Google Calendar
+      const gcalEventId = await createTimeOffEvent({
+        employeeName: `${request.employee.firstName} ${request.employee.lastName}`,
+        policyName: request.policy.name,
+        startDate: request.startDate,
+        endDate: request.endDate,
+        reason: request.reason,
+        requestId: request.id,
+      });
+      if (gcalEventId) {
+        await ctx.db.timeOffRequest.update({
+          where: { id: input.requestId },
+          data: { googleCalendarEventId: gcalEventId },
+        });
+      }
       // Inform every approver that the request is fully resolved — no further action needed
       const finalRecipients = new Set<string>();
       hrIds.forEach(id => finalRecipients.add(id));
@@ -777,6 +808,11 @@ export const timeoffRouter = router({
       }
       if (request.status === 'REJECTED') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Rejected requests cannot be cancelled' });
+      }
+      // Remove Google Calendar event if one was created
+      if (request.googleCalendarEventId) {
+        const { deleteTimeOffEvent } = await import('@/lib/channels/google-calendar');
+        await deleteTimeOffEvent(request.googleCalendarEventId);
       }
       return ctx.db.timeOffRequest.delete({ where: { id: input.requestId } });
     }),
