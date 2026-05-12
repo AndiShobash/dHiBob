@@ -40,14 +40,14 @@ GOOGLE_SERVICE_ACCOUNT_KEY=
 GOOGLE_CALENDAR_ID=primary
 ```
 
-**`scripts/pull-secrets.sh`** -- after line 22 (`SLACK=...`), add:
+**`scripts/pull-secrets.sh`** -- after line 25 (`ENCRYPTION_KEY=...`), add:
 
 ```bash
 GCAL_SA_KEY=$(echo "$SECRETS_JSON" | jq -r '.GOOGLE_SERVICE_ACCOUNT_KEY // empty')
 GCAL_CALENDAR_ID=$(echo "$SECRETS_JSON" | jq -r '.GOOGLE_CALENDAR_ID // empty')
 ```
 
-And inside the heredoc (after `SLACK_BOT_TOKEN=...` on line 48), add:
+And inside the heredoc (after `FIELD_ENCRYPTION_KEY=$ENCRYPTION_KEY` on line 53), add:
 
 ```
 GOOGLE_SERVICE_ACCOUNT_KEY=$GCAL_SA_KEY
@@ -188,11 +188,11 @@ function fmtDate(d: Date): string {
 import { createTimeOffEvent } from '@/lib/channels/google-calendar';
 ```
 
-### 4b. Trigger on full approval in `approve` mutation (after line 413)
+### 4b. Trigger on full approval in `approve` mutation (after line 414)
 
 Inside the `if (allResolved)` block (line 405), after the
-`notifyService.send(...)` call to the requester (line 414) and before the
-"Inform every approver" block (line 416), add:
+`notifyService.send(...)` call to the requester (closing `});` on line 414)
+and before the "Inform every approver" block (line 415), add:
 
 ```ts
       // Sync approved time-off to Google Calendar
@@ -212,11 +212,11 @@ Inside the `if (allResolved)` block (line 405), after the
       }
 ```
 
-### 4c. Trigger on auto-approve in `submitRequest` (after line 305)
+### 4c. Trigger on auto-approve in `submitRequest` (after line 306)
 
 Inside the `if (!hasHr && !teamLeaderId && !groupLeaderId)` block
-(line 302), after the `ctx.db.timeOffRequest.update(...)` call (line 303-306),
-add the same Google Calendar sync:
+(line 302), after the `ctx.db.timeOffRequest.update(...)` call (closing
+`});` on line 306), add the same Google Calendar sync:
 
 ```ts
       // Sync auto-approved time-off to Google Calendar
@@ -346,9 +346,9 @@ Verify schema and configuration:
 |---|---|
 | `package.json` | Add `googleapis` dependency |
 | `prisma/schema.prisma` | Add `googleCalendarEventId String?` to TimeOffRequest (after line 218) |
-| `src/server/routers/timeoff.ts` | Import channel + call on approval (lines 6, 305, 414) |
+| `src/server/routers/timeoff.ts` | Import channel + call on approval (lines 6, 306, 414) |
 | `.env.example` | Add `GOOGLE_SERVICE_ACCOUNT_KEY` and `GOOGLE_CALENDAR_ID` (after line 21) |
-| `scripts/pull-secrets.sh` | Pull new secrets from AWS Secrets Manager (after line 22 and line 48) |
+| `scripts/pull-secrets.sh` | Pull new secrets from AWS Secrets Manager (after line 25 and line 53) |
 
 ---
 
