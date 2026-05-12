@@ -34,12 +34,19 @@ Everything runs on a single **t3.micro EC2** via Docker Compose:
 - **File upload validation** — 10MB limit, MIME type whitelist
 - **Slack message escaping** — prevents mrkdwn injection
 
+- **Field-level encryption** — AES-256-GCM for nationalId, passportNumber, bankAccount. Key in Secrets Manager (`FIELD_ENCRYPTION_KEY`)
+- **Password policy** — min 8 chars + uppercase + number + special character, enforced frontend and backend
+- **Security headers** — HSTS, X-Frame-Options DENY, nosniff, strict referrer, permissions policy
+- **Error boundaries** — graceful fallback UI for unhandled React errors (error.tsx, global-error.tsx)
+- **Env validation** — required env vars validated at startup via instrumentation hook, fails fast with clear message
+- **Access control** — updatePersonalInfo/updateWorkInfo require self or admin, getById strips PII for non-admin/non-self, document.list restricted to own docs, survey results HR-only, expense approve/reject HR-only, onboarding mutations HR-only
+- **CSRF hardening** — httpOnly, sameSite=lax, secure + __Secure- prefix in production
+
 ### Remaining (Nice-to-Have)
-- **Field-level encryption** for PII (national ID, bank details) — adds complexity, consider if compliance requires it
 - **Audit logging** for sensitive actions (role changes, salary edits, data exports)
-- **Stronger password policy** — currently 8 char minimum, could add complexity requirements
-- **Account lockout** after repeated failed logins
+- **Account lockout** after repeated failed logins per account
 - **Remove demo credentials** from login page before go-live
+- **Remove `SLACK_TEST_EMAIL`** from production `.env`
 
 ## Roles & Permissions
 
