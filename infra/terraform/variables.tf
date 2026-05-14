@@ -68,6 +68,13 @@ variable "repo_branch" {
   default     = "main"
 }
 
+variable "ec2_ssh_private_key" {
+  description = "EC2 SSH private key contents (PEM). Stored in Secrets Manager as backup."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "github_repo" {
   description = "GitHub repo in owner/name format for OIDC trust (e.g. DoriKafri/dHiBob)."
   type        = string

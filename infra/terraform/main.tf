@@ -236,6 +236,17 @@ resource "aws_secretsmanager_secret" "app" {
   recovery_window_in_days = 7
 }
 
+resource "aws_secretsmanager_secret" "ec2_ssh_key" {
+  name                    = "${var.project}/ec2-ssh-key"
+  description             = "EC2 SSH private key for ${var.project} (backup)"
+  recovery_window_in_days = 7
+}
+
+resource "aws_secretsmanager_secret_version" "ec2_ssh_key" {
+  secret_id     = aws_secretsmanager_secret.ec2_ssh_key.id
+  secret_string = var.ec2_ssh_private_key
+}
+
 resource "aws_secretsmanager_secret_version" "app" {
   secret_id = aws_secretsmanager_secret.app.id
   secret_string = jsonencode({
