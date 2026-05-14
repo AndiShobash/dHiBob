@@ -6,7 +6,7 @@ set -euo pipefail
 APP_DIR=/home/ec2-user/dhibob
 SECRET_ARN="dhibob/app-secrets"
 AWS_REGION="us-east-1"
-SITE_DOMAIN="3-221-137-207.nip.io"
+SITE_DOMAIN="dpeople.develeap.com"
 S3_BUCKET="dhibob-prod-uploads"
 
 SECRETS_JSON=$(aws secretsmanager get-secret-value \

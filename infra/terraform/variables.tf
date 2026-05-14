@@ -77,5 +77,5 @@ variable "github_repo" {
 variable "cors_allowed_origins" {
   description = "Origins allowed to make cross-origin GET requests to the S3 uploads bucket (for PDF viewer)."
   type        = list(string)
-  default     = ["https://3-221-137-207.nip.io"]
+  default     = ["https://dpeople.develeap.com", "https://3-221-137-207.nip.io"]
 }
