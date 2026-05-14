@@ -59,7 +59,7 @@ variable "site_domain_override" {
 variable "repo_url" {
   description = "Git URL cloned on the EC2 to get docker-compose.prod.yml, Caddyfile, prisma/, etc."
   type        = string
-  default     = "https://github.com/AndiShobash/dHiBob.git"
+  default     = "https://github.com/develeap/dpeople.git"
 }
 
 variable "repo_branch" {
@@ -76,9 +76,9 @@ variable "ec2_ssh_private_key" {
 }
 
 variable "github_repo" {
-  description = "GitHub repo in owner/name format for OIDC trust (e.g. DoriKafri/dHiBob)."
+  description = "GitHub repo in owner/name format for OIDC trust (e.g. develeap/dpeople)."
   type        = string
-  default     = "AndiShobash/dHiBob"
+  default     = "develeap/dpeople"
 }
 
 variable "cors_allowed_origins" {
