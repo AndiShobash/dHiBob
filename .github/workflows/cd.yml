@@ -51,6 +51,9 @@ jobs:
             cd ~/dhibob
             git pull --ff-only origin main
 
+            # Keep pull-secrets.sh in sync with repo
+            cp scripts/pull-secrets.sh ~/pull-secrets.sh
+
             # Refresh .env from Secrets Manager
             ~/pull-secrets.sh
 
