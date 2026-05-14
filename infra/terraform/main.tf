@@ -245,6 +245,10 @@ resource "aws_secretsmanager_secret" "ec2_ssh_key" {
 resource "aws_secretsmanager_secret_version" "ec2_ssh_key" {
   secret_id     = aws_secretsmanager_secret.ec2_ssh_key.id
   secret_string = var.ec2_ssh_private_key
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
 }
 
 resource "aws_secretsmanager_secret_version" "app" {
